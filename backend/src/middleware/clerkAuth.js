@@ -1,4 +1,3 @@
-// middleware/clerkAuth.js
 import { clerkClient } from '@clerk/clerk-sdk-node';
 
 export const requireAuth = async (req, res, next) => {
