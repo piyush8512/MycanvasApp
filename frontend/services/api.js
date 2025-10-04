@@ -8,7 +8,7 @@ export const syncUserWithBackend = async (getToken) => {
     }
 
     // IMPORTANT: Replace with your actual backend URL
-    const backendUrl = "http://192.168.1.33:3000/api/v1/users/sync";
+    const backendUrl = "http://localhost:4000/api/me";
 
     await axios.post(
       backendUrl,

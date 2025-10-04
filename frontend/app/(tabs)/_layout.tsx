@@ -142,9 +142,8 @@ export default function TabLayout() {
         const token = await getToken();
         console.log("Clerk token:", token);
 
-        const response = await axios.post(
-          "http://192.168.1.35:3000/api/sync", // Example IP
-          null,
+        const response = await axios.get(
+          "http://192.168.1.33:4000/api/me", // ✅ Changed port to 4000
           {
             headers: {
               Authorization: `Bearer ${token}`,
