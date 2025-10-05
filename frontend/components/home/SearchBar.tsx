@@ -1,12 +1,9 @@
 import { Search } from "lucide-react-native";
 import { View, TextInput, StyleSheet } from "react-native";
+import React from "react";
+import { SearchBarProps } from "@/types/space";
 
-interface SearchBarProps {
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
-}
-
-export const SearchBar = ({ searchQuery, setSearchQuery }: SearchBarProps) => {
+export const SearchBar = ({ value, onChangeText }: SearchBarProps) => {
   return (
     <View style={styles.searchContainer}>
       <View style={styles.searchBar}>
@@ -14,8 +11,8 @@ export const SearchBar = ({ searchQuery, setSearchQuery }: SearchBarProps) => {
         <TextInput
           style={styles.searchInput}
           placeholder="Search files, canvases..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
+          value={value}
+          onChangeText={onChangeText}
           placeholderTextColor="#9CA3AF"
         />
       </View>

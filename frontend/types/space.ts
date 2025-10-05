@@ -8,7 +8,7 @@
 //   color: string;
 // }
 
-import { User } from "@clerk/clerk-expo";
+import { useUser } from "@clerk/clerk-expo";
 
 export type SpaceType = 'folder' | 'canvas' | 'file' | 'all';
 
@@ -23,7 +23,7 @@ export interface Space {
 }
 
 export interface HeaderSectionProps {
-  user: User | null | undefined;
+  user: ReturnType<typeof useUser>["user"];
   onNotificationPress: () => Promise<void>;
 }
 

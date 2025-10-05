@@ -3,6 +3,7 @@ import { View, StyleSheet } from "react-native";
 import { SpaceCard } from "./SpaceCard";
 import { Space } from "@/types/space";
 
+
 interface SpacesGridProps {
   spaces: Space[];
 }

@@ -44,7 +44,7 @@ export const FilterTabs = ({
         </Text>
       </TouchableOpacity>
 
-      <View style={styles.headerActions}>
+      {/* <View style={styles.headerActions}>
         <TouchableOpacity
           style={styles.actionIcon}
           onPress={onCreateFolder}
@@ -57,7 +57,7 @@ export const FilterTabs = ({
         >
           <FileText size={16} color="#00BCD4" />
         </TouchableOpacity>
-      </View>
+      </View> */}
     </View>
   );
 };

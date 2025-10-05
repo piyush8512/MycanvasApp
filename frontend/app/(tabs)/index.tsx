@@ -3,6 +3,7 @@ import { View, ScrollView, StyleSheet } from "react-native";
 import { useAuth, useUser } from "@clerk/clerk-expo";
 import { router } from "expo-router";
 
+
 // Components
 import { HeaderSection } from "@/components/home/HeaderSection";
 import { NotificationBanner } from "@/components/NotificationBanner";
@@ -14,21 +15,15 @@ import { ActionButtonsSection } from "@/components/home/ActionButtonSection";
 // Data
 import { MOCK_SPACES } from "@/constants/mockData";
 
-
-
-
+import { Space, HeaderSectionProps } from "@/types/space";
 
 export default function HomeScreen() {
-  
-
   const [searchQuery, setSearchQuery] = useState("");
   const [showNotification, setShowNotification] = useState(true);
-  const [activeTab, setActiveTab] = useState<'all' | 'folder' | 'file'>('all');
-  
+  const [activeTab, setActiveTab] = useState<"all" | "folder" | "file">("all");
+
   const { getToken } = useAuth();
   const { user } = useUser();
-
-
 
   const handleCreateFolder = () => {
     // Implement folder creation logic
@@ -44,36 +39,29 @@ export default function HomeScreen() {
     alert("JWT has been printed to your console!");
   };
 
-  const filteredSpaces = MOCK_SPACES.filter(space => {
-    if (activeTab !== 'all' && space.type !== activeTab) return false;
+  const filteredSpaces = MOCK_SPACES.filter((space) => {
+    if (activeTab !== "all" && space.type !== activeTab) return false;
     if (searchQuery) {
       return space.name.toLowerCase().includes(searchQuery.toLowerCase());
     }
     return true;
   });
-  
 
   return (
     <View style={styles.container}>
-      <HeaderSection 
-        user={user} 
-        onNotificationPress={handleLogToken} 
-      />
+      <HeaderSection user={user} onNotificationPress={handleLogToken} />
 
-      {showNotification && (
+      {/* {showNotification && (
         <NotificationBanner
           message="Piyush added a new YouTube link"
           onClose={() => setShowNotification(false)}
         />
-      )}
+      )} */}
 
-      <ScrollView 
-        style={styles.content} 
-        showsVerticalScrollIndicator={false}
-      >
-        <SearchBar 
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <SearchBar
           value={searchQuery}
-          onChangeText={setSearchQuery}
+          onChangeText={(text: string) => setSearchQuery(text)}
         />
 
         <FilterTabs
@@ -83,9 +71,7 @@ export default function HomeScreen() {
           onCreateCanvas={handleCreateCanvas}
         />
 
-        <SpacesGrid 
-          spaces={filteredSpaces}
-        />
+        <SpacesGrid spaces={filteredSpaces} />
       </ScrollView>
 
       <ActionButtonsSection
