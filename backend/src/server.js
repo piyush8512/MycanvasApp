@@ -359,10 +359,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import { clerkClient } from '@clerk/clerk-sdk-node';
-import prisma from "./config/prisma.js";
-import { requireAuth, optionalAuth } from "./middleware/clerkAuth.js";
-import userRoutes from "./Routes/user.routes.js";
+import userRoutes from "./routes/user.routes.js";
 
 dotenv.config();
 

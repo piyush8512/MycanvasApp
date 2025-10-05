@@ -1,6 +1,6 @@
 import { Router } from "express";
 const router = Router();
-import { healthCheck , testconnection , getOrCreateCurrentUser, testCreateUser, updateUserProfile} from "../controllers/user.controller";
+import { healthCheck , testconnection , getOrCreateCurrentUser, testCreateUser, updateUserProfile} from "../controllers/user.controller.js";
 import { requireAuth } from "../middleware/clerkAuth.js";
 
 
@@ -11,6 +11,7 @@ router.route('/test-connection').get(testconnection);
 router.route('/me').get(requireAuth, getOrCreateCurrentUser);
 router.route('/update-profile').get(requireAuth, updateUserProfile);
 router.route('/test-create-user').post(testCreateUser);
+export default router;
 
 
 

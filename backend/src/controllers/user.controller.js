@@ -1,4 +1,8 @@
 
+import prisma from "../config/prisma.js";
+import { clerkClient } from '@clerk/clerk-sdk-node';
+
+
 export const healthCheck = (req, res) => {  
     res.json({ 
     status: "OK", 
