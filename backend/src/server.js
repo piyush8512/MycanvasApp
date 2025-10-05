@@ -360,6 +360,9 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import userRoutes from "./routes/user.routes.js";
+import folderRoutes from "./routes/folder.routes.js";
+import { requireAuth } from "./middleware/clerkAuth.js";
+
 
 dotenv.config();
 
@@ -373,6 +376,10 @@ app.use(express.json());
 
 
 app.use("/api/users", userRoutes);
+app.use("/api/folders",folderRoutes);
+app.use("/api/canvases", userRoutes);
+app.use("/api/shared",userRoutes);
+
 
 
 

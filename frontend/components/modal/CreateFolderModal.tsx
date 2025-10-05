@@ -154,6 +154,7 @@ import {
   Keyboard,
 } from "react-native";
 import { FolderOpen, Star, Users, Lock } from "lucide-react-native";
+import { useFolders } from "@/hooks/useFolders";
 
 interface CreateFolderModalProps {
   visible: boolean;
@@ -170,6 +171,7 @@ export const CreateFolderModal = ({
   const [isStarred, setIsStarred] = useState(false);
   const [collaborators, setCollaborators] = useState<string[]>([]);
   const [modalVisible, setModalVisible] = useState(visible);
+  const [loading, setLoading] = useState(false);
   const slideAnim = useRef(new Animated.Value(0)).current;
 
   const panResponder = useRef(
@@ -224,13 +226,24 @@ export const CreateFolderModal = ({
     });
   };
 
-  const handleSubmit = () => {
+  const { createFolder } = useFolders();
+
+  const handleSubmit = async () => {
     if (folderName.trim()) {
-      onSubmit(folderName.trim(), isStarred, collaborators);
-      setFolderName("");
-      setIsStarred(false);
-      setCollaborators([]);
-      onClose();
+      try {
+        setLoading(true);
+        const folder = await createFolder(folderName.trim(), isStarred);
+        onSubmit(folder.name, isStarred, collaborators);
+        setFolderName("");
+        setIsStarred(false);
+        setCollaborators([]);
+        onClose();
+      } catch (error) {
+        // Handle error (maybe show an alert or error message)
+        console.error("Failed to create folder:", error);
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -328,10 +341,16 @@ export const CreateFolderModal = ({
                     <Text style={styles.cancelButtonText}>Cancel</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={styles.createButton}
+                    style={[
+                      styles.createButton,
+                      loading && styles.disabledButton,
+                    ]}
                     onPress={handleSubmit}
+                    disabled={loading}
                   >
-                    <Text style={styles.createButtonText}>Create</Text>
+                    <Text style={styles.createButtonText}>
+                      {loading ? "Creating..." : "Create"}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -465,5 +484,8 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "500",
+  },
+  disabledButton: {
+    opacity: 0.5,
   },
 });
