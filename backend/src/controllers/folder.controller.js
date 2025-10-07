@@ -96,7 +96,18 @@ export const createFolder = async (req, res) => {
 // ============================================
 export const getAllFolders = async (req, res) => {
   try {
+    // Check if auth exists
+    if (!req.auth || !req.auth.userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+        error: 'No user ID found in request'
+      });
+    }
+
     const userId = req.auth.userId;
+
+    // Get user from database
     const dbUser = await prisma.user.findUnique({
       where: { clerkId: userId }
     });
@@ -104,29 +115,34 @@ export const getAllFolders = async (req, res) => {
     if (!dbUser) {
       return res.status(404).json({
         success: false,
-        message: "User not found"
+        message: 'User not found'
       });
     }
 
+    // Get all folders for the user
     const folders = await prisma.folder.findMany({
       where: {
         OR: [
-          { ownerId: dbUser.id }, // Folders user owns
-          { 
-            collaborators: { 
-              some: { userId: dbUser.id } 
-            } 
+          { ownerId: dbUser.id },
+          {
+            collaborators: {
+              some: {
+                userId: dbUser.id
+              }
+            }
           }
         ]
       },
       include: {
-        _count: {
+        owner: {
           select: {
-            files: true
+            id: true,
+            name: true,
+            email: true
           }
         },
         collaborators: {
-          include: {
+          select: {
             user: {
               select: {
                 id: true,
@@ -135,35 +151,13 @@ export const getAllFolders = async (req, res) => {
               }
             }
           }
-        },
-        owner: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
         }
-      },
-      orderBy: { updatedAt: 'desc' }
+      }
     });
-
-    // Transform data for frontend
-    const transformedFolders = folders.map(folder => ({
-      id: folder.id,
-      name: folder.name,
-      isShared: folder.isShared,
-      items: folder._count.files,
-      owner: folder.owner,
-      collaborators: folder.collaborators.map(c => c.user),
-      createdAt: folder.createdAt,
-      updatedAt: folder.updatedAt,
-      isOwner: folder.ownerId === dbUser.id
-    }));
 
     res.json({
       success: true,
-      count: transformedFolders.length,
-      folders: transformedFolders
+      folders
     });
   } catch (error) {
     console.error('Get folders error:', error);

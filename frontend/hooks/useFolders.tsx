@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { useAuth } from '@clerk/clerk-expo';
-import { folderService } from '@/services/folderService';
+import { useState } from "react";
+import { useAuth } from "@clerk/clerk-expo";
+import { folderService } from "@/services/folderService";
 
 export const useFolders = () => {
   const [loading, setLoading] = useState(false);
@@ -12,16 +12,17 @@ export const useFolders = () => {
     setError(null);
     try {
       const token = await getToken();
-      if (!token) throw new Error('No authentication token');
+      if (!token) throw new Error("No authentication token");
 
       const result = await folderService.createFolder(
         { name, isStarred },
         token
       );
-      console.log('Folder created:', result);
+      console.log("Folder created:", result);
       return result.folder;
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to create folder';
+      const message =
+        err instanceof Error ? err.message : "Failed to create folder";
       setError(message);
       throw err;
     } finally {
@@ -29,8 +30,28 @@ export const useFolders = () => {
     }
   };
 
+  const getAllFolders = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = await getToken();
+      if (!token) {
+        throw new Error("No authentication token available");
+      }
+
+      const response = await folderService.getFolders(token);
+      return response.folders;
+    } catch (error) {
+      console.error("Get folders error:", error);
+      throw new Error("Failed to fetch folders");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     createFolder,
+    getAllFolders,
     loading,
     error,
   };

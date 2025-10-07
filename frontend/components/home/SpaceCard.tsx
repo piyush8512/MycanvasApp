@@ -11,6 +11,7 @@ import { UserAvatarGroup } from "@/components/UserAvatarGroup";
 
 interface SpaceCardProps {
   space: Space;
+
 }
 
 export const SpaceCard = ({ space }: SpaceCardProps) => {
@@ -47,7 +48,9 @@ export const SpaceCard = ({ space }: SpaceCardProps) => {
       </View>
 
       <View style={styles.itemFooter}>
+        {/* <UserAvatarGroup users={space.collaborators} size={16} maxVisible={5} /> */}
         <UserAvatarGroup users={space.collaborators} size={16} maxVisible={5} />
+        
       </View>
     </TouchableOpacity>
   );

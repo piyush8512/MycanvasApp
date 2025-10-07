@@ -1,142 +1,3 @@
-// import React, { useState } from 'react';
-// import {
-//   Modal,
-//   View,
-//   Text,
-//   TextInput,
-//   TouchableOpacity,
-//   StyleSheet
-// } from 'react-native';
-// import { FolderOpen, X } from 'lucide-react-native';
-
-// interface CreateFolderModalProps {
-//   visible: boolean;
-//   onClose: () => void;
-//   onSubmit: (name: string) => void;
-// }
-
-// export const CreateFolderModal = ({
-//   visible,
-//   onClose,
-//   onSubmit
-// }: CreateFolderModalProps) => {
-//   const [folderName, setFolderName] = useState('');
-
-//   const handleSubmit = () => {
-//     if (folderName.trim()) {
-//       onSubmit(folderName.trim());
-//       setFolderName('');
-//       onClose();
-//     }
-//   };
-
-//   return (
-//     <Modal
-//       visible={visible}
-//       transparent
-//       animationType="fade"
-//       onRequestClose={onClose}
-//     >
-//       <View style={styles.overlay}>
-//         <View style={styles.modalContainer}>
-//           <View style={styles.header}>
-//             <FolderOpen size={24} color="#4F46E5" />
-//             <Text style={styles.title}>Create New Folder</Text>
-//             <TouchableOpacity onPress={onClose}>
-//               <X size={24} color="#6B7280" />
-//             </TouchableOpacity>
-//           </View>
-
-//           <TextInput
-//             style={styles.input}
-//             placeholder="Folder name"
-//             value={folderName}
-//             onChangeText={setFolderName}
-//             autoFocus
-//           />
-
-//           <View style={styles.buttonContainer}>
-//             <TouchableOpacity
-//               style={styles.cancelButton}
-//               onPress={onClose}
-//             >
-//               <Text style={styles.cancelButtonText}>Cancel</Text>
-//             </TouchableOpacity>
-//             <TouchableOpacity
-//               style={styles.createButton}
-//               onPress={handleSubmit}
-//             >
-//               <Text style={styles.createButtonText}>Create</Text>
-//             </TouchableOpacity>
-//           </View>
-//         </View>
-//       </View>
-//     </Modal>
-//   );
-// };
-
-// export const styles = StyleSheet.create({
-//   overlay: {
-//     flex: 1,
-//     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-//     justifyContent: 'center',
-//     alignItems: 'center',
-//   },
-//   modalContainer: {
-//     backgroundColor: 'white',
-//     borderRadius: 12,
-//     padding: 20,
-//     width: '90%',
-//     maxWidth: 400,
-//   },
-//   header: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     marginBottom: 20,
-//   },
-//   title: {
-//     fontSize: 18,
-//     fontWeight: '600',
-//     color: '#1F2937',
-//     flex: 1,
-//     marginLeft: 12,
-//   },
-//   input: {
-//     borderWidth: 1,
-//     borderColor: '#E5E7EB',
-//     borderRadius: 8,
-//     padding: 12,
-//     fontSize: 16,
-//     marginBottom: 20,
-//   },
-//   buttonContainer: {
-//     flexDirection: 'row',
-//     justifyContent: 'flex-end',
-//     gap: 12,
-//   },
-//   cancelButton: {
-//     paddingVertical: 8,
-//     paddingHorizontal: 16,
-//     borderRadius: 6,
-//   },
-//   createButton: {
-//     backgroundColor: '#00BCD4',
-//     paddingVertical: 8,
-//     paddingHorizontal: 16,
-//     borderRadius: 6,
-//   },
-//   cancelButtonText: {
-//     color: '#6B7280',
-//     fontSize: 16,
-//     fontWeight: '500',
-//   },
-//   createButtonText: {
-//     color: 'white',
-//     fontSize: 16,
-//     fontWeight: '500',
-//   },
-// });
-
 import React, { useState, useEffect, useRef } from "react";
 import {
   Modal,
@@ -233,7 +94,9 @@ export const CreateFolderModal = ({
       try {
         setLoading(true);
         const folder = await createFolder(folderName.trim(), isStarred);
+        console.log("Folder created:", folder);
         onSubmit(folder.name, isStarred, collaborators);
+        setModalVisible(false);
         setFolderName("");
         setIsStarred(false);
         setCollaborators([]);
@@ -243,6 +106,7 @@ export const CreateFolderModal = ({
         console.error("Failed to create folder:", error);
       } finally {
         setLoading(false);
+        setModalVisible(false);
       }
     }
   };
