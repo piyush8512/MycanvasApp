@@ -54,4 +54,27 @@ export const folderService = {
       throw error;
     }
   },
+
+  //get folder by id
+  async getFolderById(folderId: string, token: string) {
+    try {
+      const response = await axios.get(
+        `http://192.168.1.33:4000/api/folders/${folderId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        }
+      );
+
+      console.log('Folder response:', response.data);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.error('Axios error:', error.response?.data);
+        throw new Error(error.response?.data?.message || 'Failed to fetch folder');
+      }
+      throw error;
+    }
+  }
 };

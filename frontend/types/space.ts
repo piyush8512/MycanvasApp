@@ -43,6 +43,7 @@ export interface Space {
   type: 'folder' | 'file' | 'canvas';
   updatedAt: string;
   isShared: boolean;
+  owner:{}
  
   
 

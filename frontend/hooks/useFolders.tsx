@@ -49,9 +49,29 @@ export const useFolders = () => {
     }
   };
 
+  //get folder by id
+  const getFolderById = async (folderId: string, token: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = await getToken();
+      if (!token) {
+        throw new Error("No authentication token available");
+      }
+      const response = await folderService.getFolderById(folderId, token);
+      return response.folder;
+    } catch (error) {
+      console.error("Get folder by ID error:", error);
+      throw new Error("Failed to fetch folder details");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     createFolder,
     getAllFolders,
+    getFolderById,
     loading,
     error,
   };

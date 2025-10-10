@@ -11,18 +11,38 @@ import { UserAvatarGroup } from "@/components/UserAvatarGroup";
 
 interface SpaceCardProps {
   space: Space;
-
+  onPress?: () => void;
 }
 
-export const SpaceCard = ({ space }: SpaceCardProps) => {
+export const SpaceCard = ({ space, onPress }: SpaceCardProps) => {
   const Icon = space.type === "folder" ? FolderOpen : FileText;
 
   const handlePress = () => {
-    if (space.type === "canvas") {
-      router.push(`/canvas/${space.id}`);
-    } else {
-      //   router.push(`/folder/${space.id}`);
+    if (onPress) {
+      onPress();
+      return;
     }
+
+    // Fix the navigation paths to match Expo Router's requirements
+    if (space.type === "canvas") {
+      router.push({
+        pathname: "/canvas/[id]",
+        params: { id: space.id },
+      });
+    } else if (space.type === "folder") {
+      router.push({
+        pathname: "/folder/[id]",
+        params: { id: space.id },
+      });
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
   };
 
   return (
@@ -42,15 +62,19 @@ export const SpaceCard = ({ space }: SpaceCardProps) => {
 
       <View style={styles.footer}>
         <Text style={styles.details}>
-          {space.type === "folder" ? `${space.items} items` : "Canvas"}
-          {" • "}updated {space.updatedAt}
+          {space.type === "folder" ? `${space.items || 0} items` : "Canvas"}
+          {" • "} updated {formatDate(space.updatedAt)}
         </Text>
       </View>
 
       <View style={styles.itemFooter}>
-        {/* <UserAvatarGroup users={space.collaborators} size={16} maxVisible={5} /> */}
         <UserAvatarGroup users={space.collaborators} size={16} maxVisible={5} />
-        
+        {space.collaborators.length > 0 && (
+          <View style={styles.commentsBadge}>
+            <MessageSquare size={12} color="#FFFFFF" />
+            <Text style={styles.commentsCount}>{space.collaborators}</Text>
+          </View>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -121,4 +145,3 @@ const styles = StyleSheet.create({
     gap: 2,
   },
 });
-    

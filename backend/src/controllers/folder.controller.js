@@ -169,9 +169,8 @@ export const getAllFolders = async (req, res) => {
   }
 };
 
-// ============================================
-// GET FOLDER BY ID
-// ============================================
+
+//get folder by id
 export const getFolderById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -270,411 +269,411 @@ export const getFolderById = async (req, res) => {
 // ============================================
 // UPDATE FOLDER
 // ============================================
-export const updateFolder = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userId = req.auth.userId;
-    const { name } = req.body;
+// export const updateFolder = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const userId = req.auth.userId;
+//     const { name } = req.body;
 
-    // Get user from database
-    const dbUser = await prisma.user.findUnique({
-      where: { clerkId: userId }
-    });
+//     // Get user from database
+//     const dbUser = await prisma.user.findUnique({
+//       where: { clerkId: userId }
+//     });
 
-    if (!dbUser) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
+//     if (!dbUser) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'User not found'
+//       });
+//     }
 
-    // Check if folder exists and user has access
-    const existingFolder = await prisma.folder.findUnique({
-      where: { id },
-      include: {
-        collaborators: true
-      }
-    });
+//     // Check if folder exists and user has access
+//     const existingFolder = await prisma.folder.findUnique({
+//       where: { id },
+//       include: {
+//         collaborators: true
+//       }
+//     });
 
-    if (!existingFolder) {
-      return res.status(404).json({
-        success: false,
-        message: 'Folder not found'
-      });
-    }
+//     if (!existingFolder) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'Folder not found'
+//       });
+//     }
 
-    // Check permissions (owner or editor)
-    const isOwner = existingFolder.ownerId === dbUser.id;
-    const isEditor = existingFolder.collaborators.some(
-      c => c.userId === dbUser.id && c.role === 'EDITOR'
-    );
+//     // Check permissions (owner or editor)
+//     const isOwner = existingFolder.ownerId === dbUser.id;
+//     const isEditor = existingFolder.collaborators.some(
+//       c => c.userId === dbUser.id && c.role === 'EDITOR'
+//     );
 
-    if (!isOwner && !isEditor) {
-      return res.status(403).json({
-        success: false,
-        message: 'You do not have permission to update this folder'
-      });
-    }
+//     if (!isOwner && !isEditor) {
+//       return res.status(403).json({
+//         success: false,
+//         message: 'You do not have permission to update this folder'
+//       });
+//     }
 
-    // Update folder and log activity
-    const result = await prisma.$transaction(async (tx) => {
-      const updatedFolder = await tx.folder.update({
-        where: { id },
-        data: {
-          ...(name && { name: name.trim() })
-        },
-        include: {
-          owner: {
-            select: {
-              id: true,
-              name: true,
-              email: true
-            }
-          }
-        }
-      });
+//     // Update folder and log activity
+//     const result = await prisma.$transaction(async (tx) => {
+//       const updatedFolder = await tx.folder.update({
+//         where: { id },
+//         data: {
+//           ...(name && { name: name.trim() })
+//         },
+//         include: {
+//           owner: {
+//             select: {
+//               id: true,
+//               name: true,
+//               email: true
+//             }
+//           }
+//         }
+//       });
 
-      // Log activity
-      await tx.activity.create({
-        data: {
-          userId: dbUser.id,
-          action: 'UPDATED',
-          itemType: 'FOLDER',
-          itemId: updatedFolder.id,
-          itemName: updatedFolder.name,
-          folderId: updatedFolder.id,
-          description: `Updated folder "${updatedFolder.name}"`
-        }
-      });
+//       // Log activity
+//       await tx.activity.create({
+//         data: {
+//           userId: dbUser.id,
+//           action: 'UPDATED',
+//           itemType: 'FOLDER',
+//           itemId: updatedFolder.id,
+//           itemName: updatedFolder.name,
+//           folderId: updatedFolder.id,
+//           description: `Updated folder "${updatedFolder.name}"`
+//         }
+//       });
 
-      return updatedFolder;
-    });
+//       return updatedFolder;
+//     });
 
-    res.json({
-      success: true,
-      message: 'Folder updated successfully',
-      folder: result
-    });
-  } catch (error) {
-    console.error('Update folder error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to update folder',
-      error: error.message
-    });
-  }
-};
+//     res.json({
+//       success: true,
+//       message: 'Folder updated successfully',
+//       folder: result
+//     });
+//   } catch (error) {
+//     console.error('Update folder error:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Failed to update folder',
+//       error: error.message
+//     });
+//   }
+// };
 
 // ============================================
 // DELETE FOLDER
 // ============================================
-export const deleteFolder = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userId = req.auth.userId;
+// export const deleteFolder = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const userId = req.auth.userId;
 
-    // Get user from database
-    const dbUser = await prisma.user.findUnique({
-      where: { clerkId: userId }
-    });
+//     // Get user from database
+//     const dbUser = await prisma.user.findUnique({
+//       where: { clerkId: userId }
+//     });
 
-    if (!dbUser) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
+//     if (!dbUser) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'User not found'
+//       });
+//     }
 
-    // Check if folder exists
-    const folder = await prisma.folder.findUnique({
-      where: { id },
-      include: {
-        _count: {
-          select: {
-            files: true
-          }
-        }
-      }
-    });
+//     // Check if folder exists
+//     const folder = await prisma.folder.findUnique({
+//       where: { id },
+//       include: {
+//         _count: {
+//           select: {
+//             files: true
+//           }
+//         }
+//       }
+//     });
 
-    if (!folder) {
-      return res.status(404).json({
-        success: false,
-        message: 'Folder not found'
-      });
-    }
+//     if (!folder) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'Folder not found'
+//       });
+//     }
 
-    // Only owner can delete
-    if (folder.ownerId !== dbUser.id) {
-      return res.status(403).json({
-        success: false,
-        message: 'Only the owner can delete this folder'
-      });
-    }
+//     // Only owner can delete
+//     if (folder.ownerId !== dbUser.id) {
+//       return res.status(403).json({
+//         success: false,
+//         message: 'Only the owner can delete this folder'
+//       });
+//     }
 
-    // Delete folder (cascades to files, collaborators, etc.)
-    await prisma.$transaction(async (tx) => {
-      // Log activity before deletion
-      await tx.activity.create({
-        data: {
-          userId: dbUser.id,
-          action: 'DELETED',
-          itemType: 'FOLDER',
-          itemId: folder.id,
-          itemName: folder.name,
-          description: `Deleted folder "${folder.name}"`
-        }
-      });
+//     // Delete folder (cascades to files, collaborators, etc.)
+//     await prisma.$transaction(async (tx) => {
+//       // Log activity before deletion
+//       await tx.activity.create({
+//         data: {
+//           userId: dbUser.id,
+//           action: 'DELETED',
+//           itemType: 'FOLDER',
+//           itemId: folder.id,
+//           itemName: folder.name,
+//           description: `Deleted folder "${folder.name}"`
+//         }
+//       });
 
-      // Delete folder
-      await tx.folder.delete({
-        where: { id }
-      });
-    });
+//       // Delete folder
+//       await tx.folder.delete({
+//         where: { id }
+//       });
+//     });
 
-    res.json({
-      success: true,
-      message: 'Folder deleted successfully'
-    });
-  } catch (error) {
-    console.error('Delete folder error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to delete folder',
-      error: error.message
-    });
-  }
-};
+//     res.json({
+//       success: true,
+//       message: 'Folder deleted successfully'
+//     });
+//   } catch (error) {
+//     console.error('Delete folder error:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Failed to delete folder',
+//       error: error.message
+//     });
+//   }
+// };
 
 // ============================================
 // SHARE FOLDER
 // ============================================
-export const shareFolder = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userId = req.auth.userId;
-    const { collaboratorEmail, role = 'VIEWER' } = req.body;
+// export const shareFolder = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const userId = req.auth.userId;
+//     const { collaboratorEmail, role = 'VIEWER' } = req.body;
 
-    if (!collaboratorEmail) {
-      return res.status(400).json({
-        success: false,
-        message: 'Collaborator email is required'
-      });
-    }
+//     if (!collaboratorEmail) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Collaborator email is required'
+//       });
+//     }
 
-    // Get user from database
-    const dbUser = await prisma.user.findUnique({
-      where: { clerkId: userId }
-    });
+//     // Get user from database
+//     const dbUser = await prisma.user.findUnique({
+//       where: { clerkId: userId }
+//     });
 
-    if (!dbUser) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
+//     if (!dbUser) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'User not found'
+//       });
+//     }
 
-    // Check if folder exists and user is owner
-    const folder = await prisma.folder.findUnique({
-      where: { id }
-    });
+//     // Check if folder exists and user is owner
+//     const folder = await prisma.folder.findUnique({
+//       where: { id }
+//     });
 
-    if (!folder) {
-      return res.status(404).json({
-        success: false,
-        message: 'Folder not found'
-      });
-    }
+//     if (!folder) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'Folder not found'
+//       });
+//     }
 
-    if (folder.ownerId !== dbUser.id) {
-      return res.status(403).json({
-        success: false,
-        message: 'Only the owner can share this folder'
-      });
-    }
+//     if (folder.ownerId !== dbUser.id) {
+//       return res.status(403).json({
+//         success: false,
+//         message: 'Only the owner can share this folder'
+//       });
+//     }
 
-    // Find user to share with
-    const collaboratorUser = await prisma.user.findUnique({
-      where: { email: collaboratorEmail }
-    });
+//     // Find user to share with
+//     const collaboratorUser = await prisma.user.findUnique({
+//       where: { email: collaboratorEmail }
+//     });
 
-    if (!collaboratorUser) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found with that email'
-      });
-    }
+//     if (!collaboratorUser) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'User not found with that email'
+//       });
+//     }
 
-    // Can't share with yourself
-    if (collaboratorUser.id === dbUser.id) {
-      return res.status(400).json({
-        success: false,
-        message: 'You cannot share with yourself'
-      });
-    }
+//     // Can't share with yourself
+//     if (collaboratorUser.id === dbUser.id) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'You cannot share with yourself'
+//       });
+//     }
 
-    // Check if already shared
-    const existingCollaboration = await prisma.folderCollaborator.findFirst({
-      where: {
-        folderId: id,
-        userId: collaboratorUser.id
-      }
-    });
+//     // Check if already shared
+//     const existingCollaboration = await prisma.folderCollaborator.findFirst({
+//       where: {
+//         folderId: id,
+//         userId: collaboratorUser.id
+//       }
+//     });
 
-    if (existingCollaboration) {
-      return res.status(400).json({
-        success: false,
-        message: 'Folder is already shared with this user'
-      });
-    }
+//     if (existingCollaboration) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Folder is already shared with this user'
+//       });
+//     }
 
-    // Share folder
-    const result = await prisma.$transaction(async (tx) => {
-      // Create collaboration
-      const collaboration = await tx.folderCollaborator.create({
-        data: {
-          folderId: id,
-          userId: collaboratorUser.id,
-          role
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true
-            }
-          }
-        }
-      });
+//     // Share folder
+//     const result = await prisma.$transaction(async (tx) => {
+//       // Create collaboration
+//       const collaboration = await tx.folderCollaborator.create({
+//         data: {
+//           folderId: id,
+//           userId: collaboratorUser.id,
+//           role
+//         },
+//         include: {
+//           user: {
+//             select: {
+//               id: true,
+//               name: true,
+//               email: true
+//             }
+//           }
+//         }
+//       });
 
-      // Create shared item record
-      await tx.sharedItem.create({
-        data: {
-          userId: collaboratorUser.id,
-          folderId: id,
-          sharedBy: dbUser.id
-        }
-      });
+//       // Create shared item record
+//       await tx.sharedItem.create({
+//         data: {
+//           userId: collaboratorUser.id,
+//           folderId: id,
+//           sharedBy: dbUser.id
+//         }
+//       });
 
-      // Update folder isShared flag
-      await tx.folder.update({
-        where: { id },
-        data: { isShared: true }
-      });
+//       // Update folder isShared flag
+//       await tx.folder.update({
+//         where: { id },
+//         data: { isShared: true }
+//       });
 
-      // Log activity
-      await tx.activity.create({
-        data: {
-          userId: dbUser.id,
-          action: 'SHARED',
-          itemType: 'FOLDER',
-          itemId: id,
-          itemName: folder.name,
-          folderId: id,
-          description: `Shared folder "${folder.name}" with ${collaboratorUser.email}`
-        }
-      });
+//       // Log activity
+//       await tx.activity.create({
+//         data: {
+//           userId: dbUser.id,
+//           action: 'SHARED',
+//           itemType: 'FOLDER',
+//           itemId: id,
+//           itemName: folder.name,
+//           folderId: id,
+//           description: `Shared folder "${folder.name}" with ${collaboratorUser.email}`
+//         }
+//       });
 
-      return collaboration;
-    });
+//       return collaboration;
+//     });
 
-    res.json({
-      success: true,
-      message: 'Folder shared successfully',
-      collaboration: result
-    });
-  } catch (error) {
-    console.error('Share folder error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to share folder',
-      error: error.message
-    });
-  }
-};
+//     res.json({
+//       success: true,
+//       message: 'Folder shared successfully',
+//       collaboration: result
+//     });
+//   } catch (error) {
+//     console.error('Share folder error:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Failed to share folder',
+//       error: error.message
+//     });
+//   }
+// };
 
 // ============================================
 // REMOVE COLLABORATOR
 // ============================================
-export const removeCollaborator = async (req, res) => {
-  try {
-    const { id, collaboratorId } = req.params;
-    const userId = req.auth.userId;
+// export const removeCollaborator = async (req, res) => {
+//   try {
+//     const { id, collaboratorId } = req.params;
+//     const userId = req.auth.userId;
 
-    // Get user from database
-    const dbUser = await prisma.user.findUnique({
-      where: { clerkId: userId }
-    });
+//     // Get user from database
+//     const dbUser = await prisma.user.findUnique({
+//       where: { clerkId: userId }
+//     });
 
-    if (!dbUser) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
+//     if (!dbUser) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'User not found'
+//       });
+//     }
 
-    // Check if folder exists and user is owner
-    const folder = await prisma.folder.findUnique({
-      where: { id }
-    });
+//     // Check if folder exists and user is owner
+//     const folder = await prisma.folder.findUnique({
+//       where: { id }
+//     });
 
-    if (!folder) {
-      return res.status(404).json({
-        success: false,
-        message: 'Folder not found'
-      });
-    }
+//     if (!folder) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'Folder not found'
+//       });
+//     }
 
-    if (folder.ownerId !== dbUser.id) {
-      return res.status(403).json({
-        success: false,
-        message: 'Only the owner can remove collaborators'
-      });
-    }
+//     if (folder.ownerId !== dbUser.id) {
+//       return res.status(403).json({
+//         success: false,
+//         message: 'Only the owner can remove collaborators'
+//       });
+//     }
 
-    // Remove collaborator
-    await prisma.$transaction(async (tx) => {
-      // Delete collaboration
-      await tx.folderCollaborator.deleteMany({
-        where: {
-          folderId: id,
-          userId: collaboratorId
-        }
-      });
+//     // Remove collaborator
+//     await prisma.$transaction(async (tx) => {
+//       // Delete collaboration
+//       await tx.folderCollaborator.deleteMany({
+//         where: {
+//           folderId: id,
+//           userId: collaboratorId
+//         }
+//       });
 
-      // Delete shared item
-      await tx.sharedItem.deleteMany({
-        where: {
-          folderId: id,
-          userId: collaboratorId
-        }
-      });
+//       // Delete shared item
+//       await tx.sharedItem.deleteMany({
+//         where: {
+//           folderId: id,
+//           userId: collaboratorId
+//         }
+//       });
 
-      // Check if folder still has other collaborators
-      const remainingCollaborators = await tx.folderCollaborator.count({
-        where: { folderId: id }
-      });
+//       // Check if folder still has other collaborators
+//       const remainingCollaborators = await tx.folderCollaborator.count({
+//         where: { folderId: id }
+//       });
 
-      // Update isShared flag if no more collaborators
-      if (remainingCollaborators === 0) {
-        await tx.folder.update({
-          where: { id },
-          data: { isShared: false }
-        });
-      }
-    });
+//       // Update isShared flag if no more collaborators
+//       if (remainingCollaborators === 0) {
+//         await tx.folder.update({
+//           where: { id },
+//           data: { isShared: false }
+//         });
+//       }
+//     });
 
-    res.json({
-      success: true,
-      message: 'Collaborator removed successfully'
-    });
-  } catch (error) {
-    console.error('Remove collaborator error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to remove collaborator',
-      error: error.message
-    });
-  }
-};
+//     res.json({
+//       success: true,
+//       message: 'Collaborator removed successfully'
+//     });
+//   } catch (error) {
+//     console.error('Remove collaborator error:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Failed to remove collaborator',
+//       error: error.message
+//     });
+//   }
+// };
