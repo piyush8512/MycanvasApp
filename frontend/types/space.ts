@@ -70,6 +70,31 @@ export interface Space {
 
 }
 
+export interface canvaitems {
+  id: string;
+  title: string;
+  name: string;
+  content?: string;
+  note?: string;
+  collaborators: string[]; 
+  color?: string;
+  position: { x: number; y: number };
+  
+  url: string;
+  size: {
+    width: number;
+    height: number;
+  };
+  videoId?: string;
+  type: 'youtube' | 'image' | 'text' | 'drawing' | 'pdf' | 'link' | 'note' | 'folder';
+  createdAt: string;
+  updatedAt: string;
+  canvasId: string;
+}
+
+
+
+
 export interface HeaderSectionProps {
   user: ReturnType<typeof useUser>["user"];
   onNotificationPress: () => Promise<void>;
@@ -90,3 +115,15 @@ export interface FilterTabsProps {
 export interface SpacesGridProps {
   spaces: Space[];
 }
+
+
+export interface LinkItem  {
+  type: 'link';
+  url: string;
+  title?: string;
+  description?: string;
+  image?: string;
+  name: string;
+}
+
+

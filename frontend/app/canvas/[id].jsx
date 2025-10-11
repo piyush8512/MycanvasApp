@@ -33,162 +33,18 @@ import {
   View,
 } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import YoutubePlayer from "react-native-youtube-iframe";
-
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
-
-// Draggable Card Component
-const DraggableCard = ({
-  item,
-  children,
-  onPositionChange,
-  onDragStart,
-  isCurrentItem,
-}) => {
-  const translateX = useRef(new Animated.Value(item.position.x)).current;
-  const translateY = useRef(new Animated.Value(item.position.y)).current;
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const panResponder = PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: () => true,
-    onPanResponderGrant: () => {
-      // Reset offset values
-      translateX.setOffset(item.position.x);
-      translateY.setOffset(item.position.y);
-      translateX.setValue(0);
-      translateY.setValue(0);
-
-      // Scale up slightly when dragging
-      Animated.spring(scale, {
-        toValue: 1.05,
-        useNativeDriver: true,
-        friction: 3,
-      }).start();
-
-      if (onDragStart) {
-        onDragStart(item.id);
-      }
-    },
-    onPanResponderMove: Animated.event(
-      [null, { dx: translateX, dy: translateY }],
-      { useNativeDriver: false }
-    ),
-    onPanResponderRelease: (_, gesture) => {
-      // Flatten offset and update position
-      const newX = item.position.x + gesture.dx;
-      const newY = item.position.y + gesture.dy;
-
-      translateX.flattenOffset();
-      translateY.flattenOffset();
-
-      // Reset scale
-      Animated.spring(scale, {
-        toValue: 1,
-        useNativeDriver: true,
-        friction: 3,
-      }).start();
-
-      // Update position
-      onPositionChange(item.id, { x: newX, y: newY });
-    },
-  });
-
-  const animatedStyle = {
-    transform: [
-      { translateX: translateX },
-      { translateY: translateY },
-      { scale: scale },
-    ],
-  };
-
-  return (
-    <Animated.View
-      style={[
-        styles.draggableCard,
-        animatedStyle,
-        {
-          left: item.position.x,
-          top: item.position.y,
-          width: item.size.width,
-          height: item.size.height,
-          zIndex: isCurrentItem ? 100 : 10,
-        },
-        isCurrentItem && styles.currentItemCard,
-      ]}
-      {...panResponder.panHandlers}
-    >
-      {children}
-    </Animated.View>
-  );
-};
-
-// YouTube Card Component
-const YoutubeCard = ({ item }) => {
-  const [playing, setPlaying] = useState(false);
-
-  return (
-    <View style={styles.youtubeContainer}>
-      <YoutubePlayer
-        height={item.size.height - 60}
-        width={item.size.width}
-        play={playing}
-        videoId={item.videoId || "dQw4w9WgXcQ"}
-        webViewProps={{
-          allowsInlineMediaPlayback: true,
-          allowsFullscreenVideo: true,
-          mediaPlaybackRequiresUserAction: false,
-        }}
-        initialPlayerParams={{
-          controls: true,
-          modestbranding: true,
-          showClosedCaptions: false,
-          rel: false,
-        }}
-        onChangeState={(state) => {
-          setPlaying(state === "playing");
-        }}
-      />
-      <View style={styles.youtubeFooter}>
-        <Text style={styles.youtubeText}>YouTube</Text>
-      </View>
-    </View>
-  );
-};
-
-// Link Preview Card Component
-const LinkPreviewCard = ({ item }) => {
-  const handlePress = () => {
-    Linking.openURL(item.url);
-  };
-
-  return (
-    <TouchableOpacity onPress={handlePress} style={styles.linkContainer}>
-      <View style={styles.linkImageContainer}>
-        <Link size={24} color="#3B82F6" />
-      </View>
-      <View style={styles.linkContent}>
-        <Text style={styles.linkTitle} numberOfLines={2}>
-          {item.name}
-        </Text>
-        <Text style={styles.linkUrl} numberOfLines={1}>
-          {item.url}
-        </Text>
-      </View>
-      <ExternalLink size={16} color="#64748B" style={styles.linkIcon} />
-    </TouchableOpacity>
-  );
-};
+import DraggableCard from "@/components/canvas/DraggableCard";
+import LiveChatModal from "@/components/canvas/LiveChat/LiveChatModal";
+import renderCardContent from "@/components/canvas/renderCardContent";
 
 export default function CanvasScreen() {
-  const [message, setMessage] = useState("");
   const [selectedTool, setSelectedTool] = useState("Select");
   const [showLiveChat, setShowLiveChat] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [editingNote, setEditingNote] = useState(null);
   const [noteContent, setNoteContent] = useState("");
-  const [expandedFolders, setExpandedFolders] = useState({});
   const [currentItemId, setCurrentItemId] = useState(null);
 
   // Animation values for zoom and pan
@@ -266,45 +122,7 @@ export default function CanvasScreen() {
       color: "#BFDBFE", // Blue for links
     },
   ]);
-
-  const liveChat = [
-    {
-      id: "1",
-      user: "Maya",
-      avatar: "MY",
-      message: "Hey team, moving the PDF closer to the video.",
-      time: "1m ago",
-      color: "#10B981",
-      isOnline: true,
-    },
-    {
-      id: "2",
-      user: "Jamie",
-      avatar: "JM",
-      message: "Perfect! Great I'll add the Tweet reference too.",
-      time: "30s ago",
-      color: "#3B82F6",
-      isOnline: true,
-    },
-    {
-      id: "3",
-      user: "Sam",
-      avatar: "SM",
-      message: "Can someone check the grid alignment?",
-      time: "10s ago",
-      color: "#F59E0B",
-      isOnline: false,
-    },
-  ];
-
   const tools = ["Select", "Pan", "Add"];
-
-  const handleSendMessage = () => {
-    if (message.trim()) {
-      Alert.alert("Message Sent", message);
-      setMessage("");
-    }
-  };
 
   // Pan responder for handling canvas gestures
   const panResponder = PanResponder.create({
@@ -412,18 +230,6 @@ export default function CanvasScreen() {
     }
   };
 
-  const toggleFolder = (folderId) => {
-    setExpandedFolders((prev) => ({
-      ...prev,
-      [folderId]: !prev[folderId],
-    }));
-  };
-
-  const startEditingNote = (note) => {
-    setEditingNote(note.id);
-    setNoteContent(note.content || "");
-  };
-
   const saveNote = () => {
     setCanvasItems((items) =>
       items.map((item) =>
@@ -442,72 +248,6 @@ export default function CanvasScreen() {
 
   const handleDragStart = (id) => {
     setCurrentItemId(id);
-  };
-
-  const renderCardContent = (item) => {
-    switch (item.type) {
-      case "youtube":
-        return <YoutubeCard item={item} />;
-
-      case "link":
-        return <LinkPreviewCard item={item} />;
-
-      case "pdf":
-        return (
-          <View style={styles.pdfPreview}>
-            <FileText size={32} color="#EF4444" />
-            <Text style={styles.pdfText}>{item.name}</Text>
-            <TouchableOpacity
-              style={styles.openButton}
-              onPress={() => Linking.openURL(item.url)}
-            >
-              <Text style={styles.openButtonText}>Open PDF</Text>
-            </TouchableOpacity>
-          </View>
-        );
-
-      case "note":
-        return (
-          <TouchableOpacity
-            style={styles.noteContent}
-            onPress={() => startEditingNote(item)}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.noteText}>{item.content}</Text>
-          </TouchableOpacity>
-        );
-
-      case "folder":
-        return (
-          <TouchableOpacity
-            style={styles.folderContent}
-            onPress={() => toggleFolder(item.id)}
-          >
-            <Folder size={24} color="#6B7280" />
-            <Text style={styles.folderText}>{item.name}</Text>
-            <Text style={styles.folderToggle}>
-              {expandedFolders[item.id] ? "▼" : "►"}
-            </Text>
-          </TouchableOpacity>
-        );
-
-      case "image":
-        return (
-          <Image
-            source={{ uri: item.url }}
-            style={styles.imagePreview}
-            resizeMode="cover"
-          />
-        );
-
-      default:
-        return (
-          <View style={styles.defaultContent}>
-            <FileText size={32} color="#6B7280" />
-            <Text style={styles.defaultText}>{item.name}</Text>
-          </View>
-        );
-    }
   };
 
   const renderCanvasItem = (item) => {
@@ -740,59 +480,12 @@ export default function CanvasScreen() {
       </TouchableOpacity>
 
       {/* Live Chat Modal */}
+      {/* Live Chat Modal - Only render when showLiveChat is true */}
       {showLiveChat && (
-        <View style={styles.chatModal}>
-          <View style={styles.chatHeader}>
-            <View style={styles.liveChatTitle}>
-              <MessageSquare size={16} color="#10B981" />
-              <Text style={styles.chatTitle}>Live chat</Text>
-              <View style={styles.onlineBadge}>
-                <Text style={styles.onlineCount}>4 online</Text>
-              </View>
-            </View>
-            <TouchableOpacity onPress={() => setShowLiveChat(false)}>
-              <Text style={styles.hideButton}>Hide</Text>
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView
-            style={styles.chatMessages}
-            showsVerticalScrollIndicator={false}
-          >
-            {liveChat.map((chat) => (
-              <View key={chat.id} style={styles.chatItem}>
-                <View style={styles.chatItemHeader}>
-                  <View
-                    style={[styles.chatAvatar, { backgroundColor: chat.color }]}
-                  >
-                    <Text style={styles.chatAvatarText}>{chat.avatar}</Text>
-                  </View>
-                  <Text style={styles.chatUser}>{chat.user}</Text>
-                  {chat.isOnline && <View style={styles.onlineIndicator} />}
-                </View>
-                <View style={styles.chatBubble}>
-                  <Text style={styles.chatText}>{chat.message}</Text>
-                </View>
-              </View>
-            ))}
-          </ScrollView>
-
-          <View style={styles.messageInput}>
-            <TextInput
-              style={styles.messageTextInput}
-              placeholder="Message..."
-              value={message}
-              onChangeText={setMessage}
-              placeholderTextColor="#9CA3AF"
-            />
-            <TouchableOpacity
-              style={styles.sendButton}
-              onPress={handleSendMessage}
-            >
-              <Send size={16} color="#FFFFFF" />
-            </TouchableOpacity>
-          </View>
-        </View>
+        <LiveChatModal
+          visible={showLiveChat}
+          onClose={() => setShowLiveChat(false)}
+        />
       )}
     </GestureHandlerRootView>
   );
@@ -932,7 +625,7 @@ const styles = StyleSheet.create({
   },
   canvasContainer: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#1984efff",
     overflow: "hidden",
   },
   canvas: {
@@ -940,9 +633,9 @@ const styles = StyleSheet.create({
   },
   gridBackground: {
     position: "absolute",
-    width: screenWidth * 3,
-    height: screenHeight * 3,
-    backgroundColor: "#FFFFFF",
+    width: screenHeight * 12,
+    height: screenHeight * 12,
+    backgroundColor: "#e60b0bff",
     backgroundImage: "radial-gradient(#E5E7EB 1px, transparent 1px)",
     backgroundSize: "20px 20px",
   },
@@ -1206,110 +899,5 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 16,
     elevation: 16,
-  },
-  chatHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
-  },
-  liveChatTitle: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  chatTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#1F2937",
-  },
-  onlineBadge: {
-    backgroundColor: "#10B981",
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  onlineCount: {
-    fontSize: 12,
-    fontWeight: "500",
-    color: "#FFFFFF",
-  },
-  hideButton: {
-    fontSize: 14,
-    color: "#6B7280",
-  },
-  chatMessages: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
-  chatItem: {
-    paddingVertical: 8,
-  },
-  chatItemHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 4,
-    gap: 8,
-  },
-  chatAvatar: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  chatAvatarText: {
-    fontSize: 10,
-    fontWeight: "600",
-    color: "#FFFFFF",
-  },
-  chatUser: {
-    fontSize: 12,
-    fontWeight: "500",
-    color: "#1F2937",
-  },
-  onlineIndicator: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#10B981",
-  },
-  chatBubble: {
-    backgroundColor: "#00BCD4",
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    alignSelf: "flex-start",
-    maxWidth: "80%",
-  },
-  chatText: {
-    fontSize: 14,
-    color: "#FFFFFF",
-  },
-  messageInput: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: "#E5E7EB",
-    gap: 8,
-  },
-  messageTextInput: {
-    flex: 1,
-    backgroundColor: "#F3F4F6",
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    fontSize: 14,
-    color: "#1F2937",
-  },
-  sendButton: {
-    backgroundColor: "#00BCD4",
-    borderRadius: 20,
-    padding: 8,
   },
 });
