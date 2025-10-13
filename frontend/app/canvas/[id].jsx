@@ -136,6 +136,7 @@ export default function CanvasScreen() {
 
 const styles = StyleSheet.create({
   container: {
+    paddingTop: 40,
     flex: 1,
     backgroundColor: "#F8FAFC",
   },

@@ -116,7 +116,7 @@
 //                 isShared: false,
 //                 owner: { id: '1', name: 'You', email: '' },
 //                 collaborators: [],
-//                 color: '#00BCD4',
+//                 color: '#8B5CF6',
 //               }}
 //               onPress={() => handleItemPress(item)}
 //             />
@@ -152,6 +152,7 @@ import { FolderItem, Breadcrumb } from "@/types/folder";
 import { HeaderSection } from "@/components/home/HeaderSection";
 import { useUser, useAuth } from "@clerk/clerk-expo";
 import { useFolders } from "@/hooks/useFolders";
+import { ActionButtonsSection } from "@/components/home/ActionButtonSection";
 
 export default function FolderScreen() {
   const { id } = useLocalSearchParams();
@@ -242,13 +243,16 @@ export default function FolderScreen() {
       router.push(`/folder/${breadcrumbId}`);
     }
   };
+  const handleCreateCanvas = () => {
+    router.push("/canvas/new");
+  };
 
   if (loading) {
     return (
       <View style={styles.container}>
         <HeaderSection user={user} onNotificationPress={handleLogToken} />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#00BCD4" />
+          <ActivityIndicator size="large" color="#8B5CF6" />
         </View>
       </View>
     );
@@ -258,7 +262,11 @@ export default function FolderScreen() {
     <View style={styles.container}>
       <HeaderSection user={user} onNotificationPress={handleLogToken} />
 
-      <BreadcrumbNav style={styles.breadcrumbNav} items={breadcrumbs} onNavigate={handleBreadcrumbPress} />
+      <BreadcrumbNav
+        style={styles.breadcrumbNav}
+        items={breadcrumbs}
+        onNavigate={handleBreadcrumbPress}
+      />
 
       <FlatList
         data={contents}
@@ -275,13 +283,17 @@ export default function FolderScreen() {
                 isShared: false,
                 owner: { id: "1", name: "You", email: "" },
                 collaborators: [],
-                color: "#00BCD4",
+                color: "#8B5CF6",
               }}
               onPress={() => handleItemPress(item)}
             />
           </View>
         )}
         keyExtractor={(item) => item.id}
+      />
+      <ActionButtonsSection
+        onCreateFolder={() => setShowFolderModal(true)}
+        onCreateCanvas={handleCreateCanvas}
       />
     </View>
   );
@@ -291,7 +303,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F8FAFC",
-    
   },
   loadingContainer: {
     flex: 1,
@@ -306,7 +317,7 @@ const styles = StyleSheet.create({
     padding: 8,
     maxWidth: "50%",
   },
-  breadcrumbNav: { 
-    
-    marginBottom: 2}
+  breadcrumbNav: {
+    marginBottom: 2,
+  },
 });

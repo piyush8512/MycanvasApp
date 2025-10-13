@@ -524,7 +524,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F3F4F6",
   },
   activeToolButton: {
-    backgroundColor: "#00BCD4",
+    backgroundColor: "#8B5CF6",
   },
   toolText: {
     fontSize: 14,
@@ -622,7 +622,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: "#00BCD4",
+    backgroundColor: "#8B5CF6",
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
@@ -732,7 +732,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#10B981",
   },
   chatBubble: {
-    backgroundColor: "#00BCD4",
+    backgroundColor: "#8B5CF6",
     borderRadius: 16,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -762,7 +762,7 @@ const styles = StyleSheet.create({
     color: "#1F2937",
   },
   sendButton: {
-    backgroundColor: "#00BCD4",
+    backgroundColor: "#8B5CF6",
     borderRadius: 20,
     padding: 8,
   },

@@ -19,5 +19,5 @@
     "app/_layout.jsx",
     "app/canvas/[id].jsx",
     "components/canvas/Card"
-, "components/canvas/Modal/AddCard.jsx"  ]
+, "components/canvas/Modal/AddCard.jsx", "app/(tabs)/_layout.tsx", "app/(tabs)/index.tsx"  ]
 }

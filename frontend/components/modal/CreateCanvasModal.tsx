@@ -127,7 +127,7 @@ export const CreateCanvasModal = ({
               />
               <View style={styles.content}>
                 <View style={styles.header}>
-                  <FileText size={24} color="#00BCD4" />
+                  <FileText size={24} color="#8B5CF6" />
                   <Text style={styles.title}>Create New Canvas</Text>
                 </View>
 
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   createButton: {
-    backgroundColor: "#00BCD4",
+    backgroundColor: "#8B5CF6",
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 6,

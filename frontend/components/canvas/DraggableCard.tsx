@@ -99,7 +99,7 @@ export default DraggableCard;
 const styles = StyleSheet.create({
   currentItemCard: {
     borderWidth: 2,
-    borderColor: "#00BCD4",
+    borderColor: "#8B5CF6",
     elevation: 8,
   },
   draggableCard: {

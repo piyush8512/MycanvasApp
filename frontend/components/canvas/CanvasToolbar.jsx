@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F3F4F6",
   },
   activeToolButton: {
-    backgroundColor: "#00BCD4",
+    backgroundColor: "#8B5CF6",
   },
   toolText: {
     fontSize: 14,
@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "#00BCD4",
+    backgroundColor: "#8B5CF6",
     alignItems: "center",
     justifyContent: "center",
     marginLeft: 8,

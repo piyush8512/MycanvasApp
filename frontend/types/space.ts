@@ -67,7 +67,7 @@ export interface Space {
   // not defined in database need to
   color: string;
   items: number;
-
+  createdAt?: string;
 }
 
 export interface canvaitems {

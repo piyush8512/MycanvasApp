@@ -1,6 +1,5 @@
 ///index.ts
 
-
 import React, {
   useState,
   useCallback,
@@ -128,7 +127,7 @@ export default function HomeScreen() {
     return () => {
       loadingRef.current = false;
     };
-  }, [user]); 
+  }, [user]);
 
   // Update filteredSpaces to handle empty spaces array
   const filteredSpaces = useMemo(() => {
@@ -195,13 +194,7 @@ const styles = StyleSheet.create({
   },
 });
 
-
-
-
-
-
 //space.ts
-
 
 // export interface Space {
 //   id: string;
@@ -215,12 +208,12 @@ const styles = StyleSheet.create({
 
 import { useUser } from "@clerk/clerk-expo";
 
-export type SpaceType = 'folder' | 'canvas' | 'file' | 'all';
+export type SpaceType = "folder" | "canvas" | "file" | "all";
 
 export interface Space {
   id: string;
   name: string;
-  type: 'folder' | 'file' | 'canvas';
+  type: "folder" | "file" | "canvas";
   updatedAt: string;
   isShared: boolean;
   owner: {
@@ -258,11 +251,6 @@ export interface SpacesGridProps {
   spaces: Space[];
 }
 
-
-
-
-
-
 //spacegrid.tsx
 import React, { useMemo } from "react";
 import {
@@ -285,7 +273,7 @@ export const SpacesGrid = ({ spaces, isLoading }: SpacesGridProps) => {
     if (isLoading) {
       return (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#00BCD4" />
+          <ActivityIndicator size="large" color="#8B5CF6" />
           <Text style={styles.loadingText}>Loading spaces...</Text>
         </View>
       );
@@ -366,9 +354,6 @@ const styles = StyleSheet.create({
   },
 });
 
-
-
-
 //spacecard.tsx
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
@@ -389,9 +374,9 @@ export const SpaceCard = ({ space }: SpaceCardProps) => {
     >
       <View style={styles.iconContainer}>
         {space.type === "folder" ? (
-          <Folder size={24} color="#00BCD4" />
+          <Folder size={24} color="#8B5CF6" />
         ) : (
-          <File size={24} color="#00BCD4" />
+          <File size={24} color="#8B5CF6" />
         )}
       </View>
       <Text style={styles.name} numberOfLines={2}>
@@ -435,5 +420,3 @@ const styles = StyleSheet.create({
     color: "#6B7280",
   },
 });
-
-

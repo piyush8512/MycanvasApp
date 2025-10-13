@@ -236,7 +236,7 @@
 //     width: 44,
 //     height: 44,
 //     borderRadius: 22,
-//     backgroundColor: "#00BCD4",
+//     backgroundColor: "#8B5CF6",
 //     justifyContent: "center",
 //     alignItems: "center",
 //   },

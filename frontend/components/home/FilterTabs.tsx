@@ -1,46 +1,75 @@
-import React from 'react';
-import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
-import { FolderPlus, FileText } from 'lucide-react-native';
+import React from "react";
+import { View, TouchableOpacity, Text, StyleSheet } from "react-native";
+import { FolderPlus, FileText } from "lucide-react-native";
 
 interface FilterTabsProps {
   onCreateFolder: () => void;
   onCreateCanvas: () => void;
-  activeTab?: 'all' | 'folder' | 'file';
-  onTabChange?: (tab: 'all' | 'folder' | 'file') => void;
+  activeTab?: "all" | "folder" | "file" | "Recent";
+  onTabChange?: (tab: "all" | "folder" | "file" | "Recent") => void;
 }
 
 export const FilterTabs = ({
   onCreateFolder,
   onCreateCanvas,
-  activeTab = 'all',
+  activeTab = "all",
   onTabChange = () => {},
 }: FilterTabsProps) => {
   return (
     <View style={styles.filterTabs}>
-      <TouchableOpacity 
-        style={[styles.filterTab, activeTab === 'all' && styles.activeTab]}
-        onPress={() => onTabChange('all')}
+      <TouchableOpacity
+        style={[styles.filterTab, activeTab === "all" && styles.activeTab]}
+        onPress={() => onTabChange("all")}
       >
-        <Text style={[styles.filterText, activeTab === 'all' && styles.activeFilterText]}>
+        <Text
+          style={[
+            styles.filterText,
+            activeTab === "all" && styles.activeFilterText,
+          ]}
+        >
           All
         </Text>
       </TouchableOpacity>
-      
-      <TouchableOpacity 
-        style={[styles.filterTab, activeTab === 'folder' && styles.activeTab]}
-        onPress={() => onTabChange('folder')}
+
+      <TouchableOpacity
+        style={[styles.filterTab, activeTab === "folder" && styles.activeTab]}
+        onPress={() => onTabChange("folder")}
       >
-        <Text style={[styles.filterText, activeTab === 'folder' && styles.activeFilterText]}>
+        <Text
+          style={[
+            styles.filterText,
+            activeTab === "folder" && styles.activeFilterText,
+          ]}
+        >
           Folder
         </Text>
       </TouchableOpacity>
-      
-      <TouchableOpacity 
-        style={[styles.filterTab, activeTab === 'file' && styles.activeTab]}
-        onPress={() => onTabChange('file')}
+
+      <TouchableOpacity
+        style={[styles.filterTab, activeTab === "file" && styles.activeTab]}
+        onPress={() => onTabChange("file")}
       >
-        <Text style={[styles.filterText, activeTab === 'file' && styles.activeFilterText]}>
+        <Text
+          style={[
+            styles.filterText,
+            activeTab === "file" && styles.activeFilterText,
+          ]}
+        >
           File
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.filterTab, activeTab === "Recent" && styles.activeTab]}
+        onPress={() => onTabChange("Recent")}
+      >
+        <Text
+          style={[
+            styles.filterText,
+            activeTab === "Recent" && styles.activeFilterText,
+          ]}
+        >
+          Recent
         </Text>
       </TouchableOpacity>
 
@@ -49,13 +78,13 @@ export const FilterTabs = ({
           style={styles.actionIcon}
           onPress={onCreateFolder}
         >
-          <FolderPlus size={16} color="#00BCD4" />
+          <FolderPlus size={16} color="#8B5CF6" />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.actionIcon}
           onPress={onCreateCanvas}
         >
-          <FileText size={16} color="#00BCD4" />
+          <FileText size={16} color="#8B5CF6" />
         </TouchableOpacity>
       </View> */}
     </View>
@@ -64,41 +93,42 @@ export const FilterTabs = ({
 
 const styles = StyleSheet.create({
   filterTabs: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
     marginBottom: 14,
+    marginTop: 16,
   },
   filterTab: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: "#E5E7EB",
   },
   activeTab: {
-    backgroundColor: '#00BCD4',
-    borderColor: '#00BCD4',
+    backgroundColor: "#8B5CF6",
+    borderColor: "#8B5CF6",
   },
   filterText: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#6B7280',
+    fontWeight: "500",
+    color: "#6B7280",
   },
   activeFilterText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
   },
   headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   actionIcon: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#F0F9FF',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#F0F9FF",
+    alignItems: "center",
+    justifyContent: "center",
     marginLeft: 8,
   },
 });

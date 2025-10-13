@@ -1,4 +1,3 @@
-
 // import React, { useState } from "react";
 // import {
 //      Alert,
@@ -24,10 +23,9 @@
 //   StickyNote,
 // } from "lucide-react-native";
 
-
 // const ShowLiveChat = ( ) => {
 //     const [showLiveChat, setShowLiveChat] = useState(true);
-//     const [message, setMessage] = useState(""); 
+//     const [message, setMessage] = useState("");
 
 //       const handleSendMessage = () => {
 //         if (message.trim()) {
@@ -65,7 +63,7 @@
 //     },
 //   ];
 //   return (
-  
+
 //      <View style={styles.chatModal}>
 //               <View style={styles.chatHeader}>
 //                 <View style={styles.liveChatTitle}>
@@ -79,7 +77,7 @@
 //                   <Text style={styles.hideButton}>Hide</Text>
 //                 </TouchableOpacity>
 //               </View>
-    
+
 //               <ScrollView
 //                 style={styles.chatMessages}
 //                 showsVerticalScrollIndicator={false}
@@ -101,7 +99,7 @@
 //                   </View>
 //                 ))}
 //               </ScrollView>
-    
+
 //               <View style={styles.messageInput}>
 //                 <TextInput
 //                   style={styles.messageTextInput}
@@ -165,7 +163,7 @@
 //     backgroundColor: "#10B981",
 //   },
 //   chatBubble: {
-//     backgroundColor: "#00BCD4",
+//     backgroundColor: "#8B5CF6",
 //     borderRadius: 16,
 //     paddingHorizontal: 12,
 //     paddingVertical: 8,
@@ -195,11 +193,11 @@
 //     color: "#1F2937",
 //   },
 //   sendButton: {
-//     backgroundColor: "#00BCD4",
+//     backgroundColor: "#8B5CF6",
 //     borderRadius: 20,
 //     padding: 8,
 //   },
-  
+
 //   chatModal: {
 //     position: "absolute",
 //     bottom: 100,
@@ -243,9 +241,8 @@
 //     fontSize: 12,
 //     fontWeight: "500",
 //     color: "#FFFFFF",
-//   },  
+//   },
 // });
-
 
 // src/components/canvas/LiveChat/LiveChatUI.js
 
@@ -295,7 +292,9 @@ const ShowLiveChat = ({ messages, onSendMessage }: LiveChatUIProps) => {
         {messages.map((chat) => (
           <View key={chat.id} style={styles.chatItem}>
             <View style={styles.chatItemHeader}>
-              <View style={[styles.chatAvatar, { backgroundColor: chat.color }]}>
+              <View
+                style={[styles.chatAvatar, { backgroundColor: chat.color }]}
+              >
                 <Text style={styles.chatAvatarText}>{chat.avatar}</Text>
               </View>
               <Text style={styles.chatUser}>{chat.user}</Text>
@@ -394,7 +393,7 @@ const styles = StyleSheet.create({
     color: "#1F2937",
   },
   sendButton: {
-    backgroundColor: "#00BCD4",
+    backgroundColor: "#8B5CF6",
     borderRadius: 20,
     padding: 8,
   },

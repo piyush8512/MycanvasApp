@@ -9,6 +9,7 @@ import {
   Shield,
   User,
 } from "lucide-react-native";
+import { MotiView } from "moti";
 import React from "react";
 import {
   Alert,
@@ -242,7 +243,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: "#00BCD4",
+    backgroundColor: "#8B5CF6",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
@@ -287,7 +288,7 @@ const styles = StyleSheet.create({
   inviteButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: "#00BCD4",
+    backgroundColor: "#8B5CF6",
     borderRadius: 16,
   },
   inviteText: {
@@ -316,7 +317,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     paddingVertical: 16,
-    backgroundColor: "#00BCD4",
+    backgroundColor: "#8B5CF6",
     borderRadius: 12,
   },
   statNumber: {

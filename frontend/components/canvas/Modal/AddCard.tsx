@@ -11,7 +11,6 @@
 
 // type CardType = "link" | "pdf" | "note" | "folder" | "image" | "youtube";
 
-
 //   const [canvasItems, setCanvasItems] = useState([
 //     {
 //       id: "1",
@@ -182,7 +181,7 @@
 //     width: 32,
 //     height: 32,
 //     borderRadius: 16,
-//     backgroundColor: "#00BCD4",
+//     backgroundColor: "#8B5CF6",
 //     alignItems: "center",
 //     justifyContent: "center",
 //     marginLeft: 9,

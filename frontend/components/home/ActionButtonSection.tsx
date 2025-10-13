@@ -128,8 +128,8 @@ export const ActionButtonsSection = ({
 const styles = StyleSheet.create({
   container: {
     position: "absolute",
-    bottom: 24,
-    right: 24,
+    bottom: 120,
+    right: 35,
     alignItems: "center",
     zIndex: 999,
   },
@@ -155,13 +155,13 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   mainButton: {
-    backgroundColor: "#00BCD4",
+    backgroundColor: "#8B5CF6",
     zIndex: 999,
   },
   primaryButton: {
     backgroundColor: "#4F46E5",
   },
   secondaryButton: {
-    backgroundColor: "#00BCD4",
+    backgroundColor: "#8B5CF6",
   },
 });

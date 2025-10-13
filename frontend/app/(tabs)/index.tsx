@@ -20,6 +20,9 @@ import { SpacesGrid } from "@/components/home/SpacesGrid";
 import { ActionButtonsSection } from "@/components/home/ActionButtonSection";
 import { CreateFolderModal } from "@/components/modal/CreateFolderModal";
 
+import { StatusBar } from "expo-status-bar";
+import { useIsFocused } from "@react-navigation/native";
+
 // Data
 // import { MOCK_SPACES } from "@/constants/mockData";
 
@@ -29,7 +32,9 @@ import { get } from "react-native/Libraries/TurboModule/TurboModuleRegistry";
 export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showNotification, setShowNotification] = useState(true);
-  const [activeTab, setActiveTab] = useState<"all" | "folder" | "file">("all");
+  const [activeTab, setActiveTab] = useState<
+    "all" | "folder" | "file" | "Recent"
+  >("all");
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [spaces, setSpaces] = useState<Space[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -145,10 +150,10 @@ export default function HomeScreen() {
       )} */}
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <SearchBar
+        {/* <SearchBar
           value={searchQuery}
           onChangeText={(text: string) => setSearchQuery(text)}
-        />
+        /> */}
 
         <FilterTabs
           activeTab={activeTab}
