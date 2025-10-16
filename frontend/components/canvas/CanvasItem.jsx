@@ -1,6 +1,6 @@
 import React from "react";
 import { View, StyleSheet } from "react-native";
-import DraggableCard from "./DraggableCard";
+import DraggableCard from "./DraggableCard.jsx";
 import CardWrapper from "@/components/canvas/Card/CardWrapper";
 import CardHeader from "@/components/canvas/Card/CardHeader";
 import CardFooter from "@/components/canvas/Card/CardFooter";

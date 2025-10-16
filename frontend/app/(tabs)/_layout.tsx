@@ -149,7 +149,7 @@ export default function TabLayout() {
         console.log("Clerk token:", token);
 
         const response = await axios.get(
-          "http://192.168.1.33:4000/api/users/me",
+          "http://192.168.1.40:4000/api/users/me",
           {
             headers: { Authorization: `Bearer ${token}` },
           }

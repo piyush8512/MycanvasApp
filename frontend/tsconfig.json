@@ -18,6 +18,11 @@
     "app/(auth)/_layout.jsx",
     "app/_layout.jsx",
     "app/canvas/[id].jsx",
-    "components/canvas/Card"
-, "components/canvas/Modal/AddCard.jsx", "app/(tabs)/_layout.tsx", "app/(tabs)/index.tsx"  ]
+    "components/canvas/Card",
+    "components/canvas/Modal/AddCard.jsx",
+    "app/(tabs)/_layout.tsx",
+    "app/(tabs)/index.tsx",
+    "utils/linkDetector.ts",
+    "components/canvas/DraggableCard.jsx"
+  ]
 }

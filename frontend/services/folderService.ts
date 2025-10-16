@@ -11,7 +11,7 @@ export const folderService = {
   async createFolder(data: CreateFolderData, token: string) {
     try {
       const response = await axios.post(
-        'http://192.168.1.33:4000/api/folders',
+        'http://192.168.1.40:4000/api/folders',
         data,
         {
           headers: {
@@ -36,7 +36,7 @@ export const folderService = {
   async getFolders(token: string) {
     try {
       const response = await axios.get(
-        'http://192.168.1.33:4000/api/folders',
+        'http://192.168.1.40:4000/api/folders',
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -59,7 +59,7 @@ export const folderService = {
   async getFolderById(folderId: string, token: string) {
     try {
       const response = await axios.get(
-        `http://192.168.1.33:4000/api/folders/${folderId}`,
+        `http://192.168.1.40:4000/api/folders/${folderId}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
