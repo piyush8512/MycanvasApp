@@ -149,7 +149,7 @@ export default function TabLayout() {
         console.log("Clerk token:", token);
 
         const response = await axios.get(
-          "http://192.168.1.40:4000/api/users/me",
+          "http://192.168.1.33:4000/api/users/me",
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -241,9 +241,9 @@ export default function TabLayout() {
 
       {/* 👥 Shared */}
       <Tabs.Screen
-        name="shared"
+        name="Friends"
         options={{
-          title: "Shared",
+          title: "Friends",
           tabBarIcon: ({ focused }) => (
             <TabIcon
               focused={focused}
@@ -305,8 +305,6 @@ function TabIcon({ focused, icon }: { focused: boolean; icon: ReactElement }) {
             padding: 20,
             // paddingBottom: 12,
             borderRadius: 60,
-          
-           
           }}
         >
           {icon}

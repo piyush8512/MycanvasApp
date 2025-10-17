@@ -41,8 +41,8 @@ export default function ZoomSlider({
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 100,
-    right: 20,
+    bottom: 600,
+    right: 0,
     zIndex: 50,
   },
   zoomContainer: {

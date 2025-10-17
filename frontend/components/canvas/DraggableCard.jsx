@@ -107,7 +107,7 @@
 //   },
 // });
 
-// seonc cloaud code
+//
 import React, { useRef } from "react";
 import { Animated, PanResponder } from "react-native";
 
