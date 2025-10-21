@@ -11,7 +11,7 @@ export default function RootLayout() {
       <SafeScreen>
         {/* Purple background behind header */}
         <View style={{ flex: 1, backgroundColor: "#7C3AED" }}>
-          <StatusBar style="light" translucent backgroundColor="transparent" />
+          <StatusBar style="dark" translucent backgroundColor="transparent" />
           <Slot />
         </View>
       </SafeScreen>

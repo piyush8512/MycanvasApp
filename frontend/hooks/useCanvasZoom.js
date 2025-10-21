@@ -57,7 +57,7 @@ export function useCanvasZoom() {
   };
 
   const handleZoomOut = () => {
-    const newScale = Math.max(0.3, zoomLevel - 0.2);
+    const newScale = Math.max(0.4, zoomLevel - 0.2);
     Animated.spring(scale, {
       toValue: newScale,
       useNativeDriver: true,
