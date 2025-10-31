@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { createFolder, getAllFolders, getFolderById } from "../controllers/folder.controller.js";
+import { createFolder, getAllFolders, getFolderById, deleteFolderById, updateFolder } from "../controllers/folder.controller.js";
 import { requireAuth } from "../middleware/clerkAuth.js";
 
 const router = Router();
@@ -7,8 +7,8 @@ const router = Router();
 router.route('/').post(requireAuth, createFolder); //Create a new folder in a canvas
 router.route('/').get(requireAuth,getAllFolders); // Get all user's folders
 router.route('/:id').get(requireAuth,getFolderById);/// get folderdetails by id
-// router.route('/:id').put(testCreateUser); //Rename folder or change position
-// router.route('/:id').delete(testCreateUser); //Delete folder and contained items
+router.route('/:id').put(requireAuth,updateFolder); //Rename folder or change position
+router.route('/:id').delete(requireAuth,deleteFolderById); //Delete folder and contained items
 
 // router.route('/:id/share').post(sharefolder); // Share folder with user
 // router.route('/:id/collaborators/:collaboratorId').delete(folderController.removeCollaborator);

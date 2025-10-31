@@ -11,7 +11,7 @@ export const folderService = {
   async createFolder(data: CreateFolderData, token: string) {
     try {
       const response = await axios.post(
-        'http://192.168.1.33:4000/api/folders',
+        `${API_URL}/api/folders`,
         data,
         {
           headers: {
@@ -36,7 +36,7 @@ export const folderService = {
   async getFolders(token: string) {
     try {
       const response = await axios.get(
-        'http://192.168.1.33:4000/api/folders',
+        `${API_URL}/api/folders`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -59,7 +59,7 @@ export const folderService = {
   async getFolderById(folderId: string, token: string) {
     try {
       const response = await axios.get(
-        `http://192.168.1.33:4000/api/folders/${folderId}`,
+        `${API_URL}/api/folders/${folderId}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -73,6 +73,51 @@ export const folderService = {
       if (axios.isAxiosError(error)) {
         console.error('Axios error:', error.response?.data);
         throw new Error(error.response?.data?.message || 'Failed to fetch folder');
+      }
+      throw error;
+    }
+  },
+  //delete folder
+  async deleteFolder(folderId: string, token: string) {
+    try {
+      const response = await axios.delete(
+        `${API_URL}/api/folders/${folderId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        }
+      );
+      console.log('Folder response:', response.data);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.error('Axios error:', error.response?.data);
+        throw new Error(error.response?.data?.message || 'Failed to delete folder');
+      }
+      throw error;
+    }
+  },
+
+  // update folder
+  async updateFolder(folderId: string, data: any, token: string) {
+    try {
+      const response = await axios.put(
+        `${API_URL}/api/folders/${folderId}`,
+        data,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        }
+      );
+      console.log('Folder response:', response.data);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.error('Axios error:', error.response?.data);
+        throw new Error(error.response?.data?.message || 'Failed to update folder');
       }
       throw error;
     }

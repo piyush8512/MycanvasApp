@@ -68,10 +68,48 @@ export const useFolders = () => {
     }
   };
 
+  const deleteFolderById = async (folderId: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = await getToken();
+      if (!token) {
+        throw new Error("No authentication token available");
+      }
+      const response = await folderService.deleteFolder(folderId, token);
+      return response.folder;
+    } catch (error) {
+      console.error("Delete folder by ID error:", error);
+      throw new Error("Failed to delete folder");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateFolder = async (folderId: string, data: any) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = await getToken();
+      if (!token) {
+        throw new Error("No authentication token available");
+      }
+      const response = await folderService.updateFolder(folderId, data, token);
+      return response.folder;
+    } catch (error) {
+      console.error("Update folder by ID error:", error);
+      throw new Error("Failed to update folder");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     createFolder,
     getAllFolders,
     getFolderById,
+    deleteFolderById,
+    updateFolder,
     loading,
     error,
   };

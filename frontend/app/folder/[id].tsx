@@ -160,7 +160,7 @@ export default function FolderScreen() {
   const { getFolderById } = useFolders();
   const { user } = useUser();
   const { getToken } = useAuth();
-
+  const folderId = typeof id === "string" ? id : id?.[0];
   const [contents, setContents] = useState<FolderItem[]>([]);
   const [breadcrumbs, setBreadcrumbs] = useState<Breadcrumb[]>([
     { id: "root", name: "Home" },
@@ -282,7 +282,7 @@ export default function FolderScreen() {
                 updatedAt: item.updatedAt,
                 isShared: false,
                 owner: { id: "1", name: "You", email: "" },
-                collaborators: [],
+                collaborators: ["user1", "user2", "user3"],
                 color: "#8B5CF6",
               }}
               onPress={() => handleItemPress(item)}
@@ -294,6 +294,7 @@ export default function FolderScreen() {
       <ActionButtonsSection
         onCreateFolder={() => setShowFolderModal(true)}
         onCreateCanvas={handleCreateCanvas}
+        folderId={folderId}
       />
     </View>
   );

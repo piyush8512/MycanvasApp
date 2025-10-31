@@ -1,3 +1,203 @@
+// import React, {
+//   useState,
+//   useCallback,
+//   useRef,
+//   useEffect,
+//   useMemo,
+// } from "react";
+// import { View, ScrollView, StyleSheet, RefreshControl } from "react-native";
+// import { useAuth, useUser } from "@clerk/clerk-expo";
+// import { router } from "expo-router";
+
+// import { FolderResponse, Space } from "@/types/space";
+// import { useFolders } from "@/hooks/useFolders";
+// import { useCanvas } from "@/hooks/useCanvas";
+
+// import { HeaderSection } from "@/components/home/HeaderSection";
+// import { SearchBar } from "@/components/home/SearchBar";
+// import { FilterTabs } from "@/components/home/FilterTabs";
+// import { SpacesGrid } from "@/components/home/SpacesGrid";
+// import { ActionButtonsSection } from "@/components/home/ActionButtonSection";
+// import { CreateFolderModal } from "@/components/modal/CreateFolderModal";
+
+// export default function HomeScreen() {
+//   const [searchQuery, setSearchQuery] = useState("");
+//   const [activeTab, setActiveTab] = useState<
+//     "all" | "folder" | "file" | "Recent"
+//   >("all");
+//   const [showFolderModal, setShowFolderModal] = useState(false);
+//   const [spaces, setSpaces] = useState<Space[]>([]);
+//   const [isLoading, setIsLoading] = useState(true);
+//   const [initialDataLoaded, setInitialDataLoaded] = useState(false);
+//   const [refreshing, setRefreshing] = useState(false);
+
+//   const { getToken } = useAuth();
+//   const { user } = useUser();
+//   const { createFolder, getAllFolders, deleteFolderById } = useFolders();
+//   const { getAllCanvas } = useCanvas();
+
+//   const loadingRef = useRef(false);
+
+//   const fetchSpaces = useCallback(
+//     async (isManualRefresh = false) => {
+//       if (loadingRef.current) return;
+//       loadingRef.current = true;
+
+//       if (!isManualRefresh) {
+//         setIsLoading(true);
+//       }
+
+//       try {
+//         const token = await getToken();
+//         if (!token) return;
+
+//         const response = await getAllFolders();
+
+//         if (Array.isArray(response)) {
+//           const mappedFolders: Space[] = response.map(
+//             (folder: FolderResponse) => ({
+//               id: folder.id,
+//               name: folder.name,
+//               type: "folder",
+//               updatedAt: folder.updatedAt,
+//               isShared: folder.isShared,
+//               owner: folder.owner,
+//               collaborators: ["user1", "user2", "user3"],
+//               items: 5,
+//               color: folder.color || "#17f389ff",
+//             })
+//           );
+//           setSpaces(mappedFolders);
+//         } else {
+//           console.error("Invalid folder response format:", response);
+//         }
+//       } catch (error) {
+//         console.error("Failed to load folders:", error);
+//       } finally {
+//         setIsLoading(false);
+//         setRefreshing(false);
+//         loadingRef.current = false;
+//       }
+//     },
+//     [getToken, getAllFolders]
+//   );
+
+//   const onRefresh = useCallback(() => {
+//     setRefreshing(true);
+//     fetchSpaces(true);
+//   }, [fetchSpaces]);
+
+//   const handleCreateFolder = useCallback(
+//     async (name: string, isStarred: boolean) => {
+//       try {
+//         await createFolder(name, isStarred);
+//         await fetchSpaces();
+//       } catch (error) {
+//         console.error("Failed to create folder:", error);
+//       } finally {
+//         setShowFolderModal(false);
+//       }
+//     },
+//     [createFolder, fetchSpaces]
+//   );
+
+//   // const handleDeleteSpace = useCallback(
+//   //   async (id: string) => {
+//   //     try {
+//   //       console.log(`Attempting to delete space ID: ${id}`);
+//   //       await deleteFolderById(id);
+//   //       await fetchSpaces();
+//   //     } catch (error) {
+//   //       console.error("Failed to delete space:", error);
+//   //     }
+//   //   },
+//   //   [deleteFolderById, fetchSpaces]
+//   // );
+
+//   // const handleEditSpace = useCallback(
+//   //   async (id: string, newName: string) => {
+//   //     try {
+//   //       console.log(`Attempting to edit space ID: ${id} to ${newName}`);
+//   //       await fetchSpaces();
+//   //     } catch (error) {
+//   //       console.error("Failed to edit space:", error);
+//   //     }
+//   //   },
+//   //   [fetchSpaces]
+//   // );
+
+//   const handleCreateCanvas = () => {
+//     router.push("/canvas/new");
+//   };
+
+//   const handleLogToken = async () => {
+//     const token = await getToken();
+//     console.log("JWT Token:", token);
+//     console.warn("JWT has been printed to your console!");
+//   };
+
+//   useEffect(() => {
+//     if (user && !initialDataLoaded) {
+//       fetchSpaces()
+//         .then(() => setInitialDataLoaded(true))
+//         .catch(() => {});
+//     }
+//     return () => {
+//       loadingRef.current = false;
+//     };
+//   }, [user, fetchSpaces, initialDataLoaded]);
+
+//   const filteredSpaces = useMemo(() => {
+//     if (!spaces || spaces.length === 0) return [];
+//     return spaces.filter((space) => {
+//       if (activeTab !== "all" && space.type !== activeTab) return false;
+//       if (searchQuery) {
+//         return space.name.toLowerCase().includes(searchQuery.toLowerCase());
+//       }
+//       return true;
+//     });
+//   }, [spaces, activeTab, searchQuery]);
+
+//   return (
+//     <View style={styles.container}>
+//       <HeaderSection onNotificationPress={handleLogToken} />
+//       <ScrollView
+//         style={styles.content}
+//         showsVerticalScrollIndicator={false}
+//         refreshControl={
+//           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+//         }
+//       >
+//         <FilterTabs activeTab={activeTab} onTabChange={setActiveTab} />
+//         <SpacesGrid spaces={filteredSpaces} isLoading={isLoading} />
+//       </ScrollView>
+
+//       <ActionButtonsSection
+//         onCreateFolder={() => setShowFolderModal(true)}
+//         onCreateCanvas={handleCreateCanvas}
+
+//       />
+
+//       <CreateFolderModal
+//         visible={showFolderModal}
+//         onClose={() => setShowFolderModal(false)}
+//         onSubmit={handleCreateFolder}
+//       />
+//     </View>
+//   );
+// }
+
+// const styles = StyleSheet.create({
+//   container: {
+//     flex: 1,
+//     backgroundColor: "#F8FAFC",
+//   },
+//   content: {
+//     flex: 1,
+//     paddingHorizontal: 20,
+//   },
+// });
+
 import React, {
   useState,
   useCallback,
@@ -5,86 +205,63 @@ import React, {
   useEffect,
   useMemo,
 } from "react";
-import { View, ScrollView, StyleSheet } from "react-native";
+import { View, ScrollView, StyleSheet, RefreshControl } from "react-native";
 import { useAuth, useUser } from "@clerk/clerk-expo";
 import { router } from "expo-router";
-import { FolderResponse } from "@/types/space";
-// Hooks
+
+import { FolderResponse, Space } from "@/types/space";
 import { useFolders } from "@/hooks/useFolders";
-// Components
+import { useCanvas } from "@/hooks/useCanvas";
+
 import { HeaderSection } from "@/components/home/HeaderSection";
-import { NotificationBanner } from "@/components/NotificationBanner";
 import { SearchBar } from "@/components/home/SearchBar";
 import { FilterTabs } from "@/components/home/FilterTabs";
 import { SpacesGrid } from "@/components/home/SpacesGrid";
 import { ActionButtonsSection } from "@/components/home/ActionButtonSection";
 import { CreateFolderModal } from "@/components/modal/CreateFolderModal";
 
-import { StatusBar } from "expo-status-bar";
-import { useIsFocused } from "@react-navigation/native";
-
-// Data
-// import { MOCK_SPACES } from "@/constants/mockData";
-
-import { Space, HeaderSectionProps } from "@/types/space";
-import { get } from "react-native/Libraries/TurboModule/TurboModuleRegistry";
-
 export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [showNotification, setShowNotification] = useState(true);
   const [activeTab, setActiveTab] = useState<
     "all" | "folder" | "file" | "Recent"
   >("all");
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [spaces, setSpaces] = useState<Space[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [initialDataLoaded, setInitialDataLoaded] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const { getToken } = useAuth();
   const { user } = useUser();
-  const { createFolder, getAllFolders } = useFolders();
+  const { createFolder, getAllFolders, deleteFolderById } = useFolders();
+  const { getAllCanvas } = useCanvas();
+
   const loadingRef = useRef(false);
 
-  const handleCreateFolder = useCallback(
-    async (name: string, isStarred: boolean) => {
-      try {
-        const newFolder = await createFolder(name, isStarred);
-        setSpaces((prev: Space[]) => [newFolder, ...prev]);
-      } catch (error) {
-        console.error("Failed to create folder:", error);
-        // Show error notification
-      }
-    },
-    [createFolder]
-  );
-
-  const handleCreateCanvas = () => {
-    router.push("/canvas/new");
-  };
-
-  const handleLogToken = async () => {
-    const token = await getToken();
-    console.log("JWT Token:", token);
-    alert("JWT has been printed to your console!");
-  };
-
-  useEffect(() => {
-    const loadFolders = async () => {
+  const fetchSpaces = useCallback(
+    async (isManualRefresh = false) => {
       if (loadingRef.current) return;
+      loadingRef.current = true;
+
+      if (!isManualRefresh) {
+        setIsLoading(true);
+      }
 
       try {
-        loadingRef.current = true;
         const token = await getToken();
-        if (!token) {
-          console.log("No auth token available");
-          return;
-        }
+        if (!token) return;
 
-        setIsLoading(true);
-        const response = await getAllFolders();
+        // Fetch both folders and canvases
+        const [foldersResponse, canvasesResponse] = await Promise.all([
+          getAllFolders(),
+          getAllCanvas(),
+        ]);
 
-        // Response is directly an array of folders
-        if (Array.isArray(response)) {
-          const mappedFolders: Space[] = response.map(
+        const allSpaces: Space[] = [];
+
+        // Map folders
+        if (Array.isArray(foldersResponse)) {
+          const mappedFolders: Space[] = foldersResponse.map(
             (folder: FolderResponse) => ({
               id: folder.id,
               name: folder.name,
@@ -92,43 +269,95 @@ export default function HomeScreen() {
               updatedAt: folder.updatedAt,
               isShared: folder.isShared,
               owner: folder.owner,
-              // collaborators: folder.collaborators ||  ["user1", "user2", "user3"], //not defined in database
-              collaborators: ["user1", "user2", "user3"], //not defined in database
-              items: folder.items || 5, ///not defiend in database
-              color: folder.color || "#17f389ff", ///not defiend in database
+              collaborators: ["user1", "user2", "user3"],
+              items: 5,
+              color: folder.color || "#17f389ff",
             })
           );
-
-          setSpaces(mappedFolders);
-        } else {
-          console.error("Invalid folder response format:", response);
+          allSpaces.push(...mappedFolders);
         }
+
+        // Map canvases
+        if (Array.isArray(canvasesResponse)) {
+          const mappedCanvases: Space[] = canvasesResponse
+            .filter((canvas: any) => !canvas.folderId) // Only show canvases not in folders on home
+            .map((canvas: any) => ({
+              id: canvas.id,
+              name: canvas.name,
+              type: "file",
+              items: 0, ///infutur removed not in file checked again
+              updatedAt: canvas.updatedAt,
+              isShared: canvas.isShared,
+              owner: canvas.owner,
+              collaborators: ["user1", "user2", "user3"],
+              color: "#8B5CF6", // Purple color for canvases
+            })
+            
+          );
+          allSpaces.push(...mappedCanvases);
+        }
+
+        // Sort by updatedAt (most recent first)
+        allSpaces.sort(
+          (a, b) =>
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+        );
+
+        setSpaces(allSpaces);
       } catch (error) {
-        console.error("Failed to load folders:", error);
+        console.error("Failed to load spaces:", error);
       } finally {
         setIsLoading(false);
+        setRefreshing(false);
         loadingRef.current = false;
       }
-    };
-    if (user && !loadingRef.current) {
-      loadFolders();
+    },
+    [getToken, getAllFolders, getAllCanvas]
+  );
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchSpaces(true);
+  }, [fetchSpaces]);
+
+  const handleCreateFolder = useCallback(
+    async (name: string, isStarred: boolean) => {
+      try {
+        await createFolder(name, isStarred);
+        await fetchSpaces();
+      } catch (error) {
+        console.error("Failed to create folder:", error);
+      } finally {
+        setShowFolderModal(false);
+      }
+    },
+    [createFolder, fetchSpaces]
+  );
+
+  const handleCreateCanvas = useCallback(() => {
+    // Refresh the list after canvas creation
+    fetchSpaces();
+  }, [fetchSpaces]);
+
+  const handleLogToken = async () => {
+    const token = await getToken();
+    console.log("JWT Token:", token);
+    console.warn("JWT has been printed to your console!");
+  };
+
+  useEffect(() => {
+    if (user && !initialDataLoaded) {
+      fetchSpaces()
+        .then(() => setInitialDataLoaded(true))
+        .catch(() => {});
     }
     return () => {
       loadingRef.current = false;
     };
-  }, [user]);
-
-  // const filteredSpaces = MOCK_SPACES.filter((space) => {
-  //   if (activeTab !== "all" && space.type !== activeTab) return false;
-  //   if (searchQuery) {
-  //     return space.name.toLowerCase().includes(searchQuery.toLowerCase());
-  //   }
-  //   return true;
-  // });
+  }, [user, fetchSpaces, initialDataLoaded]);
 
   const filteredSpaces = useMemo(() => {
     if (!spaces || spaces.length === 0) return [];
-
     return spaces.filter((space) => {
       if (activeTab !== "all" && space.type !== activeTab) return false;
       if (searchQuery) {
@@ -140,34 +369,22 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <HeaderSection user={user} onNotificationPress={handleLogToken} />
-
-      {/* {showNotification && (
-        <NotificationBanner
-          message="Piyush added a new YouTube link"
-          onClose={() => setShowNotification(false)}
-        />
-      )} */}
-
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* <SearchBar
-          value={searchQuery}
-          onChangeText={(text: string) => setSearchQuery(text)}
-        /> */}
-
-        <FilterTabs
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          onCreateFolder={() => setShowFolderModal(true)}
-          onCreateCanvas={handleCreateCanvas}
-        />
-
+      <HeaderSection onNotificationPress={handleLogToken} />
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        <FilterTabs activeTab={activeTab} onTabChange={setActiveTab} />
         <SpacesGrid spaces={filteredSpaces} isLoading={isLoading} />
       </ScrollView>
 
       <ActionButtonsSection
         onCreateFolder={() => setShowFolderModal(true)}
         onCreateCanvas={handleCreateCanvas}
+        folderId={null} // Home screen doesn't have a folderId
       />
 
       <CreateFolderModal

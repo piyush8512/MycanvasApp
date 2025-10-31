@@ -1,159 +1,3 @@
-// import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-// import {
-//   FolderOpen,
-//   FileText,
-//   MoreVertical,
-//   MessageSquare,
-// } from "lucide-react-native";
-// import { router } from "expo-router";
-// import { Space } from "@/types/space";
-// import { UserAvatarGroup } from "@/components/UserAvatarGroup";
-
-// interface SpaceCardProps {
-//   space: Space;
-//   onPress?: () => void;
-// }
-
-// export const SpaceCard = ({ space, onPress }: SpaceCardProps) => {
-//   const Icon = space.type === "folder" ? FolderOpen : FileText;
-
-//   const handlePress = () => {
-//     if (onPress) {
-//       onPress();
-//       return;
-//     }
-
-//     // Fix the navigation paths to match Expo Router's requirements
-//     if (space.type === "canvas") {
-//       router.push({
-//         pathname: "/canvas/[id]",
-//         params: { id: space.id },
-//       });
-//     } else if (space.type === "folder") {
-//       router.push({
-//         pathname: "/folder/[id]",
-//         params: { id: space.id },
-//       });
-//     }
-//   };
-
-//   const CardActionsMenu = () => {
-//     // Implement card actions menu (e.g., rename, delete, share)
-//     console.log("Card actions menu clicked for space:", space.id);
-//   }
-
-//   const formatDate = (dateString: string) => {
-//     const date = new Date(dateString);
-//     return date.toLocaleDateString("en-US", {
-//       month: "short",
-//       day: "numeric",
-//     });
-//   };
-
-//   return (
-//     <TouchableOpacity style={styles.card} onPress={handlePress}>
-//       <View style={styles.header}>
-//         <View style={[styles.iconContainer]}>
-//           <Icon size={24} color={space.color} />
-//         </View>
-//         <TouchableOpacity
-//           style={styles.menuButton}
-//           onPress={CardActionsMenu}
-//         >
-//           <MoreVertical size={20} color="#6B7280" />
-//         </TouchableOpacity>
-//       </View>
-
-//       <Text style={styles.title} numberOfLines={1}>
-//         {space.name}
-//       </Text>
-
-//       <View style={styles.footer}>
-//         <Text style={styles.details}>
-//           {space.type === "folder" ? `${space.items || 0} items` : "Canvas"}
-//           {" • "} updated {formatDate(space.updatedAt)}
-//         </Text>
-//       </View>
-
-//       <View style={styles.itemFooter}>
-//         <UserAvatarGroup users={space.collaborators} size={16} maxVisible={5} />
-//         {space.collaborators.length > 0 && (
-//           <View style={styles.commentsBadge}>
-//             <MessageSquare size={12} color="#FFFFFF" />
-//             <Text style={styles.commentsCount}>{space.collaborators}</Text>
-//           </View>
-//         )}
-//       </View>
-//     </TouchableOpacity>
-//   );
-// };
-
-// const styles = StyleSheet.create({
-//   card: {
-//     backgroundColor: "#FFFFFF",
-//     borderRadius: 20,
-//     padding: 12,
-//     borderWidth: 1,
-//     borderColor: "#E5E7EB",
-//     shadowColor: "#000",
-//     shadowOffset: {
-//       width: 0,
-//       height: 1,
-//     },
-//     shadowOpacity: 0.05,
-//     shadowRadius: 2,
-//     elevation: 2,
-//   },
-//   header: {
-//     flexDirection: "row",
-//     justifyContent: "space-between",
-//     alignItems: "center",
-//     marginBottom: 12,
-//   },
-//   iconContainer: {
-//     padding: 8,
-//     borderRadius: 8,
-//   },
-//   menuButton: {
-//     padding: 4,
-//   },
-//   title: {
-//     fontSize: 16,
-//     fontWeight: "500",
-//     color: "#1F2937",
-//     marginBottom: 8,
-//   },
-//   footer: {
-//     flexDirection: "row",
-//     justifyContent: "space-between",
-//     alignItems: "center",
-//   },
-//   details: {
-//     fontSize: 12,
-//     color: "#6B7280",
-//   },
-//   commentsCount: {
-//     fontSize: 10,
-//     fontWeight: "600",
-//     color: "#FFFFFF",
-//   },
-//   itemFooter: {
-//     flexDirection: "row",
-//     alignItems: "center",
-//     justifyContent: "space-between",
-//     marginTop: 8,
-//   },
-//   commentsBadge: {
-//     flexDirection: "row",
-//     alignItems: "center",
-//     backgroundColor: "#8B5CF6",
-//     borderRadius: 10,
-//     paddingHorizontal: 6,
-//     paddingVertical: 2,
-//     gap: 2,
-//   },
-// });
-
 import { useState } from "react";
 import {
   View,
@@ -176,6 +20,7 @@ import {
 } from "lucide-react-native";
 import { router } from "expo-router";
 import { Space } from "@/types/space";
+import { useFolders } from "@/hooks/useFolders";
 import { UserAvatarGroup } from "@/components/UserAvatarGroup";
 
 interface SpaceCardProps {
@@ -199,6 +44,8 @@ export const SpaceCard = ({
   const [editedName, setEditedName] = useState(space.name);
 
   const Icon = space.type === "folder" ? FolderOpen : FileText;
+
+  const { deleteFolderById, updateFolder } = useFolders();
 
   const handlePress = () => {
     if (onPress) {
@@ -229,15 +76,6 @@ export const SpaceCard = ({
     setEditModalVisible(true);
   };
 
-  const handleSaveEdit = () => {
-    if (editedName.trim()) {
-      onEdit?.(space.id, editedName.trim());
-      setEditModalVisible(false);
-    } else {
-      Alert.alert("Error", "Name cannot be empty");
-    }
-  };
-
   const handleDelete = () => {
     setMenuVisible(false);
     Alert.alert(
@@ -248,10 +86,28 @@ export const SpaceCard = ({
         {
           text: "Delete",
           style: "destructive",
-          onPress: () => onDelete?.(space.id),
+          onPress: () => {
+            deleteFolderById(space.id);
+          },
         },
       ]
     );
+  };
+
+  const handleSaveEdit = async () => {
+    if (editedName.trim()) {
+      try {
+        await updateFolder(space.id, { name: editedName.trim() });
+        onEdit?.(space.id, editedName.trim());
+        setEditModalVisible(false);
+        Alert.alert("Success", "Successfully update folder name");
+      } catch (error) {
+        Alert.alert("Error", "Failed to update folder name");
+        console.error("Folder update error:", error);
+      }
+    } else {
+      Alert.alert("Error", "Name cannot be empty");
+    }
   };
 
   const handleInfo = () => {

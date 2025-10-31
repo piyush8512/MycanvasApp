@@ -109,8 +109,8 @@ export const HeaderSection = ({
         </View>
 
         {/* Search Input */}
-        <BlurView intensity={40} tint="light" style={styles.searchContainer}>
-          <Search size={18} color="#a1a1a1" style={{ marginRight: 8 }} />
+        <BlurView style={styles.searchContainer}>
+          <Search size={18} color="#000000ff" style={{ marginRight: 8 }} />
           <TextInput
             style={styles.searchInput}
             placeholder="What category are you searching for?"
@@ -166,13 +166,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "rgba(255, 255, 255, 1)",
     borderRadius: 30,
+
     paddingHorizontal: 14,
     height: 46,
   },
   searchInput: {
     flex: 1,
     borderRadius: 20,
-    color: "#ecececff",
+    color: "#000000ff",
     fontSize: 14,
   },
 });

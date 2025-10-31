@@ -3,15 +3,12 @@ import { View, TouchableOpacity, Text, StyleSheet } from "react-native";
 import { FolderPlus, FileText } from "lucide-react-native";
 
 interface FilterTabsProps {
-  onCreateFolder: () => void;
-  onCreateCanvas: () => void;
+
   activeTab?: "all" | "folder" | "file" | "Recent";
   onTabChange?: (tab: "all" | "folder" | "file" | "Recent") => void;
 }
 
 export const FilterTabs = ({
-  onCreateFolder,
-  onCreateCanvas,
   activeTab = "all",
   onTabChange = () => {},
 }: FilterTabsProps) => {
