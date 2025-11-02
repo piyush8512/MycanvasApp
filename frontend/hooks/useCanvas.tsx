@@ -82,6 +82,24 @@ export const useCanvas = () => {
     }
   };
 
+  const deleteCanvasById = async (canvasId: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = await getToken();
+      if (!token) {
+        throw new Error("No authentication token available");
+      }
+      const response = await canvasService.deleteCanvas(canvasId, token);
+      return response.canvas;
+    } catch (error) {
+      console.error("Delete canvas by ID error:", error);
+      throw new Error("Failed to delete canvas by ID");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   //fetch all canvas
   const getAllCanvas = async () => {
     setLoading(true);
@@ -126,6 +144,7 @@ export const useCanvas = () => {
     createCanvas,
     getAllCanvas,
     canvasItems,
+    deleteCanvasById,
     loading,
     error,
   };

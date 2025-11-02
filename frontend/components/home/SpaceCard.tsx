@@ -21,6 +21,7 @@ import {
 import { router } from "expo-router";
 import { Space } from "@/types/space";
 import { useFolders } from "@/hooks/useFolders";
+import { useCanvas } from "@/hooks/useCanvas";
 import { UserAvatarGroup } from "@/components/UserAvatarGroup";
 
 interface SpaceCardProps {
@@ -46,6 +47,7 @@ export const SpaceCard = ({
   const Icon = space.type === "folder" ? FolderOpen : FileText;
 
   const { deleteFolderById, updateFolder } = useFolders();
+  const { deleteCanvasById } = useCanvas();
 
   const handlePress = () => {
     if (onPress) {
@@ -87,7 +89,12 @@ export const SpaceCard = ({
           text: "Delete",
           style: "destructive",
           onPress: () => {
-            deleteFolderById(space.id);
+            // deleteFolderById(space.id);
+            if (space.type == "folder") {
+              deleteFolderById(space.id);
+            } else {
+              deleteCanvasById(space.id);
+            }
           },
         },
       ]
@@ -318,13 +325,6 @@ export const SpaceCard = ({
                 </Text>
               </View>
             </View>
-
-            <TouchableOpacity
-              style={[styles.button, styles.closeButton]}
-              onPress={() => setInfoModalVisible(false)}
-            >
-              <Text style={styles.closeButtonText}>Close</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </Modal>

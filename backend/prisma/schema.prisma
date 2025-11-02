@@ -1,392 +1,179 @@
-datasource db {
-    provider  = "postgresql"
-    url       = env("DATABASE_URL")
-    directUrl = env("DIRECT_URL")
+generator client {
+  provider = "prisma-client-js"
 }
 
-generator client {
-    provider = "prisma-client-js"
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
-    id        String   @id @default(uuid())
-    clerkId   String   @unique
-    email     String   @unique
-    name      String?
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+  id                   String               @id @default(uuid())
+  clerkId              String               @unique
+  email                String               @unique
+  name                 String?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  activities           Activity[]
+  createdCanvasItems   CanvasItem[]         @relation("CanvasItemCreator")
+  fileCollaborations   FileCollaborator[]
+  ownedFiles           File[]               @relation("FileOwner")
+  folderCollaborations FolderCollaborator[]
+  ownedFolders         Folder[]             @relation("FolderOwner")
+  sharedWithMe         SharedItem[]
 
-    //relations
-    ownedFolders         Folder[]             @relation("FolderOwner")
-    ownedFiles           File[]               @relation("FileOwner")
-    folderCollaborations FolderCollaborator[]
-    fileCollaborations   FileCollaborator[]
-    activities           Activity[]
-    sharedWithMe         SharedItem[]
-    createdCanvasItems   CanvasItem[]         @relation("CanvasItemCreator")
-
-    @@map("users")
+  @@map("users")
 }
 
 model Folder {
-    id        String   @id @default(uuid())
-    name      String
-    ownerId   String
-    // description String?
-    // color       String   @default("#FFFFFF")
-    isShared  Boolean  @default(false)
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+  id            String               @id @default(uuid())
+  name          String
+  ownerId       String
+  isShared      Boolean              @default(false)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  activities    Activity[]
+  files         File[]
+  collaborators FolderCollaborator[]
+  owner         User                 @relation("FolderOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  sharedItems   SharedItem[]
 
-    //relations
-    owner         User                 @relation("FolderOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-    files         File[]
-    collaborators FolderCollaborator[]
-    activities    Activity[]
-    sharedItems   SharedItem[]
-
-    @@index([ownerId])
-    @@map("folders")
+  @@index([ownerId])
+  @@map("folders")
 }
 
 model File {
-    id        String   @id @default(uuid())
-    name      String
-    type      String // "image", "video", "document", "audio", etc.
-    size      Int // File size in bytes
-    url       String // Storage URL (Supabase Storage)
-    folderId  String?
-    ownerId   String
-    isShared  Boolean  @default(false)
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+  id            String             @id @default(uuid())
+  name          String
+//   type          String
+  size          Int                   
+  url           String                   
+  folderId      String?
+  ownerId       String
+  isShared      Boolean            @default(false)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  activities    Activity[]
+  canvasItems   CanvasItem[]       @relation("FileCanvas")
+  collaborators FileCollaborator[]
+  folder        Folder?            @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  owner         User               @relation("FileOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  sharedItems   SharedItem[]
 
-    // Relations
-    owner         User               @relation("FileOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-    folder        Folder?            @relation(fields: [folderId], references: [id], onDelete: Cascade)
-    collaborators FileCollaborator[]
-    activities    Activity[]
-    sharedItems   SharedItem[]
-    canvasItems   CanvasItem[]       @relation("FileCanvas")
-
-    @@index([ownerId])
-    @@index([folderId])
-    @@map("files")
+  @@index([ownerId])
+  @@index([folderId])
+  @@map("files")
 }
 
 model CanvasItem {
-    id        String   @id @default(cuid())
-    type      ItemType
-    content   Json?
-    position  Json
-    size      Json
-    createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
-    updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
-    canvasId  String   @map("canvas_id")
-    createdBy String   @map("created_by")
+  id        String   @id @default(cuid())
+  name      String
+  type      ItemType
+  content   Json?
+  color     String?
+  position  Json
+  size      Json
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+  canvasId  String   @map("canvas_id")
+  createdBy String   @map("created_by")
+  canvas    File     @relation("FileCanvas", fields: [canvasId], references: [id], onDelete: Cascade)
+  owner     User     @relation("CanvasItemCreator", fields: [createdBy], references: [id], onDelete: Cascade)
 
-    // Relations
-    canvas File @relation("FileCanvas", fields: [canvasId], references: [id], onDelete: Cascade)
-    owner  User @relation("CanvasItemCreator", fields: [createdBy], references: [id], onDelete: Cascade)
-
-    @@index([canvasId])
-    @@index([createdBy])
-    @@map("canvas_items")
+  @@index([canvasId])
+  @@index([createdBy])
+  @@map("canvas_items")
 }
 
 model FolderCollaborator {
-    id        String           @id @default(uuid())
-    folderId  String
-    userId    String
-    role      CollaboratorRole @default(VIEWER) // OWNER, EDITOR, VIEWER
-    invitedAt DateTime         @default(now())
+  id        String           @id @default(uuid())
+  folderId  String
+  userId    String
+  role      CollaboratorRole @default(VIEWER)
+  invitedAt DateTime         @default(now())
+  folder    Folder           @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    // Relations
-    folder Folder @relation(fields: [folderId], references: [id], onDelete: Cascade)
-    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-    @@unique([folderId, userId])
-    @@index([folderId])
-    @@index([userId])
-    @@map("folder_collaborators")
+  @@unique([folderId, userId])
+  @@index([folderId])
+  @@index([userId])
+  @@map("folder_collaborators")
 }
 
 model FileCollaborator {
-    id        String           @id @default(uuid())
-    fileId    String
-    userId    String
-    role      CollaboratorRole @default(VIEWER)
-    invitedAt DateTime         @default(now())
+  id        String           @id @default(uuid())
+  fileId    String
+  userId    String
+  role      CollaboratorRole @default(VIEWER)
+  invitedAt DateTime         @default(now())
+  file      File             @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    // Relations
-    file File @relation(fields: [fileId], references: [id], onDelete: Cascade)
-    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-    @@unique([fileId, userId])
-    @@index([fileId])
-    @@index([userId])
-    @@map("file_collaborators")
+  @@unique([fileId, userId])
+  @@index([fileId])
+  @@index([userId])
+  @@map("file_collaborators")
 }
 
 model SharedItem {
-    id       String   @id @default(uuid())
-    userId   String // User who received the share
-    folderId String?
-    fileId   String?
-    sharedBy String // Who shared it
-    sharedAt DateTime @default(now())
+  id       String   @id @default(uuid())
+  userId   String
+  folderId String?
+  fileId   String?
+  sharedBy String
+  sharedAt DateTime @default(now())
+  file     File?    @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  folder   Folder?  @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    // Relations
-    user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-    folder Folder? @relation(fields: [folderId], references: [id], onDelete: Cascade)
-    file   File?   @relation(fields: [fileId], references: [id], onDelete: Cascade)
-
-    @@index([userId])
-    @@index([folderId])
-    @@index([fileId])
-    @@map("shared_items")
+  @@index([userId])
+  @@index([folderId])
+  @@index([fileId])
+  @@map("shared_items")
 }
 
 model Activity {
-    id          String       @id @default(uuid())
-    userId      String
-    action      ActivityType // CREATED, UPDATED, DELETED, SHARED, VIEWED
-    itemType    ItemType // FOLDER, FILE
-    itemId      String
-    itemName    String // Store name for deleted items
-    folderId    String?
-    fileId      String?
-    description String? // "Created folder", "Uploaded file", etc.
-    createdAt   DateTime     @default(now())
+  id          String       @id @default(uuid())
+  userId      String
+  action      ActivityType
+  itemType    ItemType
+  itemId      String
+  itemName    String
+  folderId    String?
+  fileId      String?
+  description String?
+  createdAt   DateTime     @default(now())
+  file        File?        @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  folder      Folder?      @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    // Relations
-    user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-    folder Folder? @relation(fields: [folderId], references: [id], onDelete: Cascade)
-    file   File?   @relation(fields: [fileId], references: [id], onDelete: Cascade)
-
-    @@index([userId])
-    @@index([createdAt])
-    @@map("activities")
+  @@index([userId])
+  @@index([createdAt])
+  @@map("activities")
 }
 
 enum CollaboratorRole {
-    OWNER
-    EDITOR
-    VIEWER
+  OWNER
+  EDITOR
+  VIEWER
 }
 
 enum ActivityType {
-    CREATED
-    UPDATED
-    DELETED
-    SHARED
-    VIEWED
-    RENAMED
-    MOVED
+  CREATED
+  UPDATED
+  DELETED
+  SHARED
+  VIEWED
+  RENAMED
+  MOVED
 }
 
 enum ItemType {
-    FOLDER
-    FILE
-}
-
-
-
-
-// datasource db {
-//     provider  = "postgresql"
-//     url       = env("DATABASE_URL")
-//     directUrl = env("DIRECT_URL")
-// }
-
-// generator client {
-//     provider = "prisma-client-js"
-// }
-
-// model User {
-//     id        String   @id @default(uuid())
-//     clerkId   String   @unique
-//     email     String   @unique
-//     name      String?
-//     createdAt DateTime @default(now())
-//     updatedAt DateTime @updatedAt
-
-//     //relations
-//     ownedFolders         Folder[]             @relation("FolderOwner")
-//     ownedFiles           File[]               @relation("FileOwner")
-//     folderCollaborations FolderCollaborator[]
-//     fileCollaborations   FileCollaborator[]
-//     activities           Activity[]
-//     sharedWithMe         SharedItem[]
-
-//     @@map("users")
-// }
-
-// model Folder {
-//     id        String   @id @default(uuid())
-//     name      String
-//     ownerId   String
-//     // description String?
-//     // color       String   @default("#FFFFFF")
-//     isShared  Boolean  @default(false)
-//     createdAt DateTime @default(now())
-//     updatedAt DateTime @updatedAt
-
-//     //relations
-//     owner         User                 @relation("FolderOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-//     files         File[]
-//     collaborators FolderCollaborator[]
-//     activities    Activity[]
-//     sharedItems   SharedItem[]
-
-//     @@index([ownerId])
-//     @@map("folders")
-// }
-
-// model File {
-//     id        String   @id @default(uuid())
-//     name      String
-//     type      String // "image", "video", "document", "audio", etc.
-//     size      Int // File size in bytes
-//     url       String // Storage URL (Supabase Storage)
-//     folderId  String?
-//     ownerId   String
-//     isShared  Boolean  @default(false)
-//     createdAt DateTime @default(now())
-//     updatedAt DateTime @updatedAt
-
-//     // Relations
-//     owner         User               @relation("FileOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-//     folder        Folder?            @relation(fields: [folderId], references: [id], onDelete: Cascade)
-//     collaborators FileCollaborator[]
-//     activities    Activity[]
-//     sharedItems   SharedItem[]
-//     canvasItems   CanvasItem[]
-
-
-//     @@index([ownerId])
-//     @@index([folderId])
-//     @@map("files")
-// }
-
-
-
-// model CanvasItem {
-//   id        String   @id @default(cuid())
-//   type      ItemType
-//   content   Json?
-//   position  Json
-//   size      Json
-//   createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
-//   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
-//   canvasId  String   @map("canvas_id")
-//   createdBy String   @map("created_by")
+  FOLDER
+  FILE
+  youtube
+  image
+  note
   
-//   // Relations
-//   canvas  File @relation(fields: [canvasId], references: [id])
-//   owner User   @relation(fields: [createdBy], references: [id])
-// //   canvas  Canvas @relation(fields: [canvasId], references: [id])
-// //   creator User   @relation(fields: [createdBy], references: [id])
-
-//   @@map("canvas_items")
-
-// }
-
-// model FolderCollaborator {
-//     id        String           @id @default(uuid())
-//     folderId  String
-//     userId    String
-//     role      CollaboratorRole @default(VIEWER) // OWNER, EDITOR, VIEWER
-//     invitedAt DateTime         @default(now())
-
-//     // Relations
-//     folder User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-//     user   Folder @relation(fields: [folderId], references: [id], onDelete: Cascade)
-
-//     @@unique([folderId, userId])
-//     @@index([folderId])
-//     @@index([userId])
-//     @@map("folder_collaborators")
-// }
-
-// model FileCollaborator {
-//     id        String           @id @default(uuid())
-//     fileId    String
-//     userId    String
-//     role      CollaboratorRole @default(VIEWER)
-//     invitedAt DateTime         @default(now())
-
-//     // Relations
-//     file File @relation(fields: [fileId], references: [id], onDelete: Cascade)
-//     user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-//     @@unique([fileId, userId])
-//     @@index([fileId])
-//     @@index([userId])
-//     @@map("file_collaborators")
-// }
-
-// model SharedItem {
-//     id       String   @id @default(uuid())
-//     userId   String // User who received the share
-//     folderId String?
-//     fileId   String?
-//     sharedBy String // Who shared it
-//     sharedAt DateTime @default(now())
-
-//     // Relations
-//     user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-//     folder Folder? @relation(fields: [folderId], references: [id], onDelete: Cascade)
-//     file   File?   @relation(fields: [fileId], references: [id], onDelete: Cascade)
-
-//     @@index([userId])
-//     @@index([folderId])
-//     @@index([fileId])
-//     @@map("shared_items")
-// }
-
-// model Activity {
-//     id          String       @id @default(uuid())
-//     userId      String
-//     action      ActivityType // CREATED, UPDATED, DELETED, SHARED, VIEWED
-//     itemType    ItemType // FOLDER, FILE
-//     itemId      String
-//     itemName    String // Store name for deleted items
-//     folderId    String?
-//     fileId      String?
-//     description String? // "Created folder", "Uploaded file", etc.
-//     createdAt   DateTime     @default(now())
-
-//     // Relations
-//     user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-//     folder Folder? @relation(fields: [folderId], references: [id], onDelete: Cascade)
-//     file   File?   @relation(fields: [fileId], references: [id], onDelete: Cascade)
-
-//     @@index([userId])
-//     @@index([createdAt])
-//     @@map("activities")
-// }
-
-// enum CollaboratorRole {
-//     OWNER
-//     EDITOR
-//     VIEWER
-// }
-
-// enum ActivityType {
-//     CREATED
-//     UPDATED
-//     DELETED
-//     SHARED
-//     VIEWED
-//     RENAMED
-//     MOVED
-// }
-
-// enum ItemType {
-//     FOLDER
-//     FILE
-// }
-
-
-
+}

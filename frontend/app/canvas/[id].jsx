@@ -15,153 +15,9 @@
 // import NoteEditModal from "@/components/canvas/NoteEditModal";
 // import ChatButton from "@/components/canvas/ChatButton";
 // import LiveChatModal from "@/components/canvas/LiveChat/LiveChatModal";
-
-// // Constants
-// import { TOOLS, INITIAL_CANVAS_ITEMS } from "@/constants/canvas";
-
-// export default function CanvasScreen() {
-//   // UI State
-//   const [selectedTool, setSelectedTool] = useState("Select");
-//   const [showAddMenu, setShowAddMenu] = useState(false);
-//   const [showLiveChat, setShowLiveChat] = useState(false);
-
-//   // Note Editing State
-//   const [editingNote, setEditingNote] = useState(null);
-//   const [noteContent, setNoteContent] = useState("");
-
-//   // Custom Hooks
-//   const zoom = useCanvasZoom();
-//   const pan = useCanvasPan(selectedTool);
-//   const items = useCanvasItems(INITIAL_CANVAS_ITEMS);
-
-//   // Handlers
-//   const handleAddCard = (type) => {
-//     items.addCard(type);
-//     setShowAddMenu(false);
-//   };
-
-//   const handleResetView = () => {
-//     zoom.handleResetZoom();
-//     pan.resetPan();
-//   };
-
-//   const handleItemPress = (item) => {
-//     if (item.type === "note") {
-//       setEditingNote(item.id);
-//       setNoteContent(item.content || "");
-//     }
-//   };
-
-//   const handleSaveNote = () => {
-//     if (editingNote) {
-//       items.updateItem(editingNote, { content: noteContent });
-//       setEditingNote(null);
-//       setNoteContent("");
-//     }
-//   };
-
-//   const handleCancelNote = () => {
-//     setEditingNote(null);
-//     setNoteContent("");
-//   };
-
-//   const handleSharePress = () => {
-//     // Implement share functionality
-//     console.log("Share pressed");
-//   };
-
-//   return (
-//     <GestureHandlerRootView style={styles.container}>
-//       {/* Header */}
-//       <CanvasHeader
-//         title="My workspace"
-//         subtitle="New Canvas"
-//         collaborators={["user1", "user2", "user3", "user4"]}
-//         onSharePress={handleSharePress}
-//       />
-
-//       {/* Toolbar */}
-//       <CanvasToolbar
-//         tools={TOOLS}
-//         selectedTool={selectedTool}
-//         onToolSelect={setSelectedTool}
-//         onAddPress={() => setShowAddMenu(!showAddMenu)}
-//         zoomLevel={zoom.zoomLevel}
-//         onZoomIn={zoom.handleZoomIn}
-//         onZoomOut={zoom.handleZoomOut}
-//         onZoomReset={handleResetView}
-//       />
-
-//       {/* Add Menu */}
-//       <AddMenu visible={showAddMenu} onAddCard={handleAddCard} />
-
-//       {/* Canvas Area */}
-//       <CanvasArea
-//         scale={zoom.scale}
-//         translateX={pan.translateX}
-//         translateY={pan.translateY}
-//         panResponder={pan.panResponder}
-//         canvasItems={items.canvasItems}
-//         currentItemId={items.currentItemId}
-//         onPositionChange={items.handlePositionChange}
-//         onDragStart={items.handleDragStart}
-//         onItemPress={handleItemPress}
-//       />
-
-//       {/* Note Editing Modal */}
-//       <NoteEditModal
-//         visible={!!editingNote}
-//         noteContent={noteContent}
-//         onChangeText={setNoteContent}
-//         onSave={handleSaveNote}
-//         onCancel={handleCancelNote}
-//       />
-
-//       {/* Chat Button */}
-//       <ChatButton
-//         onPress={() => setShowLiveChat(!showLiveChat)}
-//         badgeCount={3}
-//       />
-
-//       {/* Live Chat Modal */}
-//       {showLiveChat && (
-//         <LiveChatModal
-//           visible={showLiveChat}
-//           onClose={() => setShowLiveChat(false)}
-//         />
-//       )}
-//     </GestureHandlerRootView>
-//   );
-// }
-
-// const styles = StyleSheet.create({
-//   container: {
-//     paddingTop: 40,
-//     flex: 1,
-//     backgroundColor: "#F8FAFC",
-//   },
-// });
-
-// working code
-// import React, { useState } from "react";
-// import { StyleSheet } from "react-native";
-// import { GestureHandlerRootView } from "react-native-gesture-handler";
-
-// // Custom Hooks
-// import { useCanvasZoom } from "@/hooks/useCanvasZoom";
-// import { useCanvasPan } from "@/hooks/useCanvasPan";
-// import { useCanvasItems } from "@/hooks/useCanvasItems";
-
-// // Components
-// import CanvasHeader from "@/components/canvas/CanvasHeader";
-// import CanvasToolbar from "@/components/canvas/CanvasToolbar";
-// import CanvasArea from "@/components/canvas/CanvasArea";
-// import AddMenu from "@/components/canvas/AddMenu";
-// import NoteEditModal from "@/components/canvas/NoteEditModal";
-// import ChatButton from "@/components/canvas/ChatButton";
-// import LiveChatModal from "@/components/canvas/LiveChat/LiveChatModal";
 // import ZoomSlider from "@/components/canvas/ZoomSlider";
 // import LinkPasteModal from "@/components/canvas/Modal/LinkPasteModal";
+// import FoldersDrawer from "@/components/canvas/FoldersDrawer/FoldersDrawer";
 
 // // Constants
 // import { TOOLS, INITIAL_CANVAS_ITEMS } from "@/constants/canvas";
@@ -172,6 +28,7 @@
 //   const [showAddMenu, setShowAddMenu] = useState(false);
 //   const [showLiveChat, setShowLiveChat] = useState(false);
 //   const [showLinkPaste, setShowLinkPaste] = useState(false);
+//   const [showFolders, setShowFolders] = useState(false); // ← New
 //   const [linkPastePosition, setLinkPastePosition] = useState({ x: 0, y: 0 });
 
 //   // Note Editing State
@@ -234,6 +91,19 @@
 //     setShowLinkPaste(false);
 //   };
 
+//   // ← New: Locate item on canvas
+//   const handleLocateItem = (item) => {
+//     // Set as current item
+//     items.setCurrentItemId(item.id);
+
+//     // Calculate center position
+//     const centerX = item.position.x + item.size.width / 2;
+//     const centerY = item.position.y + item.size.height / 2;
+
+//     // Pan to item (you can add smooth animation here)
+//     // For now, just setting it as current highlights it
+//   };
+
 //   return (
 //     <GestureHandlerRootView style={styles.container}>
 //       {/* Header */}
@@ -244,12 +114,13 @@
 //         onSharePress={handleSharePress}
 //       />
 
-//       {/* Toolbar - No Pan/Zoom tools */}
+//       {/* Toolbar - with Folders button */}
 //       <CanvasToolbar
 //         tools={TOOLS.filter((tool) => tool !== "Pan" && tool !== "Zoom")}
 //         selectedTool={selectedTool}
 //         onToolSelect={setSelectedTool}
 //         onAddPress={() => setShowAddMenu(!showAddMenu)}
+//         onFoldersPress={() => setShowFolders(true)} // ← New
 //       />
 
 //       {/* Add Menu */}
@@ -275,6 +146,14 @@
 //         onZoomChange={zoom.setZoomLevel}
 //         onZoomIn={zoom.handleZoomIn}
 //         onZoomOut={zoom.handleZoomOut}
+//       />
+
+//       {/* Folders Drawer - New */}
+//       <FoldersDrawer
+//         visible={showFolders}
+//         onClose={() => setShowFolders(false)}
+//         items={items.canvasItems}
+//         onLocateItem={handleLocateItem}
 //       />
 
 //       {/* Note Editing Modal */}
@@ -314,18 +193,231 @@
 //   container: {
 //     paddingTop: 40,
 //     flex: 1,
-//     backgroundColor: "#000000ff",
+//     backgroundColor: "#ffffffff",
+//   },
+// });
+
+///seocnd try
+// import React, { useState } from "react";
+// import { StyleSheet } from "react-native";
+// import { GestureHandlerRootView } from "react-native-gesture-handler";
+
+// // Custom Hooks
+// import { useCanvasZoom } from "@/hooks/useCanvasZoom";
+// import { useCanvasPan } from "@/hooks/useCanvasPan";
+// import { useCanvasItems } from "@/hooks/useCanvasItems";
+
+// // Components
+// import CanvasHeader from "@/components/canvas/CanvasHeader";
+// import CanvasToolbar from "@/components/canvas/CanvasToolbar";
+// import CanvasArea from "@/components/canvas/CanvasArea";
+// import AddMenu from "@/components/canvas/AddMenu";
+// import NoteEditModal from "@/components/canvas/NoteEditModal";
+// import ChatButton from "@/components/canvas/ChatButton";
+// import LiveChatModal from "@/components/canvas/LiveChat/LiveChatModal";
+// import ZoomSlider from "@/components/canvas/ZoomSlider";
+// // Import the modal from its new location
+// import LinkPasteModal from "@/components/canvas/Modal/LinkPasteModal";
+// import FoldersDrawer from "@/components/canvas/FoldersDrawer/FoldersDrawer";
+
+// // Constants
+// import { TOOLS, INITIAL_CANVAS_ITEMS } from "@/constants/canvas";
+
+// export default function CanvasScreen() {
+//   // UI State
+//   const [selectedTool, setSelectedTool] = useState("Select");
+//   const [showAddMenu, setShowAddMenu] = useState(false);
+//   const [showLiveChat, setShowLiveChat] = useState(false);
+//   const [showLinkPaste, setShowLinkPaste] = useState(false);
+//   const [showFolders, setShowFolders] = useState(false);
+//   const [linkPastePosition, setLinkPastePosition] = useState({ x: 0, y: 0 });
+
+//   // Note Editing State
+//   const [editingNote, setEditingNote] = useState(null);
+//   const [noteContent, setNoteContent] = useState("");
+
+//   // Custom Hooks
+//   const zoom = useCanvasZoom();
+//   const pan = useCanvasPan();
+//   // TODO: You'll replace INITIAL_CANVAS_ITEMS with a fetch call using the canvas ID
+//   const items = useCanvasItems(INITIAL_CANVAS_ITEMS);
+
+//   // Handlers
+//   const handleAddCard = (type) => {
+//     items.addCard(type);
+//     setShowAddMenu(false);
+//   };
+
+//   const handleResetView = () => {
+//     zoom.handleResetZoom();
+//     pan.resetPan();
+//   };
+
+//   const handleItemPress = (item) => {
+//     if (item.type === "note") {
+//       setEditingNote(item.id);
+//       setNoteContent(item.content?.text || ""); // Read from content block
+//     }
+//   };
+
+//   const handleSaveNote = () => {
+//     if (editingNote) {
+//       // Save note text inside the 'content' JSON object
+//       items.updateItem(editingNote, { content: { text: noteContent } });
+//       setEditingNote(null);
+//       setNoteContent("");
+//     }
+//   };
+
+//   const handleCancelNote = () => {
+//     setEditingNote(null);
+//     setNoteContent("");
+//   };
+
+//   const handleSharePress = () => {
+//     console.log("Share pressed");
+//   };
+
+//   const handleLongPress = (position) => {
+//     setLinkPastePosition(position);
+//     setShowLinkPaste(true);
+//   };
+
+//   // --- THIS FUNCTION IS UPDATED ---
+//   // It now receives the full cardData object from LinkPasteModal
+//   const handlePasteLink = (cardData) => {
+//     // Combine the card data from the modal with the
+//     // actual position from the long press
+//     const newCard = {
+//       ...cardData, // This has type, name, color, size, content
+
+//       position: linkPastePosition, // This sets the correct position
+//     };
+
+//     // This will now send the full, correct object to your API hook
+//     console.log("Pasted card data:", newCard);
+//     items.addCardWithData(newCard);
+//     setShowLinkPaste(false);
+//   };
+//   // --- END OF UPDATE ---
+
+//   // Locate item on canvas
+//   const handleLocateItem = (item) => {
+//     // Set as current item
+//     items.setCurrentItemId(item.id);
+
+//     // Calculate center position
+//     // const centerX = item.position.x + item.size.width / 2;
+//     // const centerY = item.position.y + item.size.height / 2;
+
+//     // TODO: Pan to item
+//     // For now, just setting it as current highlights it
+//   };
+
+//   return (
+//     <GestureHandlerRootView style={styles.container}>
+//       {/* Header */}
+//       <CanvasHeader
+//         title="My workspace"
+//         subtitle="New Canvas"
+//         collaborators={["user1", "user2", "user3", "user4"]}
+//         onSharePress={handleSharePress}
+//       />
+
+//       {/* Toolbar - with Folders button */}
+//       <CanvasToolbar
+//         tools={TOOLS.filter((tool) => tool !== "Pan" && tool !== "Zoom")}
+//         selectedTool={selectedTool}
+//         onToolSelect={setSelectedTool}
+//         onAddPress={() => setShowAddMenu(!showAddMenu)}
+//         onFoldersPress={() => setShowFolders(true)}
+//       />
+
+//       {/* Add Menu */}
+//       <AddMenu visible={showAddMenu} onAddCard={handleAddCard} />
+
+//       {/* Canvas Area with Gestures */}
+//       <CanvasArea
+//         scale={zoom.scale}
+//         translateX={pan.translateX}
+//         translateY={pan.translateY}
+//         canvasItems={items.canvasItems}
+//         currentItemId={items.currentItemId}
+//         onPositionChange={items.handlePositionChange}
+//         onDragStart={items.handleDragStart}
+//         onItemPress={handleItemPress}
+//         onPinch={zoom.handlePinch}
+//         onLongPress={handleLongPress}
+//       />
+
+//       {/* Zoom Slider - Fixed Bottom Right */}
+//       <ZoomSlider
+//         zoomLevel={zoom.zoomLevel}
+//         onZoomChange={zoom.setZoomLevel}
+//         onZoomIn={zoom.handleZoomIn}
+//         onZoomOut={zoom.handleZoomOut}
+//       />
+
+//       {/* Folders Drawer - New */}
+//       <FoldersDrawer
+//         visible={showFolders}
+//         onClose={() => setShowFolders(false)}
+//         items={items.canvasItems}
+//         onLocateItem={handleLocateItem}
+//       />
+
+//       {/* Note Editing Modal */}
+//       <NoteEditModal
+//         visible={!!editingNote}
+//         noteContent={noteContent}
+//         onChangeText={setNoteContent}
+//         onSave={handleSaveNote}
+//         onCancel={handleCancelNote}
+//       />
+
+//       {/* Link Paste Modal */}
+//       <LinkPasteModal
+//         visible={showLinkPaste}
+//         onPaste={handlePasteLink}
+//         onCancel={() => setShowLinkPaste(false)}
+//       />
+
+//       {/* Chat Button */}
+//       <ChatButton
+//         onPress={() => setShowLiveChat(!showLiveChat)}
+//         badgeCount={3}
+//       />
+
+//       {/* Live Chat Modal */}
+//       {showLiveChat && (
+//         <LiveChatModal
+//           visible={showLiveChat}
+//           onClose={() => setShowLiveChat(false)}
+//         />
+//       )}
+//     </GestureHandlerRootView>
+//   );
+// }
+
+// const styles = StyleSheet.create({
+//   container: {
+//     paddingTop: 40,
+//     flex: 1,
+//     backgroundColor: "#ffffffff",
 //   },
 // });
 
 import React, { useState } from "react";
-import { StyleSheet } from "react-native";
+import { StyleSheet, View, ActivityIndicator, Text } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { useLocalSearchParams } from "expo-router"; // To get canvasId from URL
+import { useAuth } from "@clerk/clerk-expo"; // To get the auth token
+// No type imports needed
 
 // Custom Hooks
 import { useCanvasZoom } from "@/hooks/useCanvasZoom";
 import { useCanvasPan } from "@/hooks/useCanvasPan";
-import { useCanvasItems } from "@/hooks/useCanvasItems";
+import { useCanvasItems } from "@/hooks/useCanvasItems"; // The new data hook
 
 // Components
 import CanvasHeader from "@/components/canvas/CanvasHeader";
@@ -340,47 +432,78 @@ import LinkPasteModal from "@/components/canvas/Modal/LinkPasteModal";
 import FoldersDrawer from "@/components/canvas/FoldersDrawer/FoldersDrawer";
 
 // Constants
-import { TOOLS, INITIAL_CANVAS_ITEMS } from "@/constants/canvas";
+import { TOOLS } from "@/constants/canvas";
 
 export default function CanvasScreen() {
+  // --- FIX 1: Get canvasId and auth token ---
+  const { id } = useLocalSearchParams();
+  const canvasId = Array.isArray(id) ? id[0] : id; // Ensure canvasId is a string
+  const { getToken } = useAuth();
+
   // UI State
   const [selectedTool, setSelectedTool] = useState("Select");
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [showLiveChat, setShowLiveChat] = useState(false);
   const [showLinkPaste, setShowLinkPaste] = useState(false);
-  const [showFolders, setShowFolders] = useState(false); // ← New
+  const [showFolders, setShowFolders] = useState(false);
   const [linkPastePosition, setLinkPastePosition] = useState({ x: 0, y: 0 });
 
   // Note Editing State
   const [editingNote, setEditingNote] = useState(null);
   const [noteContent, setNoteContent] = useState("");
 
-  // Custom Hooks
+  // --- FIX 2: Use the new data-driven hook ---
   const zoom = useCanvasZoom();
   const pan = useCanvasPan();
-  const items = useCanvasItems(INITIAL_CANVAS_ITEMS);
+  const {
+    canvasItems,
+    currentItemId,
+    isLoading,
+    error,
+    addCardWithData,
+    updateItem,
+    handlePositionChange,
+    handleDragStart,
+    setCurrentItemId,
+  } = useCanvasItems(canvasId, getToken); // <-- NOW USING THE DATA HOOK
 
-  // Handlers
+  // --- Handle addCard (for non-link types) ---
   const handleAddCard = (type) => {
-    items.addCard(type);
+    // This can be expanded to create a default card object
+    if (type === "note") {
+      addCardWithData({
+        type: "note",
+        name: "New Note",
+        content: "Start typing...",
+        position: { x: 100, y: 100 }, // TODO: get center of screen
+        size: { width: 200, height: 200 },
+        color: "#FFF9A6",
+      });
+    }
     setShowAddMenu(false);
   };
+
+  console.log(canvasItems);
 
   const handleResetView = () => {
     zoom.handleResetZoom();
     pan.resetPan();
   };
 
+  // --- UPDATED: To match your flat canvaitems interface ---
   const handleItemPress = (item) => {
     if (item.type === "note") {
       setEditingNote(item.id);
+      // 'content' is the string for note text, as per your interface
       setNoteContent(item.content || "");
     }
   };
 
+  // --- UPDATED: To match your flat canvaitems interface ---
   const handleSaveNote = () => {
     if (editingNote) {
-      items.updateItem(editingNote, { content: noteContent });
+      // Save note text inside the 'content' field
+      updateItem(editingNote, { content: noteContent });
       setEditingNote(null);
       setNoteContent("");
     }
@@ -400,83 +523,88 @@ export default function CanvasScreen() {
     setShowLinkPaste(true);
   };
 
-  const handlePasteLink = (url, linkType) => {
+  const handlePasteLink = (cardData) => {
     const newCard = {
-      type: linkType,
-      position: linkPastePosition,
-      url: url,
+      ...cardData, // This has type, name, color, size, content
+      position: linkPastePosition, // This sets the correct position
     };
 
-    items.addCardWithData(newCard);
+    console.log("Pasted card data:", newCard); // Your log is here
+
+    // --- THIS NOW CALLS THE *NEW* API-DRIVEN FUNCTION ---
+    addCardWithData(newCard);
     setShowLinkPaste(false);
   };
 
-  // ← New: Locate item on canvas
   const handleLocateItem = (item) => {
-    // Set as current item
-    items.setCurrentItemId(item.id);
-
-    // Calculate center position
-    const centerX = item.position.x + item.size.width / 2;
-    const centerY = item.position.y + item.size.height / 2;
-
-    // Pan to item (you can add smooth animation here)
-    // For now, just setting it as current highlights it
+    setCurrentItemId(item.id);
+    // TODO: Pan to item
   };
+
+  // --- NEW: Loading and Error states ---
+  if (isLoading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" />
+        <Text>Loading Canvas...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.centered}>
+        <Text>Failed to load canvas: {error.message}</Text>
+      </View>
+    );
+  }
 
   return (
     <GestureHandlerRootView style={styles.container}>
-      {/* Header */}
       <CanvasHeader
-        title="My workspace"
+        title="My workspace" // TODO: Get real canvas title
         subtitle="New Canvas"
         collaborators={["user1", "user2", "user3", "user4"]}
         onSharePress={handleSharePress}
       />
 
-      {/* Toolbar - with Folders button */}
       <CanvasToolbar
         tools={TOOLS.filter((tool) => tool !== "Pan" && tool !== "Zoom")}
         selectedTool={selectedTool}
         onToolSelect={setSelectedTool}
         onAddPress={() => setShowAddMenu(!showAddMenu)}
-        onFoldersPress={() => setShowFolders(true)} // ← New
+        onFoldersPress={() => setShowFolders(true)}
       />
 
-      {/* Add Menu */}
       <AddMenu visible={showAddMenu} onAddCard={handleAddCard} />
 
-      {/* Canvas Area with Gestures */}
       <CanvasArea
         scale={zoom.scale}
         translateX={pan.translateX}
         translateY={pan.translateY}
-        canvasItems={items.canvasItems}
-        currentItemId={items.currentItemId}
-        onPositionChange={items.handlePositionChange}
-        onDragStart={items.handleDragStart}
+        canvasItems={canvasItems}
+        currentItemId={currentItemId}
+        onPositionChange={handlePositionChange}
+        onDragStart={handleDragStart}
         onItemPress={handleItemPress}
         onPinch={zoom.handlePinch}
         onLongPress={handleLongPress}
       />
 
-      {/* Zoom Slider - Fixed Bottom Right */}
       <ZoomSlider
         zoomLevel={zoom.zoomLevel}
-        onZoomChange={zoom.setZoomLevel}
+        // onZoomChange={setZoomLevel}
         onZoomIn={zoom.handleZoomIn}
         onZoomOut={zoom.handleZoomOut}
       />
 
-      {/* Folders Drawer - New */}
       <FoldersDrawer
         visible={showFolders}
         onClose={() => setShowFolders(false)}
-        items={items.canvasItems}
+        items={canvasItems}
         onLocateItem={handleLocateItem}
       />
 
-      {/* Note Editing Modal */}
       <NoteEditModal
         visible={!!editingNote}
         noteContent={noteContent}
@@ -485,20 +613,17 @@ export default function CanvasScreen() {
         onCancel={handleCancelNote}
       />
 
-      {/* Link Paste Modal */}
       <LinkPasteModal
         visible={showLinkPaste}
         onPaste={handlePasteLink}
         onCancel={() => setShowLinkPaste(false)}
       />
 
-      {/* Chat Button */}
       <ChatButton
         onPress={() => setShowLiveChat(!showLiveChat)}
         badgeCount={3}
       />
 
-      {/* Live Chat Modal */}
       {showLiveChat && (
         <LiveChatModal
           visible={showLiveChat}
@@ -514,5 +639,11 @@ const styles = StyleSheet.create({
     paddingTop: 40,
     flex: 1,
     backgroundColor: "#ffffffff",
+  },
+  // --- NEW: Centered style for loading/error ---
+  centered: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

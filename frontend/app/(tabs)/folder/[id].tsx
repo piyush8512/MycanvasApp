@@ -162,9 +162,7 @@ export default function FolderScreen() {
   const { getToken } = useAuth();
   const folderId = typeof id === "string" ? id : id?.[0];
   const [contents, setContents] = useState<FolderItem[]>([]);
-  const [breadcrumbs, setBreadcrumbs] = useState<Breadcrumb[]>([
-    { id: "root", name: "Home" },
-  ]);
+  const [breadcrumbs, setBreadcrumbs] = useState<Breadcrumb[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -250,7 +248,7 @@ export default function FolderScreen() {
   if (loading) {
     return (
       <View style={styles.container}>
-        <HeaderSection user={user} onNotificationPress={handleLogToken} />
+        <HeaderSection onNotificationPress={handleLogToken} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#8B5CF6" />
         </View>
@@ -260,7 +258,7 @@ export default function FolderScreen() {
 
   return (
     <View style={styles.container}>
-      <HeaderSection user={user} onNotificationPress={handleLogToken} />
+      <HeaderSection onNotificationPress={handleLogToken} />
 
       <BreadcrumbNav
         style={styles.breadcrumbNav}
@@ -291,8 +289,13 @@ export default function FolderScreen() {
         )}
         keyExtractor={(item) => item.id}
       />
-      <ActionButtonsSection
+      {/* <ActionButtonsSection
         onCreateFolder={() => setShowFolderModal(true)}
+        onCreateCanvas={handleCreateCanvas}
+        folderId={folderId}
+      /> */}
+      <ActionButtonsSection
+        onCreateFolder={handleCreateCanvas}
         onCreateCanvas={handleCreateCanvas}
         folderId={folderId}
       />
