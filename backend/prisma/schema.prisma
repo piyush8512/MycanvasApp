@@ -46,9 +46,9 @@ model Folder {
 model File {
   id            String             @id @default(uuid())
   name          String
-//   type          String
-  size          Int                   
-  url           String                   
+  //   type          String
+  size          Int
+  url           String
   folderId      String?
   ownerId       String
   isShared      Boolean            @default(false)
@@ -175,5 +175,14 @@ enum ItemType {
   youtube
   image
   note
-  
+  instagram
+  twitter
+  tiktok
+  facebook
+  link
+  linkedin
+  pdf
+  docx
+  xlsx
+  pptx
 }

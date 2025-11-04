@@ -7,11 +7,26 @@ import PdfCard from "@/components/canvas/Card/PdfCard";
 import NoteCard from "@/components/canvas/Card/NoteCard";
 import FolderCard from "@/components/canvas/Card/FolderCard";
 import { canvaitems } from "@/types/space";
+import InstagramCard from "@/components/canvas/Card/InstagramCard";
+import ImageCard from "@/components/canvas/Card/ImageCard";
 
-const renderCardContent = (item: canvaitems) => {
+const renderCardContent = (
+  item: canvaitems,
+  playTriggerTimestamp?: number,
+  onNotePress?: () => void
+) => {
+  console.log(
+    "🎬 renderCardContent: Rendering",
+    item.type,
+    "playTrigger:",
+    playTriggerTimestamp
+  );
+
   switch (item.type) {
     case "youtube":
-      return <YoutubeCard item={item} />;
+      return (
+        <YoutubeCard item={item} playTriggerTimestamp={playTriggerTimestamp} />
+      );
 
     case "link":
       return <LinkPreviewCard item={item} />;
@@ -19,20 +34,17 @@ const renderCardContent = (item: canvaitems) => {
     case "pdf":
       return <PdfCard item={item} />;
 
-    // case "note":
-    //   return <NoteCard item={item} />;
+    case "instagram":
+      return <InstagramCard item={item} />;
+
+    case "note":
+      return <NoteCard item={item} onPress={onNotePress || (() => {})} />;
 
     case "folder":
       return <FolderCard item={item} />;
 
     case "image":
-      return (
-        <Image
-          source={{ uri: item.url }}
-          style={styles.imagePreview}
-          resizeMode="cover"
-        />
-      );
+      return <ImageCard item={item} />;
 
     default:
       return (

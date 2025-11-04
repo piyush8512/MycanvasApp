@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Modal,
   ScrollView,
+  Linking,
 } from "react-native";
 import {
   ExternalLink,
@@ -18,6 +19,7 @@ import {
   Play,
   FileText,
   Image as ImageIcon,
+  Eye,
 } from "lucide-react-native";
 
 interface CardActionMenuProps {
@@ -25,6 +27,9 @@ interface CardActionMenuProps {
   onClose: () => void;
   item: any;
   cardType: string;
+  onPlayVideo?: (videoId: string) => void;
+  onViewNote?: () => void; // New prop for viewing full note text
+  onEditNote?: () => void; // New prop for editing note
 }
 
 export default function CardActionMenu({
@@ -32,45 +37,98 @@ export default function CardActionMenu({
   onClose,
   item,
   cardType,
+  onPlayVideo,
+  onViewNote,
+  onEditNote,
 }: CardActionMenuProps) {
   const handleAction = (action: string) => {
     console.log(`Action: ${action} on ${cardType} - ${item.id}`);
-    onClose();
 
-    // TODO: Implement actual actions
+    // Handle actions
     switch (action) {
-      case "open":
-        // Open URL in browser or native app
-        console.log("Opening:", item.url);
+      case "viewNote":
+        if (onViewNote) {
+          onViewNote();
+        }
+        onClose();
         break;
+
+      case "editNote":
+        if (onEditNote) {
+          onEditNote();
+        }
+        onClose();
+        break;
+
+      case "copyNote":
+        // Copy note content to clipboard
+        console.log("Copying note content:", item.content);
+        // TODO: Implement clipboard copy for note content
+        onClose();
+        break;
+
       case "play":
-        // Play YouTube video
-        console.log("Playing video:", item.videoId);
+        const videoId = item.videoId || item.content?.videoId;
+        if (videoId && onPlayVideo) {
+          console.log("Playing video ID:", videoId);
+          onPlayVideo(videoId);
+        }
+        onClose();
         break;
+
+      case "open":
+        if (cardType === "youtube") {
+          const videoId = item.videoId || item.content?.videoId;
+          if (videoId) {
+            Linking.openURL(`https://www.youtube.com/watch?v=${videoId}`);
+          }
+        } else {
+          const url = item.url || item.content?.url;
+          if (url) {
+            Linking.openURL(url);
+          }
+        }
+        onClose();
+        break;
+
       case "copy":
-        // Copy URL to clipboard
         console.log("Copying URL:", item.url);
+        // TODO: Implement clipboard copy
+        onClose();
         break;
+
       case "rename":
-        // Show rename modal
         console.log("Rename:", item.name);
+        onClose();
+        // TODO: Implement rename functionality
         break;
+
       case "move":
-        // Show folder picker
         console.log("Move to folder");
+        onClose();
+        // TODO: Implement move functionality
         break;
+
       case "download":
-        // Download file
         console.log("Downloading:", item.url);
+        onClose();
+        // TODO: Implement download functionality
         break;
+
       case "share":
-        // Share with others
         console.log("Share:", item.name);
+        onClose();
+        // TODO: Implement share functionality
         break;
+
       case "delete":
-        // Show delete confirmation
         console.log("Delete:", item.id);
+        onClose();
+        // TODO: Implement delete functionality
         break;
+
+      default:
+        onClose();
     }
   };
 
@@ -88,6 +146,36 @@ export default function CardActionMenu({
     ];
 
     switch (cardType) {
+      case "note":
+        return [
+          {
+            icon: Eye,
+            label: "View Full Text",
+            action: "viewNote",
+            color: "#8B5CF6",
+          },
+          {
+            icon: Edit3,
+            label: "Edit Note",
+            action: "editNote",
+            color: "#6B7280",
+          },
+          {
+            icon: Copy,
+            label: "Copy Text",
+            action: "copyNote",
+            color: "#6B7280",
+          },
+          {
+            icon: FolderInput,
+            label: "Move to Folder",
+            action: "move",
+            color: "#6B7280",
+          },
+          { icon: Share2, label: "Share", action: "share", color: "#6B7280" },
+          { icon: Trash2, label: "Delete", action: "delete", color: "#EF4444" },
+        ];
+
       case "youtube":
         return [
           { icon: Play, label: "Play Video", action: "play", color: "#EF4444" },
@@ -184,7 +272,6 @@ export default function CardActionMenu({
         onPress={onClose}
       >
         <View style={styles.menuContainer}>
-          {/* Header */}
           <View style={styles.menuHeader}>
             <Text style={styles.menuTitle} numberOfLines={1}>
               {item?.name}
@@ -194,7 +281,6 @@ export default function CardActionMenu({
             </Text>
           </View>
 
-          {/* Menu Items */}
           <ScrollView
             style={styles.menuItems}
             showsVerticalScrollIndicator={false}
@@ -215,6 +301,8 @@ export default function CardActionMenu({
                       styles.iconContainer,
                       menuItem.color === "#EF4444" &&
                         styles.iconContainerDanger,
+                      menuItem.color === "#8B5CF6" &&
+                        styles.iconContainerPrimary,
                     ]}
                   >
                     <Icon size={20} color={menuItem.color} />
@@ -223,6 +311,8 @@ export default function CardActionMenu({
                     style={[
                       styles.menuItemText,
                       menuItem.color === "#EF4444" && styles.menuItemTextDanger,
+                      menuItem.color === "#8B5CF6" &&
+                        styles.menuItemTextPrimary,
                     ]}
                   >
                     {menuItem.label}
@@ -232,7 +322,6 @@ export default function CardActionMenu({
             })}
           </ScrollView>
 
-          {/* Cancel Button */}
           <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
             <Text style={styles.cancelText}>Cancel</Text>
           </TouchableOpacity>
@@ -296,6 +385,9 @@ const styles = StyleSheet.create({
   iconContainerDanger: {
     backgroundColor: "#FEE2E2",
   },
+  iconContainerPrimary: {
+    backgroundColor: "#EDE9FE",
+  },
   menuItemText: {
     fontSize: 16,
     color: "#1F2937",
@@ -304,6 +396,9 @@ const styles = StyleSheet.create({
   },
   menuItemTextDanger: {
     color: "#EF4444",
+  },
+  menuItemTextPrimary: {
+    color: "#8B5CF6",
   },
   cancelButton: {
     padding: 20,

@@ -7,37 +7,7 @@ import { canvaitems } from "@/types/space";
 import { UserAvatarGroup } from "@/components/UserAvatarGroup";
 
 const RenderCanvasItems = () => {
-  const [canvasItems, setCanvasItems] = useState<canvaitems[]>([
-    {
-      id: "1",
-      type: "pdf",
-      title: "PDF Notes", // ✅ Added
-      name: "PDF notes",
-      position: { x: 120, y: 180 },
-      size: { width: 200, height: 280 },
-      collaborators: ["user1", "user2"],
-      url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-      color: "#FECACA",
-      createdAt: new Date().toISOString(), // ✅ Added
-      updatedAt: new Date().toISOString(), // ✅ Added
-      canvasId: "local-canvas-1", // ✅ Added
-    },
-    {
-      id: "2",
-      type: "youtube",
-      title: "YouTube Video", // ✅ Added
-      name: "YouTube Video",
-      position: { x: 120, y: 320 },
-      size: { width: 280, height: 160 },
-      collaborators: ["user3"],
-      videoId: "dQw4w9WgXcQ",
-      color: "#FECACA",
-      url: "",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      canvasId: "local-canvas-1",
-    },
-  ]);
+  const [canvasItems, setCanvasItems] = useState<canvaitems[]>([]);
 
   const [currentItemId, setCurrentItemId] = useState<string | null>(null);
 

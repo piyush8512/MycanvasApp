@@ -5,13 +5,34 @@ import {
   TouchableOpacity,
   Linking,
   StyleSheet,
+  Alert,
 } from "react-native";
 import { ExternalLink } from "lucide-react-native";
 import { canvaitems } from "../../../types/space";
 
 const PdfCard = ({ item }: { item: canvaitems }) => {
   const handlePress = () => {
-    Linking.openURL(item.url);
+    // --- FIX: Get URL from content.url instead of item.url ---
+    const pdfUrl = item.content?.url || item.url;
+
+    console.log("Opening PDF:", pdfUrl);
+
+    if (!pdfUrl) {
+      Alert.alert("Error", "PDF URL not found");
+      return;
+    }
+
+    // Validate it's a string
+    if (typeof pdfUrl !== "string") {
+      console.error("Invalid URL type:", typeof pdfUrl, pdfUrl);
+      Alert.alert("Error", "Invalid PDF URL");
+      return;
+    }
+
+    Linking.openURL(pdfUrl).catch((err) => {
+      console.error("Failed to open PDF:", err);
+      Alert.alert("Error", "Could not open PDF");
+    });
   };
 
   return (

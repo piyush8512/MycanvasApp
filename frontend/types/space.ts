@@ -74,8 +74,12 @@ export interface canvaitems {
   id: string;
   title: string;
   name: string;
-  content?: string;
+  // content?: string;
+   content?: {
+    url: string;
+  };
   note?: string;
+  
   collaborators: string[]; 
   color?: string;
   position: { x: number; y: number };
@@ -86,7 +90,7 @@ export interface canvaitems {
     height: number;
   };
   videoId?: string;
-  type: 'youtube' | 'image' | 'text' | 'drawing' | 'pdf' | 'link' | 'note' | 'folder';
+  type: 'youtube' | 'image' | 'text' | 'drawing' | 'pdf' | 'link' | 'note' | 'folder'| 'instagram';
   createdAt: string;
   updatedAt: string;
   canvasId: string;

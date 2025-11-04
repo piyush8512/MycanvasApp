@@ -10,6 +10,7 @@ export default function DraggableCard({
   onDragStart,
   onDragEnd,
   isCurrentItem,
+  onLongPress,
   children,
 }) {
   const pan = useRef(new Animated.ValueXY(item.position)).current;

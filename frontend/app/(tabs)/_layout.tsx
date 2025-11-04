@@ -5,6 +5,7 @@ import {
   Home as HomeIcon,
   UserCircle,
   Users,
+  User,
 } from "lucide-react-native";
 import axios from "axios";
 import { useAuth } from "@clerk/clerk-expo";
@@ -76,6 +77,7 @@ export default function TabLayout() {
         tabBarBackground: () => (
           <BlurView
             tint="light"
+            
             intensity={50}
             style={{ flex: 1, borderRadius: 43, overflow: "hidden" }}
           />
@@ -129,7 +131,13 @@ export default function TabLayout() {
           tabBarIcon: ({ focused }) => (
             <TabIcon
               focused={focused}
-              icon={<Users size={20} color={focused ? "#fff" : "#000"} />}
+              icon={
+                <Users
+                  size={20}
+                  strokeWidth={3}
+                  color={focused ? "#fff" : "#000"}
+                />
+              }
             />
           ),
         }}
@@ -158,13 +166,14 @@ export default function TabLayout() {
       {/* 👤 Profile */}
       <Tabs.Screen
         name="Profile"
+        
         options={{
-          title: "Profile",
+          title: "Profile", 
           tabBarIcon: ({ focused }) => (
             <TabIcon
               focused={focused}
               icon={
-                <Users
+                <User
                   size={20}
                   strokeWidth={3}
                   color={focused ? "#fff" : "#000"}

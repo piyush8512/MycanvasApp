@@ -11,18 +11,37 @@ import {
   Dimensions,
 } from "react-native";
 import { X, Search } from "lucide-react-native";
-import FolderSection from "./FolderSection.jsx";
+import FolderSection from "./FolderSection.jsx"; // Assuming this is the correct path
+import { canvaitems } from "@/types/space"; // Import your type
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const DRAWER_WIDTH = SCREEN_WIDTH * 0.85;
+// --- UPDATED: Get SCREEN_HEIGHT and define a height for the drawer ---
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+const DRAWER_HEIGHT = SCREEN_HEIGHT * 0.85; // Drawer will take 85% of the screen height
+// --- END UPDATE ---
 
-export default function FoldersDrawer({ visible, onClose, items, onLocateItem }) {
+interface FoldersDrawerProps {
+  visible: boolean;
+  onClose: () => void;
+  items: canvaitems[]; // Use your imported type
+  onLocateItem: (item: canvaitems) => void;
+}
+
+export default function FoldersDrawer({
+  visible,
+  onClose,
+  items,
+  onLocateItem,
+}: FoldersDrawerProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const slideAnim = useRef(new Animated.Value(DRAWER_WIDTH)).current;
+  // --- UPDATED: Animate based on DRAWER_HEIGHT ---
+  const slideAnim = useRef(new Animated.Value(DRAWER_HEIGHT)).current;
+  // --- END UPDATE ---
 
   useEffect(() => {
     Animated.spring(slideAnim, {
-      toValue: visible ? 0 : DRAWER_WIDTH,
+      // --- UPDATED: Animate to 0 (visible) or DRAWER_HEIGHT (hidden) ---
+      toValue: visible ? 0 : DRAWER_HEIGHT,
+      // --- END UPDATE ---
       useNativeDriver: true,
       tension: 65,
       friction: 11,
@@ -37,7 +56,7 @@ export default function FoldersDrawer({ visible, onClose, items, onLocateItem })
     }
     acc[type].push(item);
     return acc;
-  }, {});
+  }, {} as { [key: string]: canvaitems[] }); // Add type to accumulator
 
   // Filter items based on search
   const filteredGroups = searchQuery
@@ -45,14 +64,16 @@ export default function FoldersDrawer({ visible, onClose, items, onLocateItem })
         const filtered = typeItems.filter(
           (item) =>
             item.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            item.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            item.url?.toLowerCase().includes(searchQuery.toLowerCase())
+            // --- FIX: Access url from content object for links ---
+            (item.content as any)?.url
+              ?.toLowerCase()
+              .includes(searchQuery.toLowerCase())
         );
         if (filtered.length > 0) {
           acc[type] = filtered;
         }
         return acc;
-      }, {})
+      }, {} as { [key: string]: canvaitems[] }) // Add type to accumulator
     : groupedItems;
 
   const folderConfig = {
@@ -73,7 +94,9 @@ export default function FoldersDrawer({ visible, onClose, items, onLocateItem })
       animationType="none"
       onRequestClose={onClose}
     >
+      {/* --- UPDATED: Overlay now justifies to the bottom --- */}
       <View style={styles.overlay}>
+        {/* --- END UPDATE --- */}
         <TouchableOpacity
           style={styles.backdrop}
           activeOpacity={1}
@@ -84,10 +107,17 @@ export default function FoldersDrawer({ visible, onClose, items, onLocateItem })
           style={[
             styles.drawer,
             {
-              transform: [{ translateX: slideAnim }],
+              // --- UPDATED: Animate 'translateY' instead of 'translateX' ---
+              transform: [{ translateY: slideAnim }],
+              // --- END UPDATE ---
             },
           ]}
         >
+          {/* Handle Bar */}
+          <View style={styles.handleBar}>
+            <View style={styles.handle} />
+          </View>
+
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>My Links</Text>
@@ -122,7 +152,10 @@ export default function FoldersDrawer({ visible, onClose, items, onLocateItem })
                   key={type}
                   type={type}
                   items={typeItems}
-                  config={folderConfig[type] || folderConfig.link}
+                  config={
+                    folderConfig[type as keyof typeof folderConfig] ||
+                    folderConfig.link
+                  }
                   onLocateItem={onLocateItem}
                   onClose={onClose}
                 />
@@ -138,8 +171,9 @@ export default function FoldersDrawer({ visible, onClose, items, onLocateItem })
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    flexDirection: "row",
+    // --- UPDATED: Justify content to the bottom ---
     justifyContent: "flex-end",
+    // --- END UPDATE ---
   },
   backdrop: {
     position: "absolute",
@@ -150,22 +184,40 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   drawer: {
-    width: DRAWER_WIDTH,
-    height: "100%",
+    // --- UPDATED: Styles for a bottom sheet ---
+    width: "100%",
+    height: DRAWER_HEIGHT,
     backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    overflow: "hidden", // Clip the content
+    // --- END UPDATE ---
     shadowColor: "#000",
-    shadowOffset: { width: -2, height: 0 },
-    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: -2 }, // Shadow at the top
+    shadowOpacity: 0.1,
     shadowRadius: 10,
     elevation: 5,
   },
+  // --- NEW: Handle bar styles ---
+  handleBar: {
+    alignItems: "center",
+    paddingVertical: 10,
+    backgroundColor: "#FFFFFF",
+  },
+  handle: {
+    width: 40,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: "#D1D5DB",
+  },
+  // --- END NEW ---
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    paddingTop: 60,
+    paddingVertical: 10, // Reduced padding
+    // paddingTop: 60, // Removed platform-specific padding
     borderBottomWidth: 1,
     borderBottomColor: "#E5E7EB",
   },

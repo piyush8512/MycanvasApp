@@ -362,6 +362,7 @@ import dotenv from "dotenv";
 import userRoutes from "./routes/user.routes.js";
 import folderRoutes from "./routes/folder.routes.js";
 import canvasRoutes from "./routes/canvas.routes.js";
+import storageRoutes from "./routes/storage.routes.js";
 import { requireAuth } from "./middleware/clerkAuth.js";
 
 
@@ -380,6 +381,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/folders",folderRoutes);
 app.use("/api/canvas", canvasRoutes);
 app.use("/api/shared",userRoutes);
+app.use("/api/storage", storageRoutes);
 
 
 

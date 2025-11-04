@@ -80,7 +80,7 @@ export default function HomeScreen() {
         // Map canvases
         if (Array.isArray(canvasesResponse)) {
           const mappedCanvases: Space[] = canvasesResponse
-            .filter((canvas: any) => !canvas.folderId) // Only show canvases not in folders on home
+            .filter((canvas: any) => !canvas.folderId) 
             .map((canvas: any) => ({
               id: canvas.id,
               name: canvas.name,
