@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Canvas Saver</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <button id="back-btn" class="icon-btn hidden" title="Back">⬅️</button>
+      <img src="../icons/icon48.png" alt="Canvas" class="logo">
+      <h1 id="header-title">Save to Canvas</h1>
+    </div>
+
+    <!-- ===== 1. AUTH SECTION ===== -->
+    <div id="auth-section" class="section hidden">
+
+      <p class="info-text">Sign in to save content to your canvas</p>
+      <button id="login-btn" class="btn btn-primary">
+        <span>🔒</span> Sign In
+      </button>
+    </div>
+
+    <!-- ===== 2. MAIN SECTION ===== -->
+    <div id="main-section" class="section hidden">
+      
+      <!-- Link Input (Auto-filled) -->
+      <div class="form-group">
+
+        <label for="url-input">Content to save:</label>
+        <input type="text" id="url-input" class="input" placeholder="Paste a link or text...">
+      </div>
+
+      <!-- Canvas/Folder Selection -->
+      <div class="form-group">
+        <label for="search-input" id="search-label">Save to:</label>
+        <div class="search-container">
+
+          <span class="search-icon">🔍</span>
+          <input type="text" id="search-input" class="search-input" placeholder="Search spaces...">
+        </div>
+        <ul id="space-list" class="space-list">
+          <!-- Items will be populated by JS -->
+        </ul>
+      </div>
+
+      <!-- Save Button -->
+      <div class="save-options">
+
+        <button id="save-button" class="btn btn-primary">
+          <span class="btn-icon">💾</span>
+          Save to Canvas
+        </button>
+      </div>
+
+      <!-- Recent Saves -->
+      <div class="recent-section">
+        <h4>Recent Saves</h4>
+        <div id="recent-list" class="recent-list-items">
+          <p class="empty-state">No recent saves</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 3. LOADING SECTION ===== -->
+    <div id="loading-section" class="section">
+
+      <div class="loader"></div>
+      <p>Loading...</p>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+
+      <button id="logout-btn" class="icon-btn" title="Logout">🚪</button>
+      <div style="flex: 1;"></div> <!-- Spacer -->
+      <button id="refresh-btn" class="icon-btn" title="Refresh">🔄</button>
+    </div>
+  </div>
+
+  <!-- IMPORTANT: Load popup.js as a module -->
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

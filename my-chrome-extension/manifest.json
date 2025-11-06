@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "Canvas App Saver",
+  "version": "1.0.0",
+  "description": "Save links, text, and images directly to your Canvas.",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "notifications",
+    "contextMenus",
+    "scripting"
+  ],
+  "host_permissions": [
+    "http://192.168.1.33:4000/*"
+  ],
+  "action": {
+    "default_popup": "popup/popup.html"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "commands": {
+    "save-to-canvas": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+S",
+        "mac": "Command+Shift+S"
+      },
+      "description": "Quick save to last canvas"
+    }
+  },
+  "externally_connectable": {
+    "matches": [
+      "http://localhost:3000/*"
+    ]
+  }
+}
