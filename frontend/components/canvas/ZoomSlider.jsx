@@ -23,9 +23,9 @@ export default function ZoomSlider({
             maximumValue={1}
             value={zoomLevel}
             onValueChange={onZoomChange}
-            minimumTrackTintColor="#8B5CF6"
+            minimumTrackTintColor="#FF6B35"
             maximumTrackTintColor="#E5E7EB"
-            thumbTintColor="#8B5CF6"
+            thumbTintColor="#FF6B35"
           />
           <Text style={styles.zoomText}>{Math.round(zoomLevel * 100)}%</Text>
         </View>
@@ -41,16 +41,16 @@ export default function ZoomSlider({
 const styles = StyleSheet.create({
   container: {
     position: "absolute",
-    bottom: 600,
-    right: 0,
+    bottom: 550,
+    right:12,
     zIndex: 50,
   },
   zoomContainer: {
     flexDirection: "column",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 8,
+    backgroundColor: "#2C2C2C",
+    borderRadius: 30,
+    padding: 4,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "#1C1C1C",
     alignItems: "center",
     justifyContent: "center",
     marginVertical: 4,
@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
   zoomText: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#6B7280",
+    color: "#FFFFFF",
     marginTop: 4,
   },
 });

@@ -13,7 +13,7 @@
 // //   { type: 'pdf', label: 'Add PDF', Icon: File, color: '#EF4444' },
 // //   { type: 'note', label: 'Add Note', Icon: StickyNote, color: '#EAB308' },
 // //   { type: 'folder', label: 'Add Folder', Icon: Folder, color: '#6B7280' },
-// //   { type: 'image', label: 'Add Image', Icon: ImageIcon, color: '#8B5CF6' },
+// //   { type: 'image', label: 'Add Image', Icon: ImageIcon, color: '#FF6B35' },
 // // ];
 
 // // export default function AddMenu({ visible, onAddCard }) {
@@ -61,7 +61,6 @@
 // //     color: '#1F2937',
 // //   },
 // // });
-
 
 // import React, { useRef, useEffect } from "react";
 // import {
@@ -136,7 +135,7 @@
 //                 style={styles.menuItem}
 //                 onPress={() => handleAction(onAddNote)}
 //               >
-//                 <NotebookPen  size={22} color="#8B5CF6" />
+//                 <NotebookPen  size={22} color="#FF6B35" />
 //                 <Text style={styles.menuText}>Add Note</Text>
 //               </TouchableOpacity>
 
@@ -144,7 +143,7 @@
 //                 style={styles.menuItem}
 //                 onPress={() => handleAction(onPasteLink)}
 //               >
-//                 <Link size={22} color="#8B5CF6" />
+//                 <Link size={22} color="#FF6B35" />
 //                 <Text style={styles.menuText}>Paste Link</Text>
 //               </TouchableOpacity>
 
@@ -153,7 +152,7 @@
 //                 style={styles.menuItem}
 //                 onPress={() => handleAction(onUploadFile)}
 //               >
-//                 <FileUp size={22} color="#8B5CF6" />
+//                 <FileUp size={22} color="#FF6B35" />
 //                 <Text style={styles.menuText}>Upload File</Text>
 //               </TouchableOpacity>
 //               {/* --- END NEW --- */}
@@ -192,7 +191,6 @@
 //   },
 // });
 
-
 import React, { useRef, useEffect } from "react";
 import {
   Modal,
@@ -203,7 +201,7 @@ import {
   Animated,
   TouchableWithoutFeedback,
 } from "react-native";
-import { NotebookPen , Link, FileUp } from "lucide-react-native";
+import { NotebookPen, Link, FileUp } from "lucide-react-native";
 
 interface AddMenuProps {
   visible: boolean;
@@ -266,7 +264,7 @@ export default function AddMenu({
                 style={styles.menuItem}
                 onPress={() => handleAction(onAddNote)}
               >
-                <NotebookPen  size={22} color="#8B5CF6" />
+                <NotebookPen size={22} color="#FF6B35" />
                 <Text style={styles.menuText}>Add Note</Text>
               </TouchableOpacity>
 
@@ -274,7 +272,7 @@ export default function AddMenu({
                 style={styles.menuItem}
                 onPress={() => handleAction(onPasteLink)}
               >
-                <Link size={22} color="#8B5CF6" />
+                <Link size={22} color="#FF6B35" />
                 <Text style={styles.menuText}>Paste Link</Text>
               </TouchableOpacity>
 
@@ -283,7 +281,7 @@ export default function AddMenu({
                 style={styles.menuItem}
                 onPress={() => handleAction(onUploadFile)}
               >
-                <FileUp size={22} color="#8B5CF6" />
+                <FileUp size={22} color="#FF6B35" />
                 <Text style={styles.menuText}>Upload File</Text>
               </TouchableOpacity>
               {/* --- END NEW --- */}
@@ -321,4 +319,3 @@ const styles = StyleSheet.create({
     color: "#1F2937",
   },
 });
-

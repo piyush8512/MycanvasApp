@@ -91,7 +91,7 @@ export default function FileUploadModal({
           <View style={styles.content}>
             {isLoading ? (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#8B5CF6" />
+                <ActivityIndicator size="large" color="#FF6B35" />
                 <Text style={styles.loadingText}>Uploading file...</Text>
               </View>
             ) : selectedFile ? (
@@ -118,7 +118,7 @@ export default function FileUploadModal({
                 style={styles.selectButton}
                 onPress={handleSelectFile}
               >
-                <UploadCloud size={48} color="#8B5CF6" />
+                <UploadCloud size={48} color="#FF6B35" />
                 <Text style={styles.selectButtonText}>Select File</Text>
                 <Text style={styles.selectSubText}>
                   (PDF, DOCX, PNG, JPG, etc.)
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
   selectButtonText: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#8B5CF6",
+    color: "#FF6B35",
     marginTop: 12,
   },
   selectSubText: {
@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
     width: "100%",
     padding: 16,
     borderRadius: 12,
-    backgroundColor: "#8B5CF6",
+    backgroundColor: "#FF6B35",
     alignItems: "center",
   },
   uploadButtonText: {
@@ -228,4 +228,3 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
 });
-

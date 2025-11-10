@@ -74,7 +74,7 @@
 //       avatar: "U",
 //       message: newMessage,
 //       time: "Just now",
-//       color: "#8B5CF6", // Purple
+//       color: "#FF6B35", // Purple
 //       isOnline: true,
 //     };
 
@@ -236,7 +236,7 @@
 //     width: 44,
 //     height: 44,
 //     borderRadius: 22,
-//     backgroundColor: "#8B5CF6",
+//     backgroundColor: "#FF6B35",
 //     justifyContent: "center",
 //     alignItems: "center",
 //   },
@@ -270,7 +270,7 @@ const LiveChatModal = ({ onClose }: LiveChatModalProps) => {
       user: "You",
       avatar: "U",
       message: messageText,
-      color: "#8B5CF6", // Purple
+      color: "#FF6B35", // Purple
       isOnline: true,
     };
     setMessages((prevMessages) => [...prevMessages, newMessage]);

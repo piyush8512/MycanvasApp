@@ -50,7 +50,10 @@ export default function NoteViewModal({
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={true}>
+          <ScrollView
+            style={styles.content}
+            showsVerticalScrollIndicator={true}
+          >
             <Text style={styles.noteText}>{noteContent || "No content"}</Text>
           </ScrollView>
 
@@ -126,7 +129,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   copyButton: {
-    backgroundColor: "#8B5CF6",
+    backgroundColor: "#FF6B35",
   },
   copyText: {
     fontSize: 16,

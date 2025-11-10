@@ -33,13 +33,12 @@ export default function CollaboratorsModal({
   onAddCollaborator,
   canEdit = false,
 }: CollaboratorsModalProps) {
-  
   const getRoleColor = (role: string) => {
     switch (role) {
       case "owner":
         return "#F59E0B";
       case "editor":
-        return "#8B5CF6";
+        return "#FF6B35";
       case "viewer":
         return "#6B7280";
       default:
@@ -72,7 +71,8 @@ export default function CollaboratorsModal({
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>
-              Shared with {collaborators.length} {collaborators.length === 1 ? "person" : "people"}
+              Shared with {collaborators.length}{" "}
+              {collaborators.length === 1 ? "person" : "people"}
             </Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
               <X size={24} color="#6B7280" />
@@ -85,7 +85,7 @@ export default function CollaboratorsModal({
               style={styles.addButton}
               onPress={onAddCollaborator}
             >
-              <UserPlus size={20} color="#8B5CF6" />
+              <UserPlus size={20} color="#FF6B35" />
               <Text style={styles.addButtonText}>Add People</Text>
             </TouchableOpacity>
           )}
@@ -129,14 +129,20 @@ export default function CollaboratorsModal({
                 </View>
 
                 {/* Role Badge */}
-                <View style={[styles.roleBadge, getRoleBadgeStyle(collaborator.role)]}>
+                <View
+                  style={[
+                    styles.roleBadge,
+                    getRoleBadgeStyle(collaborator.role),
+                  ]}
+                >
                   <Text
                     style={[
                       styles.roleText,
                       { color: getRoleColor(collaborator.role) },
                     ]}
                   >
-                    {collaborator.role.charAt(0).toUpperCase() + collaborator.role.slice(1)}
+                    {collaborator.role.charAt(0).toUpperCase() +
+                      collaborator.role.slice(1)}
                   </Text>
                 </View>
               </View>
@@ -193,7 +199,7 @@ const styles = StyleSheet.create({
   addButtonText: {
     fontSize: 15,
     fontWeight: "600",
-    color: "#8B5CF6",
+    color: "#FF6B35",
   },
   collaboratorsList: {
     paddingHorizontal: 20,
@@ -218,7 +224,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "#8B5CF6",
+    backgroundColor: "#FF6B35",
     alignItems: "center",
     justifyContent: "center",
   },

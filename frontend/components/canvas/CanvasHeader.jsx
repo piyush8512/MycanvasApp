@@ -268,7 +268,7 @@ export default function CanvasHeader({
           onPress={() => router.back()}
           style={styles.backButton}
         >
-          <ArrowLeft size={24} color="#1F2937" />
+          <ArrowLeft size={24} color="#ffffff" />
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
@@ -288,7 +288,7 @@ export default function CanvasHeader({
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.headerButton} onPress={onSharePress}>
-            <Share size={20} color="#6B7280" />
+            <Share size={20} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
       </View>
@@ -313,9 +313,8 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingHorizontal: 20,
     paddingBottom: 16,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
+    backgroundColor: "#121212",
+
     zIndex: 100,
   },
   backButton: {
@@ -327,12 +326,12 @@ const styles = StyleSheet.create({
   },
   canvasTitle: {
     fontSize: 14,
-    color: "#6B7280",
+    color: "#FFFFFF",
   },
   canvasSubtitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#1F2937",
+    color: "#FFFFFF",
   },
   headerActions: {
     flexDirection: "row",

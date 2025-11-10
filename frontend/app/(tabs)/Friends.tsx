@@ -1,6 +1,3 @@
-// This is a complete Friends screen with all components in one file
-// Use this temporarily, then you can split it later
-
 import React, { useState } from "react";
 import {
   View,
@@ -97,26 +94,26 @@ export default function FriendsScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton}>
-          <ArrowLeft size={24} color="#1F2937" />
+          <ArrowLeft size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Friends</Text>
         <TouchableOpacity
           style={styles.addButton}
           onPress={() => setShowAddFriend(true)}
         >
-          <UserPlus size={24} color="#8B5CF6" />
+          <UserPlus size={24} color="#FF6B35" />
         </TouchableOpacity>
       </View>
 
       {/* Search */}
       <View style={styles.searchContainer}>
-        <Search size={20} color="#9CA3AF" />
+        <Search size={20} color="#6B7280" />
         <TextInput
           style={styles.searchInput}
           placeholder="Search friends..."
           value={searchQuery}
           onChangeText={setSearchQuery}
-          placeholderTextColor="#9CA3AF"
+          placeholderTextColor="#6B7280"
         />
       </View>
 
@@ -195,7 +192,7 @@ export default function FriendsScreen() {
                 </View>
                 <View style={styles.actions}>
                   <TouchableOpacity style={styles.messageButton}>
-                    <MessageCircle size={20} color="#8B5CF6" />
+                    <MessageCircle size={20} color="#FF6B35" />
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.removeButton}
@@ -239,7 +236,7 @@ export default function FriendsScreen() {
                     style={styles.rejectButton}
                     onPress={() => handleRejectRequest(request.id)}
                   >
-                    <X size={20} color="#6B7280" />
+                    <X size={20} color="#9CA3AF" />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -294,11 +291,11 @@ function AddFriendModalComponent({ visible, onClose }) {
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <View style={styles.modalHeaderLeft}>
-              <UserPlus size={24} color="#8B5CF6" />
+              <UserPlus size={24} color="#FF6B35" />
               <Text style={styles.modalTitle}>Add Friend</Text>
             </View>
             <TouchableOpacity onPress={onClose}>
-              <X size={24} color="#6B7280" />
+              <X size={24} color="#9CA3AF" />
             </TouchableOpacity>
           </View>
           <View style={styles.modalContent}>
@@ -309,6 +306,7 @@ function AddFriendModalComponent({ visible, onClose }) {
               <TextInput
                 style={styles.modalSearchInput}
                 placeholder="Enter name or email..."
+                placeholderTextColor="#6B7280"
                 value={search}
                 onChangeText={setSearch}
               />
@@ -324,44 +322,44 @@ function AddFriendModalComponent({ visible, onClose }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC", paddingTop: 40 },
+  container: { flex: 1, backgroundColor: "#0A0A0A", paddingTop: 40 },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#1C1C1C",
     borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
+    borderBottomColor: "#2A2A2A",
   },
   backButton: { padding: 8 },
-  headerTitle: { fontSize: 20, fontWeight: "600", color: "#1F2937" },
+  headerTitle: { fontSize: 20, fontWeight: "600", color: "#FFFFFF" },
   addButton: { padding: 8 },
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#1C1C1C",
     marginHorizontal: 20,
     marginVertical: 16,
     paddingHorizontal: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: "#2A2A2A",
   },
   searchInput: {
     flex: 1,
     height: 48,
     fontSize: 14,
-    color: "#1F2937",
+    color: "#FFFFFF",
     marginLeft: 12,
   },
   tabsContainer: {
     flexDirection: "row",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#1C1C1C",
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
+    borderBottomColor: "#2A2A2A",
   },
   tab: {
     flex: 1,
@@ -369,9 +367,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     position: "relative",
   },
-  activeTab: { borderBottomWidth: 2, borderBottomColor: "#8B5CF6" },
-  tabText: { fontSize: 14, fontWeight: "500", color: "#6B7280" },
-  activeTabText: { color: "#8B5CF6" },
+  activeTab: { borderBottomWidth: 2, borderBottomColor: "#FF6B35" },
+  tabText: { fontSize: 14, fontWeight: "500", color: "#9CA3AF" },
+  activeTabText: { color: "#FF6B35" },
   badge: {
     position: "absolute",
     top: 8,
@@ -391,12 +389,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#1C1C1C",
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: "#2A2A2A",
   },
   friendInfo: { flexDirection: "row", alignItems: "center", flex: 1 },
   avatarContainer: { position: "relative", marginRight: 12 },
@@ -410,23 +408,23 @@ const styles = StyleSheet.create({
     borderRadius: 7,
     backgroundColor: "#10B981",
     borderWidth: 2,
-    borderColor: "#FFFFFF",
+    borderColor: "#1C1C1C",
   },
   friendDetails: { flex: 1 },
   friendName: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#1F2937",
+    color: "#FFFFFF",
     marginBottom: 2,
   },
-  friendEmail: { fontSize: 13, color: "#6B7280", marginBottom: 4 },
-  friendStatus: { fontSize: 12, color: "#9CA3AF" },
+  friendEmail: { fontSize: 13, color: "#9CA3AF", marginBottom: 4 },
+  friendStatus: { fontSize: 12, color: "#6B7280" },
   actions: { flexDirection: "row", gap: 8 },
   messageButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "#252525",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -434,27 +432,27 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#FEE2E2",
+    backgroundColor: "#2A1515",
     alignItems: "center",
     justifyContent: "center",
   },
   requestCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#1C1C1C",
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: "#2A2A2A",
   },
   requestInfo: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
-  requestTime: { fontSize: 12, color: "#9CA3AF" },
+  requestTime: { fontSize: 12, color: "#6B7280" },
   requestActions: { flexDirection: "row", gap: 8 },
   acceptButton: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#8B5CF6",
+    backgroundColor: "#FF6B35",
     borderRadius: 8,
     paddingVertical: 12,
     gap: 6,
@@ -464,24 +462,24 @@ const styles = StyleSheet.create({
     width: 48,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "#252525",
     borderRadius: 8,
   },
   cancelButton: {
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FEE2E2",
+    backgroundColor: "#2A1515",
     borderRadius: 8,
     paddingVertical: 12,
   },
   cancelText: { color: "#EF4444", fontSize: 14, fontWeight: "600" },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
     justifyContent: "flex-end",
   },
   modalContainer: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#1C1C1C",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: "70%",
@@ -492,29 +490,30 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
+    borderBottomColor: "#2A2A2A",
   },
   modalHeaderLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
-  modalTitle: { fontSize: 20, fontWeight: "600", color: "#1F2937" },
+  modalTitle: { fontSize: 20, fontWeight: "600", color: "#FFFFFF" },
   modalContent: { padding: 20 },
-  modalDescription: { fontSize: 14, color: "#6B7280", marginBottom: 16 },
+  modalDescription: { fontSize: 14, color: "#9CA3AF", marginBottom: 16 },
   modalSearchContainer: { flexDirection: "row", gap: 12 },
   modalSearchInput: {
     flex: 1,
     height: 48,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: "#2A2A2A",
+    backgroundColor: "#252525",
     borderRadius: 12,
     paddingHorizontal: 16,
     fontSize: 14,
+    color: "#FFFFFF",
   },
   modalSearchButton: {
     width: 48,
     height: 48,
     borderRadius: 12,
-    backgroundColor: "#8B5CF6",
+    backgroundColor: "#FF6B35",
     alignItems: "center",
     justifyContent: "center",
   },
 });
-``

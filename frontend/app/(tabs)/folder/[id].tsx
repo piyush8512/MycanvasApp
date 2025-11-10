@@ -144,7 +144,15 @@
 // });
 
 import React, { useState, useEffect } from "react";
-import { View, StyleSheet, FlatList, ActivityIndicator } from "react-native";
+import {
+  View,
+  StyleSheet,
+  FlatList,
+  ActivityIndicator,
+  Text,
+  TouchableOpacity,
+  StatusBar,
+} from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { BreadcrumbNav } from "@/components/BreadcrumbNav";
 import { SpaceCard } from "@/components/home/SpaceCard";
@@ -153,6 +161,9 @@ import { HeaderSection } from "@/components/home/HeaderSection";
 import { useUser, useAuth } from "@clerk/clerk-expo";
 import { useFolders } from "@/hooks/useFolders";
 import { ActionButtonsSection } from "@/components/home/ActionButtonSection";
+import { Bell } from "lucide-react-native";
+import COLORS from "@/constants/colors";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function FolderScreen() {
   const { id } = useLocalSearchParams();
@@ -164,6 +175,7 @@ export default function FolderScreen() {
   const [contents, setContents] = useState<FolderItem[]>([]);
   const [breadcrumbs, setBreadcrumbs] = useState<Breadcrumb[]>([]);
   const [loading, setLoading] = useState(true);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     const loadFolderData = async () => {
@@ -234,13 +246,6 @@ export default function FolderScreen() {
     alert("JWT has been printed to your console!");
   };
 
-  const handleBreadcrumbPress = (breadcrumbId: string) => {
-    if (breadcrumbId === "root") {
-      router.push("/");
-    } else {
-      router.push(`/folder/${breadcrumbId}`);
-    }
-  };
   const handleCreateCanvas = () => {
     router.push("/canvas/new");
   };
@@ -248,9 +253,23 @@ export default function FolderScreen() {
   if (loading) {
     return (
       <View style={styles.container}>
-        <HeaderSection onNotificationPress={handleLogToken} />
+        {/* New header like index.tsx */}
+        <StatusBar barStyle="light-content" />
+        <View style={[styles.headerContainer, { paddingTop: insets.top + 12 }]}>
+          <Text style={styles.greetingText}>
+            <Text style={styles.greyText}>Hello, </Text>
+            {user?.firstName || "Piyush"} 👋
+          </Text>
+          <TouchableOpacity
+            style={styles.notificationButton}
+            onPress={handleLogToken}
+          >
+            <Bell size={22} strokeWidth={2.5} color="#fff" />
+          </TouchableOpacity>
+        </View>
+        {/* end header */}
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#8B5CF6" />
+          <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
       </View>
     );
@@ -258,12 +277,29 @@ export default function FolderScreen() {
 
   return (
     <View style={styles.container}>
-      <HeaderSection onNotificationPress={handleLogToken} />
+      {/* New header like index.tsx */}
+      <StatusBar barStyle="light-content" />
+      <View style={[styles.headerContainer, { paddingTop: insets.top + 12 }]}>
+        <Text style={styles.greetingText}>
+          <Text style={styles.greyText}>Hello, </Text>
+          {user?.firstName || "Piyush"} 👋
+        </Text>
+        <TouchableOpacity
+          style={styles.notificationButton}
+          onPress={handleLogToken}
+        >
+          <Bell size={22} strokeWidth={2.5} color="#fff" />
+        </TouchableOpacity>
+      </View>
+      {/* end header */}
 
       <BreadcrumbNav
         style={styles.breadcrumbNav}
         items={breadcrumbs}
-        onNavigate={handleBreadcrumbPress}
+        onNavigate={(breadcrumbId: string) => {
+          if (breadcrumbId === "root") router.push("/");
+          else router.push(`/folder/${breadcrumbId}`);
+        }}
       />
 
       <FlatList
@@ -283,17 +319,16 @@ export default function FolderScreen() {
                 collaborators: ["user1", "user2", "user3"],
                 color: "#8B5CF6",
               }}
-              onPress={() => handleItemPress(item)}
+              onPress={() => {
+                if (item.type === "folder") router.push(`/folder/${item.id}`);
+                else router.push(`/canvas/${item.id}`);
+              }}
             />
           </View>
         )}
         keyExtractor={(item) => item.id}
       />
-      {/* <ActionButtonsSection
-        onCreateFolder={() => setShowFolderModal(true)}
-        onCreateCanvas={handleCreateCanvas}
-        folderId={folderId}
-      /> */}
+
       <ActionButtonsSection
         onCreateFolder={handleCreateCanvas}
         onCreateCanvas={handleCreateCanvas}
@@ -306,7 +341,7 @@ export default function FolderScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: COLORS.background,
   },
   loadingContainer: {
     flex: 1,
@@ -323,5 +358,28 @@ const styles = StyleSheet.create({
   },
   breadcrumbNav: {
     marginBottom: 2,
+  },
+  headerContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: COLORS.background,
+  },
+  greyText: {
+    color: COLORS.textLight,
+    fontWeight: "500",
+  },
+  greetingText: {
+    color: COLORS.text,
+    fontSize: 22,
+    fontWeight: "700",
+    letterSpacing: -0.5,
+  },
+  notificationButton: {
+    backgroundColor: COLORS.card,
+    padding: 10,
+    borderRadius: 12,
   },
 });

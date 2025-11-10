@@ -133,8 +133,7 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 220,
     backgroundColor: "#000",
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
+   
     overflow: "hidden",
   },
   content: {

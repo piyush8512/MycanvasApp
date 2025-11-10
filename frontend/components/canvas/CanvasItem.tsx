@@ -87,7 +87,7 @@
 //             {
 //               backgroundColor: item.color,
 //               shadowColor: item.color,
-//               borderColor: isCurrentItem ? "#8B5CF6" : "rgba(0, 0, 0, 0.1)",
+//               borderColor: isCurrentItem ? "#FF6B35" : "rgba(0, 0, 0, 0.1)",
 //               borderWidth: isCurrentItem ? 2 : 1,
 //             },
 //           ]}
@@ -270,8 +270,8 @@ export default function CanvasItem({
             {
               backgroundColor: item.color,
               shadowColor: item.color,
-              borderColor: isCurrentItem ? "#8B5CF6" : "rgba(0, 0, 0, 0.1)",
-              borderWidth: isCurrentItem ? 2 : 1,
+              borderColor: isCurrentItem ? "#FF6B35" : "rgba(0, 0, 0, 0.1)",
+              borderWidth: isCurrentItem ? 2 : 0,
             },
           ]}
         >
@@ -328,10 +328,10 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
     borderRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
+    // shadowOffset: { width: 0, height: 4 },
+    // shadowOpacity: 0.15,
+    // shadowRadius: 8,
+    // elevation: 4,
     overflow: "hidden",
   },
   itemContent: {

@@ -12,10 +12,6 @@
 //   return <Stack screenOptions={{ headerShown: false }} />;
 // }
 
-
-
-
-
 // import { useAuth } from "@clerk/clerk-expo";
 // import { Redirect, Stack } from "expo-router";
 // import React, { useEffect } from "react";
@@ -49,16 +45,29 @@
 //   return <Stack screenOptions={{ headerShown: false }} />;
 // }
 
+//reciepebookcode
+// import { Redirect, Stack } from "expo-router";
+// import { useAuth } from "@clerk/clerk-expo";
 
+// export default function AuthRoutesLayout() {
+//   const { isSignedIn } = useAuth();
 
-//reciepebookcode 
+//   if (isSignedIn) return <Redirect href={"/"} />;
+
+//   return <Stack screenOptions={{ headerShown: false }} />;
+// }
+
 import { Redirect, Stack } from "expo-router";
 import { useAuth } from "@clerk/clerk-expo";
 
-export default function AuthRoutesLayout() {
+export default function AuthLayout() {
   const { isSignedIn } = useAuth();
 
-  if (isSignedIn) return <Redirect href={"/"} />;
+  // If the user is signed in, redirect them to the main app
+  if (isSignedIn) {
+    return <Redirect href="/(tabs)" />;
+  }
 
+  // If they are not signed in, show the (auth) layout
   return <Stack screenOptions={{ headerShown: false }} />;
 }

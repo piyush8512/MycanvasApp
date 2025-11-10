@@ -1,19 +1,35 @@
 import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Linking, Alert } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Linking,
+  Alert,
+} from "react-native";
 import { MapPin, ExternalLink, Copy } from "lucide-react-native";
 import * as Clipboard from "expo-clipboard";
+import COLORS from "@/constants/colors"; // 1. Import COLORS
 
 export default function LinkItem({ item, config, onLocateItem, onClose }) {
+  // --- 2. FIX: Get the URL from the 'content' object ---
+  // Notes have content as a string, links have it as an object
+  const itemUrl =
+    typeof item.content === "object" && item.content !== null
+      ? item.content.url
+      : null;
+  // --- END FIX ---
+
   const handleLocate = () => {
     onLocateItem(item);
     onClose();
   };
 
   const handleOpenLink = async () => {
-    if (item.url) {
-      const canOpen = await Linking.canOpenURL(item.url);
+    if (itemUrl) {
+      const canOpen = await Linking.canOpenURL(itemUrl);
       if (canOpen) {
-        await Linking.openURL(item.url);
+        await Linking.openURL(itemUrl);
       } else {
         Alert.alert("Error", "Cannot open this link");
       }
@@ -21,8 +37,8 @@ export default function LinkItem({ item, config, onLocateItem, onClose }) {
   };
 
   const handleCopyLink = async () => {
-    if (item.url) {
-      await Clipboard.setStringAsync(item.url);
+    if (itemUrl) {
+      await Clipboard.setStringAsync(itemUrl);
       Alert.alert("✅ Copied", "Link copied to clipboard");
     }
   };
@@ -35,9 +51,9 @@ export default function LinkItem({ item, config, onLocateItem, onClose }) {
           <Text style={styles.linkTitle} numberOfLines={1}>
             {item.name || item.title || "Untitled"}
           </Text>
-          {item.url && (
+          {itemUrl && (
             <Text style={styles.linkUrl} numberOfLines={1}>
-              {item.url}
+              {itemUrl}
             </Text>
           )}
         </View>
@@ -45,19 +61,25 @@ export default function LinkItem({ item, config, onLocateItem, onClose }) {
 
       <View style={styles.linkActions}>
         <TouchableOpacity style={styles.actionButton} onPress={handleLocate}>
-          <MapPin size={16} color="#6B7280" />
+          <MapPin size={16} color={COLORS.textLight} />
           <Text style={styles.actionText}>Locate</Text>
         </TouchableOpacity>
 
-        {item.url && (
+        {itemUrl && (
           <>
-            <TouchableOpacity style={styles.actionButton} onPress={handleOpenLink}>
-              <ExternalLink size={16} color="#6B7280" />
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={handleOpenLink}
+            >
+              <ExternalLink size={16} color={COLORS.textLight} />
               <Text style={styles.actionText}>Open</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionButton} onPress={handleCopyLink}>
-              <Copy size={16} color="#6B7280" />
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={handleCopyLink}
+            >
+              <Copy size={16} color={COLORS.textLight} />
               <Text style={styles.actionText}>Copy</Text>
             </TouchableOpacity>
           </>
@@ -67,15 +89,16 @@ export default function LinkItem({ item, config, onLocateItem, onClose }) {
   );
 }
 
+// --- 3. STYLES UPDATED TO DARK THEME ---
 const styles = StyleSheet.create({
   linkItem: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.background, // Use main background
     marginHorizontal: 20,
     marginVertical: 4,
     padding: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: COLORS.border, // Use theme border
   },
   linkHeader: {
     flexDirection: "row",
@@ -88,16 +111,17 @@ const styles = StyleSheet.create({
   },
   linkInfo: {
     flex: 1,
+    overflow: "hidden", // Prevent text overflow
   },
   linkTitle: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#1F2937",
+    color: COLORS.text, // Use theme text
     marginBottom: 2,
   },
   linkUrl: {
     fontSize: 12,
-    color: "#6B7280",
+    color: COLORS.textLight, // Use theme light text
   },
   linkActions: {
     flexDirection: "row",
@@ -108,13 +132,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 6,
     paddingHorizontal: 12,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: COLORS.card, // Use card background
     borderRadius: 6,
     gap: 4,
   },
   actionText: {
     fontSize: 12,
     fontWeight: "500",
-    color: "#6B7280",
+    color: COLORS.textLight, // Use theme light text
   },
 });

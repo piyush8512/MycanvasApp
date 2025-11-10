@@ -167,7 +167,7 @@
 //         style={styles.addMenuItem}
 //         onPress={() => addCard("image")}
 //       >
-//         <ImageIcon size={16} color="#8B5CF6" />
+//         <ImageIcon size={16} color="#FF6B35" />
 //         <Text style={styles.addMenuText}>Add Image</Text>
 //       </TouchableOpacity>
 //     </View>
@@ -181,7 +181,7 @@
 //     width: 32,
 //     height: 32,
 //     borderRadius: 16,
-//     backgroundColor: "#8B5CF6",
+//     backgroundColor: "#FF6B35",
 //     alignItems: "center",
 //     justifyContent: "center",
 //     marginLeft: 9,

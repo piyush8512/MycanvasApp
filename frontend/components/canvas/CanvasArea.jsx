@@ -291,7 +291,7 @@ export default function CanvasArea({
 const styles = StyleSheet.create({
   canvasContainer: {
     flex: 1,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "#FF6B35",
     overflow: "hidden",
   },
   canvas: {

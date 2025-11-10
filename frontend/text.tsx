@@ -408,7 +408,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F3F4F6",
   },
   activeToolButton: {
-    backgroundColor: "#8B5CF6",
+    backgroundColor: "#FF6B35",
   },
   toolText: {
     fontSize: 14,
@@ -478,7 +478,7 @@ const styles = StyleSheet.create({
   commentsBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#8B5CF6",
+    backgroundColor: "#FF6B35",
     borderRadius: 10,
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -542,7 +542,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   commentBubble: {
-    backgroundColor: "#8B5CF6",
+    backgroundColor: "#FF6B35",
     borderRadius: 16,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -612,7 +612,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#10B981",
   },
   chatBubble: {
-    backgroundColor: "#8B5CF6",
+    backgroundColor: "#FF6B35",
     borderRadius: 16,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -642,7 +642,7 @@ const styles = StyleSheet.create({
     color: "#1F2937",
   },
   sendButton: {
-    backgroundColor: "#8B5CF6",
+    backgroundColor: "#FF6B35",
     borderRadius: 20,
     padding: 8,
   },

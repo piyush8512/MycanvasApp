@@ -163,7 +163,7 @@
 //     backgroundColor: "#10B981",
 //   },
 //   chatBubble: {
-//     backgroundColor: "#8B5CF6",
+//     backgroundColor: "#FF6B35",
 //     borderRadius: 16,
 //     paddingHorizontal: 12,
 //     paddingVertical: 8,
@@ -193,7 +193,7 @@
 //     color: "#1F2937",
 //   },
 //   sendButton: {
-//     backgroundColor: "#8B5CF6",
+//     backgroundColor: "#FF6B35",
 //     borderRadius: 20,
 //     padding: 8,
 //   },
@@ -393,7 +393,7 @@ const styles = StyleSheet.create({
     color: "#1F2937",
   },
   sendButton: {
-    backgroundColor: "#8B5CF6",
+    backgroundColor: "#FF6B35",
     borderRadius: 20,
     padding: 8,
   },

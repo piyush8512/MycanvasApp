@@ -9,20 +9,20 @@ import {
   Animated,
   StyleSheet,
   Dimensions,
+  TouchableWithoutFeedback, // Import this
 } from "react-native";
 import { X, Search } from "lucide-react-native";
 import FolderSection from "./FolderSection.jsx"; // Assuming this is the correct path
 import { canvaitems } from "@/types/space"; // Import your type
+import COLORS from "@/constants/colors"; // --- 1. Import COLORS ---
 
-// --- UPDATED: Get SCREEN_HEIGHT and define a height for the drawer ---
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
-const DRAWER_HEIGHT = SCREEN_HEIGHT * 0.85; // Drawer will take 85% of the screen height
-// --- END UPDATE ---
+const DRAWER_HEIGHT = SCREEN_HEIGHT * 0.85;
 
 interface FoldersDrawerProps {
   visible: boolean;
   onClose: () => void;
-  items: canvaitems[]; // Use your imported type
+  items: canvaitems[];
   onLocateItem: (item: canvaitems) => void;
 }
 
@@ -33,59 +33,65 @@ export default function FoldersDrawer({
   onLocateItem,
 }: FoldersDrawerProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  // --- UPDATED: Animate based on DRAWER_HEIGHT ---
   const slideAnim = useRef(new Animated.Value(DRAWER_HEIGHT)).current;
-  // --- END UPDATE ---
 
   useEffect(() => {
     Animated.spring(slideAnim, {
-      // --- UPDATED: Animate to 0 (visible) or DRAWER_HEIGHT (hidden) ---
       toValue: visible ? 0 : DRAWER_HEIGHT,
-      // --- END UPDATE ---
       useNativeDriver: true,
       tension: 65,
       friction: 11,
     }).start();
   }, [visible]);
 
-  // Group items by type
-  const groupedItems = items.reduce((acc, item) => {
-    const type = item.type;
-    if (!acc[type]) {
-      acc[type] = [];
-    }
-    acc[type].push(item);
-    return acc;
-  }, {} as { [key: string]: canvaitems[] }); // Add type to accumulator
+  const groupedItems = items.reduce(
+    (acc, item) => {
+      const type = item.type;
+      if (!acc[type]) {
+        acc[type] = [];
+      }
+      acc[type].push(item);
+      return acc;
+    },
+    {} as { [key: string]: canvaitems[] }
+  );
 
-  // Filter items based on search
   const filteredGroups = searchQuery
-    ? Object.entries(groupedItems).reduce((acc, [type, typeItems]) => {
-        const filtered = typeItems.filter(
-          (item) =>
-            item.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            // --- FIX: Access url from content object for links ---
-            (item.content as any)?.url
-              ?.toLowerCase()
-              .includes(searchQuery.toLowerCase())
-        );
-        if (filtered.length > 0) {
-          acc[type] = filtered;
-        }
-        return acc;
-      }, {} as { [key: string]: canvaitems[] }) // Add type to accumulator
+    ? Object.entries(groupedItems).reduce(
+        (acc, [type, typeItems]) => {
+          const filtered = typeItems.filter(
+            (item) =>
+              item.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              (item.content as any)?.url
+                ?.toLowerCase()
+                .includes(searchQuery.toLowerCase())
+          );
+          if (filtered.length > 0) {
+            acc[type] = filtered;
+          }
+          return acc;
+        },
+        {} as { [key: string]: canvaitems[] }
+      )
     : groupedItems;
 
+  // --- 2. Update folderConfig to use theme colors ---
   const folderConfig = {
     youtube: { icon: "🎥", label: "YouTube", color: "#FF0000" },
     instagram: { icon: "📸", label: "Instagram", color: "#E1306C" },
     twitter: { icon: "🐦", label: "Twitter", color: "#1DA1F2" },
     pdf: { icon: "📄", label: "PDFs", color: "#DC2626" },
     image: { icon: "🖼️", label: "Images", color: "#10B981" },
-    link: { icon: "🔗", label: "Links", color: "#8B5CF6" },
+    link: { icon: "🔗", label: "Links", color: COLORS.primary }, // Use theme color
     note: { icon: "📝", label: "Notes", color: "#F59E0B" },
-    folder: { icon: "📁", label: "Folders", color: "#6B7280" },
+    folder: { icon: "📁", label: "Folders", color: COLORS.textLight }, // Use theme color
+    // Add file types from your linkDetector
+    docx: { icon: "📄", label: "Documents", color: "#A5B4FC" },
+    xlsx: { icon: "📊", label: "Spreadsheets", color: "#A7F3D0" },
+    pptx: { icon: "🖥️", label: "Presentations", color: "#FDBA74" },
+    file: { icon: "📎", label: "Files", color: COLORS.textLight },
   };
+  // --- END UPDATE ---
 
   return (
     <Modal
@@ -94,22 +100,17 @@ export default function FoldersDrawer({
       animationType="none"
       onRequestClose={onClose}
     >
-      {/* --- UPDATED: Overlay now justifies to the bottom --- */}
       <View style={styles.overlay}>
-        {/* --- END UPDATE --- */}
-        <TouchableOpacity
-          style={styles.backdrop}
-          activeOpacity={1}
-          onPress={onClose}
-        />
+        <TouchableWithoutFeedback onPress={onClose}>
+          {/* 3. Use TouchableWithoutFeedback for the backdrop */}
+          <View style={styles.backdrop} />
+        </TouchableWithoutFeedback>
 
         <Animated.View
           style={[
             styles.drawer,
             {
-              // --- UPDATED: Animate 'translateY' instead of 'translateX' ---
               transform: [{ translateY: slideAnim }],
-              // --- END UPDATE ---
             },
           ]}
         >
@@ -122,24 +123,31 @@ export default function FoldersDrawer({
           <View style={styles.header}>
             <Text style={styles.title}>My Links</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <X size={24} color="#6B7280" />
+              <X size={24} color={COLORS.textLight} />
             </TouchableOpacity>
           </View>
 
           {/* Search Bar */}
           <View style={styles.searchContainer}>
-            <Search size={20} color="#9CA3AF" style={styles.searchIcon} />
+            <Search
+              size={20}
+              color={COLORS.textLight}
+              style={styles.searchIcon}
+            />
             <TextInput
               style={styles.searchInput}
               placeholder="Search links..."
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={COLORS.textLight}
             />
           </View>
 
           {/* Folders List */}
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={styles.content}
+            showsVerticalScrollIndicator={false}
+          >
             {Object.entries(filteredGroups).length === 0 ? (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyText}>
@@ -151,7 +159,7 @@ export default function FoldersDrawer({
                 <FolderSection
                   key={type}
                   type={type}
-                  items={typeItems}
+                  items={typeItems as canvaitems[]}
                   config={
                     folderConfig[type as keyof typeof folderConfig] ||
                     folderConfig.link
@@ -168,63 +176,53 @@ export default function FoldersDrawer({
   );
 }
 
+// --- 4. STYLES UPDATED TO USE THEME COLORS ---
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    // --- UPDATED: Justify content to the bottom ---
     justifyContent: "flex-end",
-    // --- END UPDATE ---
   },
   backdrop: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    ...StyleSheet.absoluteFillObject, // Make backdrop fill the screen
+    backgroundColor: "rgba(0, 0, 0, 0.7)", // Darker overlay
   },
   drawer: {
-    // --- UPDATED: Styles for a bottom sheet ---
     width: "100%",
     height: DRAWER_HEIGHT,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.card, // Use card background
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    overflow: "hidden", // Clip the content
-    // --- END UPDATE ---
+    overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: -2 }, // Shadow at the top
+    shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
     shadowRadius: 10,
     elevation: 5,
   },
-  // --- NEW: Handle bar styles ---
   handleBar: {
     alignItems: "center",
     paddingVertical: 10,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.card, // Use card background
   },
   handle: {
     width: 40,
     height: 5,
     borderRadius: 2.5,
-    backgroundColor: "#D1D5DB",
+    backgroundColor: COLORS.border, // Use border color
   },
-  // --- END NEW ---
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingVertical: 10, // Reduced padding
-    // paddingTop: 60, // Removed platform-specific padding
+    paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
+    borderBottomColor: COLORS.border, // Use border color
   },
   title: {
     fontSize: 24,
     fontWeight: "700",
-    color: "#1F2937",
+    color: COLORS.text, // Use text color
   },
   closeButton: {
     padding: 8,
@@ -235,8 +233,10 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginVertical: 16,
     paddingHorizontal: 12,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: COLORS.background, // Use main background
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   searchIcon: {
     marginRight: 8,
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     fontSize: 16,
-    color: "#1F2937",
+    color: COLORS.text, // Use text color
   },
   content: {
     flex: 1,
@@ -257,6 +257,6 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: "#9CA3AF",
+    color: COLORS.textLight, // Use light text color
   },
 });

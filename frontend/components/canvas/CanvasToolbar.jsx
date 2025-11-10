@@ -49,7 +49,7 @@ export default function CanvasToolbar({
 
       {/* Folders Button - Right Side */}
       <TouchableOpacity style={styles.foldersButton} onPress={onFoldersPress}>
-        <FolderOpen size={20} color="#6B7280" />
+        <FolderOpen size={20} color="#FFFFFF" />
       </TouchableOpacity>
     </View>
   );
@@ -62,9 +62,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingVertical: 12,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
+    backgroundColor: "#121212",
+   
   },
   toolsContainer: {
     flexDirection: "row",
@@ -75,15 +74,15 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     marginRight: 8,
     borderRadius: 20,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "#1C1C1C",
   },
   activeToolButton: {
-    backgroundColor: "#8B5CF6",
+    backgroundColor: "#FF6B35",
   },
   toolText: {
     fontSize: 14,
     fontWeight: "500",
-    color: "#6B7280",
+    color: "#FFFFFF",
   },
   activeToolText: {
     color: "#FFFFFF",
@@ -92,7 +91,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "#8B5CF6",
+    backgroundColor: "#FF6B35",
     alignItems: "center",
     justifyContent: "center",
     marginLeft: 8,
@@ -101,7 +100,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "#1C1C1C",
     alignItems: "center",
     justifyContent: "center",
     marginLeft: 12,

@@ -20,8 +20,6 @@ export const ActionButtonsSection = ({
   const [showCanvasModal, setShowCanvasModal] = useState(false);
   const animation = useRef(new Animated.Value(0)).current;
 
-  // --- NEW LOGIC: Check if we are on the Home screen ---
-  // If folderId is null, we are on Home
   const isHomeScreen = folderId === null;
 
   const toggleMenu = () => {
@@ -43,7 +41,7 @@ export const ActionButtonsSection = ({
       {
         translateY: animation.interpolate({
           inputRange: [0, 1],
-          outputRange: [0, -65], // Folder is always the first button
+          outputRange: [0, -70],
         }),
       },
     ],
@@ -56,10 +54,7 @@ export const ActionButtonsSection = ({
       {
         translateY: animation.interpolate({
           inputRange: [0, 1],
-          // --- NEW LOGIC ---
-          // If on Home, it's the 2nd button (-130).
-          // If in a folder, it's the 1st button (-65).
-          outputRange: [0, isHomeScreen ? -130 : -65],
+          outputRange: [0, isHomeScreen ? -140 : -70],
         }),
       },
     ],
@@ -90,41 +85,36 @@ export const ActionButtonsSection = ({
   return (
     <>
       <View style={styles.container}>
-        {/* --- NEW LOGIC ---
-            Only show the File/Canvas button.
-            If on Home, this is the 2nd button.
-            If in a folder, this is the 1st button.
-        */}
+        {/* Canvas/File Button */}
         <Animated.View style={[styles.actionButton, fileButtonStyle]}>
           <TouchableOpacity
             style={[styles.button, styles.secondaryButton]}
             onPress={handleCanvasPress}
           >
-            <FileText color="#fff" size={24} />
+            <FileText color="#FFFFFF" size={24} strokeWidth={2.5} />
           </TouchableOpacity>
         </Animated.View>
 
-        {/* --- NEW LOGIC ---
-            Only show the Folder button if we are on the Home screen
-        */}
+        {/* Folder Button (only on Home screen) */}
         {isHomeScreen && (
           <Animated.View style={[styles.actionButton, folderButtonStyle]}>
             <TouchableOpacity
               style={[styles.button, styles.primaryButton]}
               onPress={handleFolderPress}
             >
-              <FolderOpen color="#fff" size={24} />
+              <FolderOpen color="#FFFFFF" size={24} strokeWidth={2.5} />
             </TouchableOpacity>
           </Animated.View>
         )}
 
+        {/* Main Plus Button */}
         <TouchableOpacity
           style={[styles.button, styles.mainButton]}
           onPress={toggleMenu}
           activeOpacity={0.8}
         >
           <Animated.View style={rotation}>
-            <Plus color="#fff" size={24} />
+            <Plus color="#FFFFFF" size={28} strokeWidth={3} />
           </Animated.View>
         </TouchableOpacity>
       </View>
@@ -139,7 +129,7 @@ export const ActionButtonsSection = ({
         visible={showCanvasModal}
         onClose={() => setShowCanvasModal(false)}
         onSubmit={onCreateCanvas}
-        folderId={folderId} // Pass folderId to the modal
+        folderId={folderId}
       />
     </>
   );
@@ -160,28 +150,34 @@ const styles = StyleSheet.create({
     zIndex: 99,
   },
   button: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 4,
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 8,
   },
   mainButton: {
-    backgroundColor: "#8B5CF6",
+    backgroundColor: "#FF6B35",
     zIndex: 999,
+    borderWidth: 2,
+    borderColor: "#FF8557",
   },
   primaryButton: {
-    backgroundColor: "#4F46E5", // Folder button
+    backgroundColor: "#FF6B35",
+    borderWidth: 1,
+    borderColor: "#FF8557",
   },
   secondaryButton: {
-    backgroundColor: "#8B5CF6", // Canvas button (same as main)
+    backgroundColor: "#FF6B35",
+    borderWidth: 1,
+    borderColor: "#FF8557",
   },
 });

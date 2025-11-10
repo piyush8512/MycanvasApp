@@ -19,7 +19,7 @@ export const SpacesGrid = ({ spaces, isLoading }: SpacesGridProps) => {
     if (isLoading) {
       return (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#8B5CF6" />
+          <ActivityIndicator size="large" color="#FF6B35" />
           <Text style={styles.loadingText}>Loading spaces...</Text>
         </View>
       );

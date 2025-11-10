@@ -5,7 +5,7 @@ export const CARD_TYPES = [
   { type: 'pdf', label: 'Add PDF', icon: 'File', color: '#EF4444' },
   { type: 'note', label: 'Add Note', icon: 'StickyNote', color: '#EAB308' },
   { type: 'folder', label: 'Add Folder', icon: 'Folder', color: '#6B7280' },
-  { type: 'image', label: 'Add Image', icon: 'ImageIcon', color: '#8B5CF6' },
+  { type: 'image', label: 'Add Image', icon: 'ImageIcon', color: '#FF6B35' },
 ];
 
 export const INITIAL_CANVAS_ITEMS = [

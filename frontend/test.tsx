@@ -273,7 +273,7 @@ export const SpacesGrid = ({ spaces, isLoading }: SpacesGridProps) => {
     if (isLoading) {
       return (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#8B5CF6" />
+          <ActivityIndicator size="large" color="#FF6B35" />
           <Text style={styles.loadingText}>Loading spaces...</Text>
         </View>
       );
@@ -374,9 +374,9 @@ export const SpaceCard = ({ space }: SpaceCardProps) => {
     >
       <View style={styles.iconContainer}>
         {space.type === "folder" ? (
-          <Folder size={24} color="#8B5CF6" />
+          <Folder size={24} color="#FF6B35" />
         ) : (
-          <File size={24} color="#8B5CF6" />
+          <File size={24} color="#FF6B35" />
         )}
       </View>
       <Text style={styles.name} numberOfLines={2}>

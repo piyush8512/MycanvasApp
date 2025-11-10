@@ -1,9 +1,16 @@
 import React, { useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { ChevronDown, ChevronRight } from "lucide-react-native";
-import LinkItem from "./LinkItem";
+import LinkItem from "./LinkItem"; // This component is created below
+import  COLORS  from "@/constants/colors"; // Import your theme
 
-export default function FolderSection({ type, items, config, onLocateItem, onClose }) {
+export default function FolderSection({
+  type,
+  items,
+  config,
+  onLocateItem,
+  onClose,
+}) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
@@ -23,9 +30,9 @@ export default function FolderSection({ type, items, config, onLocateItem, onClo
         </View>
 
         {isExpanded ? (
-          <ChevronDown size={20} color="#6B7280" />
+          <ChevronDown size={20} color={COLORS.textLight} />
         ) : (
-          <ChevronRight size={20} color="#6B7280" />
+          <ChevronRight size={20} color={COLORS.textLight} />
         )}
       </TouchableOpacity>
 
@@ -57,7 +64,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.card, // Use theme color
   },
   folderLeft: {
     flexDirection: "row",
@@ -71,7 +78,7 @@ const styles = StyleSheet.create({
   folderLabel: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#1F2937",
+    color: COLORS.text, // Use theme color
     marginRight: 8,
   },
   badge: {
@@ -84,10 +91,10 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#FFFFFF",
+    color: "#FFFFFF", // White text on a colored badge is fine
   },
   folderContent: {
-    backgroundColor: "#F9FAFB",
+    backgroundColor: COLORS.background, // Use theme color
     paddingVertical: 8,
   },
 });

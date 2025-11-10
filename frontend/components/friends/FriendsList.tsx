@@ -73,7 +73,7 @@
 
 //           <View style={styles.actions}>
 //             <TouchableOpacity style={styles.messageButton}>
-//               <MessageCircle size={20} color="#8B5CF6" />
+//               <MessageCircle size={20} color="#FF6B35" />
 //             </TouchableOpacity>
 
 //             <TouchableOpacity

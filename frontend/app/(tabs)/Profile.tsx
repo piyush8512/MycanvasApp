@@ -41,7 +41,7 @@ export default function ProfileScreen() {
       <View style={styles.header}>
         <Text style={styles.logo}>My canvas</Text>
         <TouchableOpacity>
-          <Settings size={24} color="#6B7280" />
+          <Settings size={24} color="#9CA3AF" />
         </TouchableOpacity>
       </View>
 
@@ -98,7 +98,7 @@ export default function ProfileScreen() {
           <Text style={styles.sectionTitle}>Account</Text>
 
           <TouchableOpacity style={styles.settingItem}>
-            <User size={20} color="#6B7280" />
+            <User size={20} color="#9CA3AF" />
             <View style={styles.settingContent}>
               <Text style={styles.settingLabel}>Plan</Text>
               <Text style={styles.settingValue}>
@@ -108,7 +108,7 @@ export default function ProfileScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.settingItem}>
-            <Shield size={20} color="#6B7280" />
+            <Shield size={20} color="#9CA3AF" />
             <View style={styles.settingContent}>
               <Text style={styles.settingLabel}>Security</Text>
               <Text style={styles.settingValue}>Two-factor authentication</Text>
@@ -116,7 +116,7 @@ export default function ProfileScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.settingItem}>
-            <Bell size={20} color="#6B7280" />
+            <Bell size={20} color="#9CA3AF" />
             <View style={styles.settingContent}>
               <Text style={styles.settingLabel}>Notifications</Text>
               <Text style={styles.settingValue}>Push, Email</Text>
@@ -151,7 +151,7 @@ export default function ProfileScreen() {
           <Text style={styles.sectionTitle}>Preferences</Text>
 
           <TouchableOpacity style={styles.settingItem}>
-            <Palette size={20} color="#6B7280" />
+            <Palette size={20} color="#9CA3AF" />
             <View style={styles.settingContent}>
               <Text style={styles.settingLabel}>Appearance</Text>
               <Text style={styles.settingValue}>System • Tap to switch</Text>
@@ -159,7 +159,7 @@ export default function ProfileScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.settingItem}>
-            <Globe size={20} color="#6B7280" />
+            <Globe size={20} color="#9CA3AF" />
             <View style={styles.settingContent}>
               <Text style={styles.settingLabel}>Language & Region</Text>
               <Text style={styles.settingValue}>English (US)</Text>
@@ -167,7 +167,7 @@ export default function ProfileScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.settingItem}>
-            <HardDrive size={20} color="#6B7280" />
+            <HardDrive size={20} color="#9CA3AF" />
             <View style={styles.settingContent}>
               <Text style={styles.settingLabel}>Storage</Text>
               <Text style={styles.settingValue}>2.1 GB used</Text>
@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingTop: 40,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#0A0A0A",
   },
   header: {
     flexDirection: "row",
@@ -200,25 +200,25 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingHorizontal: 20,
     paddingBottom: 16,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#1C1C1C",
     borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
+    borderBottomColor: "#2A2A2A",
   },
   logo: {
     fontSize: 24,
     fontWeight: "700",
-    color: "#1F2937",
+    color: "#FFFFFF",
   },
   content: {
     flex: 1,
   },
   profileSection: {
     alignItems: "center",
-    paddingVertical: 20,
+    paddingVertical: 24,
     paddingHorizontal: 20,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#1C1C1C",
     borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
+    borderBottomColor: "#2A2A2A",
   },
   avatarContainer: {
     position: "relative",
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: "#6366F1",
+    backgroundColor: "#FF6B35",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -244,21 +244,21 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: "#8B5CF6",
+    backgroundColor: "#FF6B35",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: "#FFFFFF",
+    borderColor: "#1C1C1C",
   },
   userName: {
     fontSize: 24,
     fontWeight: "700",
-    color: "#1F2937",
+    color: "#FFFFFF",
     marginBottom: 4,
   },
   userEmail: {
     fontSize: 14,
-    color: "#6B7280",
+    color: "#9CA3AF",
     marginBottom: 20,
   },
   statusContainer: {
@@ -289,7 +289,7 @@ const styles = StyleSheet.create({
   inviteButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: "#8B5CF6",
+    backgroundColor: "#FF6B35",
     borderRadius: 16,
   },
   inviteText: {
@@ -300,50 +300,54 @@ const styles = StyleSheet.create({
   workspaceSection: {
     paddingVertical: 24,
     paddingHorizontal: 20,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#1C1C1C",
     borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
+    borderBottomColor: "#2A2A2A",
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#1F2937",
+    color: "#FFFFFF",
     marginBottom: 16,
   },
   statsContainer: {
     flexDirection: "row",
-    gap: 16,
+    gap: 12,
   },
   statCard: {
     flex: 1,
     alignItems: "center",
-    paddingVertical: 16,
-    backgroundColor: "#8B5CF6",
-    borderRadius: 12,
+    paddingVertical: 20,
+    backgroundColor: "#252525",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#2A2A2A",
   },
   statNumber: {
     fontSize: 32,
     fontWeight: "700",
-    color: "#FFFFFF",
+    color: "#FF6B35",
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 14,
     fontWeight: "500",
-    color: "#FFFFFF",
+    color: "#9CA3AF",
   },
   settingsSection: {
     paddingVertical: 24,
     paddingHorizontal: 20,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#1C1C1C",
     borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
+    borderBottomColor: "#2A2A2A",
   },
   settingItem: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 16,
     gap: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#252525",
   },
   settingContent: {
     flex: 1,
@@ -351,47 +355,47 @@ const styles = StyleSheet.create({
   settingLabel: {
     fontSize: 16,
     fontWeight: "500",
-    color: "#1F2937",
-    marginBottom: 2,
+    color: "#FFFFFF",
+    marginBottom: 4,
   },
   settingValue: {
     fontSize: 14,
-    color: "#6B7280",
+    color: "#9CA3AF",
   },
   activitySection: {
     paddingVertical: 24,
     paddingHorizontal: 20,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#1C1C1C",
     borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
+    borderBottomColor: "#2A2A2A",
   },
   activityItem: {
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
+    borderBottomColor: "#252525",
   },
   activityTime: {
     fontSize: 12,
-    color: "#9CA3AF",
+    color: "#6B7280",
     marginBottom: 4,
   },
   activityText: {
     fontSize: 14,
-    color: "#1F2937",
+    color: "#E5E7EB",
   },
   preferencesSection: {
     paddingVertical: 24,
     paddingHorizontal: 20,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#1C1C1C",
     borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
+    borderBottomColor: "#2A2A2A",
   },
   logoutButton: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 16,
     paddingHorizontal: 20,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#1C1C1C",
     gap: 16,
   },
   logoutText: {

@@ -696,7 +696,10 @@ export default function CanvasScreen() {
   const [showLinkPaste, setShowLinkPaste] = useState(false);
   const [showFileUpload, setShowFileUpload] = useState(false); // New file upload modal
   const [showFolders, setShowFolders] = useState(false);
-  const [linkPastePosition, setLinkPastePosition] = useState({ x: 100, y: 100 });
+  const [linkPastePosition, setLinkPastePosition] = useState({
+    x: 100,
+    y: 100,
+  });
 
   // --- Note Editing State ---
   const [editingNote, setEditingNote] = useState(null);
@@ -806,9 +809,7 @@ export default function CanvasScreen() {
 
   // --- NEW: File Upload Modal Handler ---
 
-  const handleUploadFile = async (
-    file
-  ) => {
+  const handleUploadFile = async (file) => {
     const token = await getToken();
     if (!token) {
       Alert.alert("Error", "You must be logged in to upload files.");
@@ -867,7 +868,7 @@ export default function CanvasScreen() {
   if (isLoading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#8B5CF6" />
+        <ActivityIndicator size="large" color="#FF6B35" />
         <Text style={styles.loadingText}>Loading Canvas...</Text>
       </View>
     );
@@ -896,11 +897,11 @@ export default function CanvasScreen() {
         tools={TOOLS.filter((tool) => tool !== "Pan" && tool !== "Zoom")}
         selectedTool={selectedTool}
         onToolSelect={setSelectedTool}
-        onAddPress={handleAddPress} // Updated to open AddMenu
+        onAddPress={handleAddPress} 
         onFoldersPress={() => setShowFolders(true)}
       />
 
-      {/* --- ADD MENU --- */}
+
       <AddMenu
         visible={showAddMenu}
         onClose={() => setShowAddMenu(false)}
@@ -976,15 +977,15 @@ export default function CanvasScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    paddingTop: 40,
+
     flex: 1,
-    backgroundColor: "#ffffffff",
+    backgroundColor: "#121212",
   },
   centered: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#121212",
   },
   loadingText: {
     marginTop: 12,
@@ -998,4 +999,3 @@ const styles = StyleSheet.create({
     padding: 20,
   },
 });
-

@@ -152,7 +152,7 @@ export default function CardActionMenu({
             icon: Eye,
             label: "View Full Text",
             action: "viewNote",
-            color: "#8B5CF6",
+            color: "#FF6B35",
           },
           {
             icon: Edit3,
@@ -301,7 +301,7 @@ export default function CardActionMenu({
                       styles.iconContainer,
                       menuItem.color === "#EF4444" &&
                         styles.iconContainerDanger,
-                      menuItem.color === "#8B5CF6" &&
+                      menuItem.color === "#FF6B35" &&
                         styles.iconContainerPrimary,
                     ]}
                   >
@@ -311,7 +311,7 @@ export default function CardActionMenu({
                     style={[
                       styles.menuItemText,
                       menuItem.color === "#EF4444" && styles.menuItemTextDanger,
-                      menuItem.color === "#8B5CF6" &&
+                      menuItem.color === "#FF6B35" &&
                         styles.menuItemTextPrimary,
                     ]}
                   >
@@ -398,7 +398,7 @@ const styles = StyleSheet.create({
     color: "#EF4444",
   },
   menuItemTextPrimary: {
-    color: "#8B5CF6",
+    color: "#FF6B35",
   },
   cancelButton: {
     padding: 20,

@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   saveButton: {
-    backgroundColor: "#8B5CF6",
+    backgroundColor: "#FF6B35",
   },
   saveButtonText: {
     color: "#FFFFFF",

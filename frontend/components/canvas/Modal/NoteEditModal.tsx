@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
     color: "#6B7280",
   },
   saveButton: {
-    backgroundColor: "#8B5CF6",
+    backgroundColor: "#FF6B35",
   },
   saveText: {
     fontSize: 16,

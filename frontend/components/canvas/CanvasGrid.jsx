@@ -33,6 +33,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: screenHeight * 6,
     height: screenHeight * 6,
-    backgroundColor: "#ffffffff", // Subtle gray like Apple/Figma
+    backgroundColor: "#1C1C1C", // Subtle gray like Apple/Figma
   },
 });

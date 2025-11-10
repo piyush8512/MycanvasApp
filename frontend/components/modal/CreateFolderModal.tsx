@@ -1,26 +1,30 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
-  Modal,
   View,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
+  Modal,
   Animated,
+  StyleSheet,
   Dimensions,
   PanResponder,
   KeyboardAvoidingView,
   Platform,
   TouchableWithoutFeedback,
   Keyboard,
+  ActivityIndicator,
 } from "react-native";
 import { FolderOpen, Star, Users, Lock } from "lucide-react-native";
 import { useFolders } from "@/hooks/useFolders";
+import { LinearGradient } from "expo-linear-gradient";
+import  COLORS  from "@/constants/colors"; // Import your theme
 
 interface CreateFolderModalProps {
   visible: boolean;
   onClose: () => void;
-  onSubmit: (name: string, isStarred: boolean, collaborators: string[]) => void;
+  // Submit only takes name and isStarred, to match your HomeScreen
+  onSubmit: (name: string, isStarred: boolean) => void;
 }
 
 export const CreateFolderModal = ({
@@ -30,34 +34,37 @@ export const CreateFolderModal = ({
 }: CreateFolderModalProps) => {
   const [folderName, setFolderName] = useState("");
   const [isStarred, setIsStarred] = useState(false);
-  const [collaborators, setCollaborators] = useState<string[]>([]);
+  // const [collaborators, setCollaborators] = useState<string[]>([]); // UI only for now
   const [modalVisible, setModalVisible] = useState(visible);
   const [loading, setLoading] = useState(false);
   const slideAnim = useRef(new Animated.Value(0)).current;
 
+  // This PanResponder is for the bottom-sheet drag-to-close
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: (evt) => {
         const { locationY } = evt.nativeEvent;
-        return locationY < 50;
+        return locationY < 50; // Only drag from the top area
       },
       onMoveShouldSetPanResponder: (_, gestureState) => {
         return Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
       },
       onPanResponderMove: (_, gestureState) => {
         if (gestureState.dy > 0) {
-          slideAnim.setValue(1 - gestureState.dy / 400);
+          // Follow the finger dragging down
+          slideAnim.setValue(gestureState.dy);
         }
       },
       onPanResponderRelease: (_, gestureState) => {
         if (gestureState.dy > 100) {
+          // If dragged more than 100px, close
           handleClose();
         } else {
+          // Otherwise, spring back to open
           Animated.spring(slideAnim, {
-            toValue: 1,
+            toValue: 0,
             useNativeDriver: true,
             friction: 8,
-            tension: 40,
           }).start();
         }
       },
@@ -68,7 +75,7 @@ export const CreateFolderModal = ({
     if (visible) {
       setModalVisible(true);
       Animated.spring(slideAnim, {
-        toValue: 1,
+        toValue: 0, // Animate to 0 (fully visible)
         useNativeDriver: true,
         friction: 8,
         tension: 40,
@@ -78,7 +85,7 @@ export const CreateFolderModal = ({
 
   const handleClose = () => {
     Animated.timing(slideAnim, {
-      toValue: 0,
+      toValue: 400, // Animate down off-screen
       duration: 250,
       useNativeDriver: true,
     }).start(() => {
@@ -93,27 +100,23 @@ export const CreateFolderModal = ({
     if (folderName.trim()) {
       try {
         setLoading(true);
-        const folder = await createFolder(folderName.trim(), isStarred);
-        console.log("Folder created:", folder);
-        onSubmit(folder.name, isStarred, collaborators);
-        setModalVisible(false);
+        // We only pass name and starred, as in your HomeScreen
+        await createFolder(folderName.trim(), isStarred);
+        onSubmit(folderName.trim(), isStarred); // Call parent's refresh
         setFolderName("");
         setIsStarred(false);
-        setCollaborators([]);
-        onClose();
+        handleClose(); // Close on success
       } catch (error) {
-        // Handle error (maybe show an alert or error message)
         console.error("Failed to create folder:", error);
       } finally {
         setLoading(false);
-        setModalVisible(false);
       }
     }
   };
 
   const translateY = slideAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [Dimensions.get("window").height, 0],
+    inputRange: [0, 400],
+    outputRange: [0, 400],
   });
 
   return (
@@ -128,7 +131,6 @@ export const CreateFolderModal = ({
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : "height"}
             style={{ width: "100%" }}
-            keyboardVerticalOffset={Platform.OS === "ios" ? 40 : 0}
           >
             <Animated.View
               style={[
@@ -140,20 +142,24 @@ export const CreateFolderModal = ({
             >
               <View
                 {...panResponder.panHandlers}
-                style={styles.dragIndicator}
-              />
+                style={styles.dragIndicatorContainer}
+              >
+                <View style={styles.dragIndicator} />
+              </View>
+
               <View>
                 <Text style={styles.title}>Create New Folder</Text>
 
                 <View style={styles.inputContainer}>
                   <FolderOpen
                     size={20}
-                    color="#4F46E5"
+                    color={COLORS.primary} // Use theme color
                     style={styles.inputIcon}
                   />
                   <TextInput
                     style={styles.input}
                     placeholder="Folder name"
+                    placeholderTextColor={COLORS.textLight} // Use theme color
                     value={folderName}
                     onChangeText={setFolderName}
                     autoFocus
@@ -170,27 +176,28 @@ export const CreateFolderModal = ({
                 >
                   <Star
                     size={20}
-                    color={isStarred ? "#4F46E5" : "#6B7280"}
-                    fill={isStarred ? "#4F46E5" : "none"}
+                    color={isStarred ? COLORS.primary : COLORS.textLight}
+                    fill={isStarred ? COLORS.primary : "none"}
                   />
                   <Text style={styles.optionText}>Star this folder</Text>
                 </TouchableOpacity>
 
+                {/* --- ADDED BACK: Share with --- */}
                 <View style={styles.section}>
                   <Text style={styles.sectionTitle}>Share with</Text>
                   <View style={styles.collaborators}>
                     {/* Add your collaborator avatars here */}
-
                     <TouchableOpacity style={styles.addButton}>
                       <Text style={styles.addButtonText}>Add</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
 
+                {/* --- ADDED BACK: Permissions --- */}
                 <View style={styles.section}>
                   <Text style={styles.sectionTitle}>Permissions</Text>
                   <View style={styles.permissions}>
-                    <Lock size={16} color="#6B7280" />
+                    <Lock size={16} color={COLORS.textLight} />
                     <Text style={styles.permissionText}>
                       Can edit • Can comment • Can view
                     </Text>
@@ -204,17 +211,25 @@ export const CreateFolderModal = ({
                   >
                     <Text style={styles.cancelButtonText}>Cancel</Text>
                   </TouchableOpacity>
+
                   <TouchableOpacity
-                    style={[
-                      styles.createButton,
-                      loading && styles.disabledButton,
-                    ]}
                     onPress={handleSubmit}
-                    disabled={loading}
+                    disabled={loading || !folderName.trim()}
                   >
-                    <Text style={styles.createButtonText}>
-                      {loading ? "Creating..." : "Create"}
-                    </Text>
+                    <LinearGradient
+                      colors={
+                        loading || !folderName.trim()
+                          ? [COLORS.border, COLORS.border]
+                          : COLORS.gradient
+                      }
+                      style={styles.createButton}
+                    >
+                      {loading ? (
+                        <ActivityIndicator color="#FFFFFF" />
+                      ) : (
+                        <Text style={styles.createButtonText}>Create</Text>
+                      )}
+                    </LinearGradient>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -229,29 +244,32 @@ export const CreateFolderModal = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "flex-end", // Change to position at bottom
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    justifyContent: "flex-end",
   },
   modalContainer: {
-    backgroundColor: "white",
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    backgroundColor: COLORS.card,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     padding: 24,
-    width: "100%", // Full width
-    // Add shadow for better depth effect
+    width: "100%",
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
-      height: -2,
+      height: -4,
     },
     shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    shadowRadius: 10,
     elevation: 5,
+  },
+  dragIndicatorContainer: {
+    paddingVertical: 10,
+    alignItems: "center",
   },
   dragIndicator: {
     width: 40,
     height: 4,
-    backgroundColor: "#E5E7EB",
+    backgroundColor: COLORS.border,
     borderRadius: 2,
     alignSelf: "center",
     marginBottom: 16,
@@ -259,15 +277,16 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: "600",
-    color: "#1F2937",
+    color: COLORS.text,
     marginBottom: 24,
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 8,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.background,
+    borderRadius: 12,
     paddingHorizontal: 12,
     marginBottom: 20,
   },
@@ -278,17 +297,18 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     padding: 12,
+    color: COLORS.text,
   },
   optionButton: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 12,
+    paddingVertical: 12,
     marginBottom: 20,
   },
   optionText: {
     marginLeft: 12,
     fontSize: 16,
-    color: "#1F2937",
+    color: COLORS.text,
   },
   section: {
     marginBottom: 20,
@@ -296,7 +316,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: "500",
-    color: "#1F2937",
+    color: COLORS.text,
     marginBottom: 12,
   },
   collaborators: {
@@ -304,13 +324,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   addButton: {
-    backgroundColor: "#E5E7EB",
+    backgroundColor: COLORS.border,
     borderRadius: 16,
     paddingVertical: 6,
     paddingHorizontal: 12,
   },
   addButtonText: {
-    color: "#4F46E5",
+    color: COLORS.primary,
     fontWeight: "500",
   },
   permissions: {
@@ -319,7 +339,7 @@ const styles = StyleSheet.create({
   },
   permissionText: {
     marginLeft: 8,
-    color: "#6B7280",
+    color: COLORS.textLight,
     fontSize: 14,
   },
   buttonContainer: {
@@ -329,23 +349,25 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   cancelButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   createButton: {
-    backgroundColor: "#4F46E5",
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
   },
   cancelButtonText: {
-    color: "#6B7280",
+    color: COLORS.textLight,
     fontSize: 16,
     fontWeight: "500",
   },
   createButtonText: {
-    color: "white",
+    color: COLORS.gradientText,
     fontSize: 16,
     fontWeight: "500",
   },
