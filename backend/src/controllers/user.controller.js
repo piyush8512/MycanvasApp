@@ -1,6 +1,7 @@
 
 import prisma from "../config/prisma.js";
 import { clerkClient } from '@clerk/clerk-sdk-node';
+import { createUserWithFriendCode } from '../services/friend.service.js';
 
 
 export const healthCheck = (req, res) => {  
@@ -47,16 +48,18 @@ export const getOrCreateCurrentUser = async (req, res) =>
       const primaryEmail = clerkUser.emailAddresses.find(
         (email) => email.id === clerkUser.primaryEmailAddressId
       );
+      const email = primaryEmail?.emailAddress || "";
+      const name =
+        `${clerkUser.firstName || ""} ${clerkUser.lastName || ""}`.trim() ||
+        null;
 
-      dbUser = await prisma.user.create({
-        data: {
-          clerkId: clerkUserId,
-          email: primaryEmail?.emailAddress || '',
-          name: `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim() || null,
-        },
-      });
+      // --- 2. THIS IS THE FIX ---
+      // Use the service to create a user with a guaranteed unique friend code
+      console.log("✅ New user detected. Creating user with friend code...");
+      dbUser = await createUserWithFriendCode(clerkUserId, email, name);
+      // --- END FIX ---
 
-      console.log('✅ New user synced to Supabase:', dbUser.email);
+      console.log("✅ New user synced to Supabase:", dbUser.email);
     }
 
     res.json({ 

@@ -13,6 +13,8 @@ model User {
   clerkId              String               @unique
   email                String               @unique
   name                 String?
+  friendCode           String               @unique @default("username#1234")
+  lastCodeRegeneration DateTime?
   createdAt            DateTime             @default(now())
   updatedAt            DateTime             @updatedAt
   activities           Activity[]
@@ -22,6 +24,11 @@ model User {
   folderCollaborations FolderCollaborator[]
   ownedFolders         Folder[]             @relation("FolderOwner")
   sharedWithMe         SharedItem[]
+
+  sentFriendRequests     FriendRequest[] @relation("FriendRequestSender")
+  receivedFriendRequests FriendRequest[] @relation("FriendRequestReceiver")
+  friendshipsInitiated   Friendship[]    @relation("FriendshipInitiator")
+  friendshipsReceived    Friendship[]    @relation("FriendshipReceiver")
 
   @@map("users")
 }
@@ -153,6 +160,40 @@ model Activity {
   @@map("activities")
 }
 
+model FriendRequest {
+  id         String              @id @default(uuid())
+  senderId   String              @map("sender_id")
+  receiverId String              @map("receiver_id")
+  status     FriendRequestStatus @default(PENDING)
+  message    String?
+  createdAt  DateTime            @default(now()) @map("created_at")
+  updatedAt  DateTime            @updatedAt @map("updated_at")
+
+  sender   User @relation("FriendRequestSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("FriendRequestReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, receiverId])
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([status])
+  @@map("friend_requests")
+}
+
+model Friendship {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  friendId  String   @map("friend_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user   User @relation("FriendshipInitiator", fields: [userId], references: [id], onDelete: Cascade)
+  friend User @relation("FriendshipReceiver", fields: [friendId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, friendId]) // Prevent duplicate friendships
+  @@index([userId]) // Fast queries for "get all friends of user X"
+  @@index([friendId])
+  @@map("friendships")
+}
+
 enum CollaboratorRole {
   OWNER
   EDITOR
@@ -185,4 +226,11 @@ enum ItemType {
   docx
   xlsx
   pptx
+}
+
+enum FriendRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
 }

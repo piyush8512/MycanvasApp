@@ -68,7 +68,6 @@ import {
 
 const router = Router();
 
-// --- Canvas (File) Routes ---
 // POST /api/canvas
 router.route("/").post(requireAuth, createCanvas); // Create a new canvas
 // GET /api/canvas

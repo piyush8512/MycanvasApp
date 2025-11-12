@@ -1,519 +1,376 @@
-import React, { useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  TextInput,
-  Modal,
-  Image,
-  Alert,
-  ActivityIndicator,
-} from "react-native";
-import {
-  Search,
-  UserPlus,
-  ArrowLeft,
-  MessageCircle,
-  UserMinus,
-  Check,
-  X,
-} from "lucide-react-native";
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { useFriends } from '@/hooks/useFriends';
+import { useFriendRequests } from '@/hooks/useFriendRequests';
+import { useAccount } from '@/hooks/useAccount';
+import { friendService } from '@/services/friendService';
+import { useAuth } from '@clerk/clerk-expo';
+import  COLORS  from '@/constants/colors';
 
-export default function FriendsScreen() {
-  const [activeTab, setActiveTab] = useState("friends");
-  const [showAddFriend, setShowAddFriend] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-
-  // Mock data
-  const [friends] = useState([
-    {
-      id: "1",
-      name: "John Doe",
-      email: "john@example.com",
-      avatar: "https://i.pravatar.cc/150?img=1",
-      isOnline: true,
-    },
-    {
-      id: "2",
-      name: "Jane Smith",
-      email: "jane@example.com",
-      avatar: "https://i.pravatar.cc/150?img=2",
-      isOnline: false,
-    },
-  ]);
-
-  const [incomingRequests] = useState([
-    {
-      id: "4",
-      name: "Sarah Wilson",
-      email: "sarah@example.com",
-      avatar: "https://i.pravatar.cc/150?img=4",
-      requestedAt: "2 hours ago",
-    },
-  ]);
-
-  const [outgoingRequests] = useState([
-    {
-      id: "6",
-      name: "Emily Davis",
-      email: "emily@example.com",
-      avatar: "https://i.pravatar.cc/150?img=6",
-      sentAt: "3 hours ago",
-    },
-  ]);
-
-  const filteredFriends = friends.filter(
-    (friend) =>
-      friend.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      friend.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const handleAcceptRequest = (id: string) => {
-    console.log("Accept:", id);
-  };
-
-  const handleRejectRequest = (id: string) => {
-    console.log("Reject:", id);
-  };
-
-  const handleRemoveFriend = (id: string, name: string) => {
-    Alert.alert("Remove Friend", `Remove ${name}?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Remove",
-        style: "destructive",
-        onPress: () => console.log("Removed:", id),
-      },
-    ]);
-  };
-
+// This is the main "hub" page for everything friends-related
+export default function FriendsPage() {
+  const [activeTab, setActiveTab] = useState('friends');
+  
+  // --- Data Hooks ---
+  const { friends, isLoading: isLoadingFriends, removeFriend, mutateFriends } = useFriends();
+  const { pendingRequests, sentRequests, isLoading: isLoadingRequests, acceptRequest, rejectRequest, cancelRequest } = useFriendRequests(mutateFriends);
+  
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton}>
-          <ArrowLeft size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Friends</Text>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => setShowAddFriend(true)}
-        >
-          <UserPlus size={24} color="#FF6B35" />
-        </TouchableOpacity>
+    <SafeAreaView style={styles.container}>
+      <Text style={styles.pageTitle}>Friends</Text>
+      
+      {/* --- Top Tab Navigator --- */}
+      <View style={styles.tabContainer}>
+        <TabButton title="My Friends" count={friends.length} active={activeTab === 'friends'} onPress={() => setActiveTab('friends')} />
+        <TabButton title="Requests" count={pendingRequests.length} active={activeTab === 'requests'} onPress={() => setActiveTab('requests')} />
+        <TabButton title="Add Friend" active={activeTab === 'add'} onPress={() => setActiveTab('add')} />
       </View>
-
-      {/* Search */}
-      <View style={styles.searchContainer}>
-        <Search size={20} color="#6B7280" />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search friends..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholderTextColor="#6B7280"
-        />
+      
+      {/* --- Content Area --- */}
+      <View style={styles.content}>
+        {activeTab === 'friends' && <FriendsList friends={friends} isLoading={isLoadingFriends} onRemove={removeFriend} />}
+        {activeTab === 'requests' && (
+          <RequestsList 
+            pending={pendingRequests}
+            sent={sentRequests}
+            isLoading={isLoadingRequests}
+            onAccept={acceptRequest}
+            onReject={rejectRequest}
+            onCancel={cancelRequest}
+          />
+        )}
+        {activeTab === 'add' && <AddFriendTab />}
       </View>
+    </SafeAreaView>
+  );
+}
 
-      {/* Tabs */}
-      <View style={styles.tabsContainer}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "friends" && styles.activeTab]}
-          onPress={() => setActiveTab("friends")}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === "friends" && styles.activeTabText,
-            ]}
-          >
-            Friends ({friends.length})
-          </Text>
-        </TouchableOpacity>
+// --- Tab Button Component ---
+const TabButton = ({ title, count, active, onPress }) => (
+  <TouchableOpacity style={[styles.tabButton, active && styles.tabActiveButton]} onPress={onPress}>
+    <Text style={[styles.tabText, active && styles.tabActiveText]}>{title}</Text>
+    {count > 0 && <View style={styles.badge}><Text style={styles.badgeText}>{count}</Text></View>}
+  </TouchableOpacity>
+);
 
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "requests" && styles.activeTab]}
-          onPress={() => setActiveTab("requests")}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === "requests" && styles.activeTabText,
-            ]}
-          >
-            Requests ({incomingRequests.length})
-          </Text>
-          {incomingRequests.length > 0 && (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{incomingRequests.length}</Text>
+// --- 1. My Friends Tab ---
+const FriendsList = ({ friends, isLoading, onRemove }) => {
+  const confirmRemove = (friend: any) => {
+    Alert.alert(
+      "Remove Friend",
+      `Are you sure you want to remove ${friend.name}?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Remove", style: "destructive", onPress: () => onRemove(friend.id) }
+      ]
+    );
+  };
+  
+  if (isLoading) {
+    return <ActivityIndicator color={COLORS.primary} style={{ marginTop: 20 }} />;
+  }
+  
+  return (
+    <FlatList
+      data={friends}
+      keyExtractor={(item) => (item as any).id}
+      renderItem={({ item }) => (
+        <View style={styles.card}>
+          <View>
+            <Text style={styles.cardName}>{(item as any).name}</Text>
+            <Text style={styles.cardCode}>{(item as any).friendCode}</Text>
+          </View>
+          <TouchableOpacity onPress={() => confirmRemove(item as any)} style={styles.iconButton}>
+            <Ionicons name="trash-outline" size={20} color={COLORS.error} />
+          </TouchableOpacity>
+        </View>
+      )}
+      ListEmptyComponent={<EmptyState message="You haven't added any friends yet." />}
+    />
+  );
+};
+
+// --- 2. Requests Tab ---
+const RequestsList = ({ pending, sent, isLoading, onAccept, onReject, onCancel }) => {
+  if (isLoading) {
+    return <ActivityIndicator color={COLORS.primary} style={{ marginTop: 20 }} />;
+  }
+  
+  return (
+    <FlatList
+      data={[{ type: 'header', title: 'Pending Requests' }, ...pending, { type: 'header', title: 'Sent Requests' }, ...sent]}
+      keyExtractor={(item, index) => (item as any).id || `header-${index}`}
+      renderItem={({ item }) => {
+        const req = item as any; // Cast to 'any' to access properties
+        if (req.type === 'header') {
+          return <Text style={styles.sectionHeader}>{req.title}</Text>;
+        }
+        
+        const isPending = !!req.sender;
+        const user = isPending ? req.sender : req.receiver;
+
+        return (
+          <View style={styles.card}>
+            <View>
+              <Text style={styles.cardName}>{user.name}</Text>
+              <Text style={styles.cardCode}>{user.friendCode}</Text>
             </View>
-          )}
-        </TouchableOpacity>
+            <View style={styles.buttonGroup}>
+              {isPending ? (
+                <>
+                  <TouchableOpacity onPress={() => onReject(req.id)} style={[styles.iconButton, { backgroundColor: COLORS.error_light }]}>
+                    <Ionicons name="close" size={20} color={COLORS.error} />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => onAccept(req.id)} style={[styles.iconButton, { backgroundColor: COLORS.success_light }]}>
+                    <Ionicons name="checkmark" size={20} color={COLORS.success} />
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <TouchableOpacity onPress={() => onCancel(req.id)} style={[styles.iconButton, { backgroundColor: COLORS.error_light }]}>
+                  <Text style={{ color: COLORS.error }}>Cancel</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        );
+      }}
+      ListEmptyComponent={<EmptyState message="No new friend requests." />}
+    />
+  );
+};
 
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "sent" && styles.activeTab]}
-          onPress={() => setActiveTab("sent")}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === "sent" && styles.activeTabText,
-            ]}
-          >
-            Sent ({outgoingRequests.length})
-          </Text>
+// --- 3. Add Friend Tab ---
+const AddFriendTab = () => {
+  const [code, setCode] = useState("");
+  const [message, setMessage] = useState("");
+  const [searchResult, setSearchResult] = useState<any>(null);
+  const [searchError, setSearchError] = useState("");
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [sendLoading, setSendLoading] = useState(false);
+  const { getToken } = useAuth();
+  
+  const handleSearch = async () => {
+    if (code.length < 6) {
+      setSearchError("Friend code must be in the format @username#1234");
+      return;
+    }
+    setSearchLoading(true);
+    setSearchError("");
+    setSearchResult(null);
+    try {
+      const token = await getToken();
+      if (!token) return;
+      const user = await friendService.searchUserByCode(code, token);
+      setSearchResult(user);
+    } catch (e: any) {
+      setSearchError(e.message);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+  
+  const handleSendRequest = async () => {
+    setSendLoading(true);
+    try {
+      const token = await getToken();
+      if (!token) return;
+      await friendService.sendFriendRequest(code, message, token);
+      Alert.alert("Success", "Friend request sent!");
+      setCode("");
+      setMessage("");
+      setSearchResult(null);
+    } catch (e: any) {
+      Alert.alert("Error", e.message);
+    } finally {
+      setSendLoading(false);
+    }
+  };
+  
+  return (
+    <View style={styles.addFriendContainer}>
+      <Text style={styles.label}>Add friend with their code</Text>
+      <View style={styles.inputRow}>
+        <TextInput 
+          style={styles.input}
+          placeholder="@username#1234"
+          placeholderTextColor={COLORS.textLight}
+          value={code}
+          onChangeText={setCode}
+          autoCapitalize="none"
+        />
+        <TouchableOpacity style={styles.searchButton} onPress={handleSearch} disabled={searchLoading}>
+          {searchLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Find</Text>}
         </TouchableOpacity>
       </View>
-
-      {/* Content */}
-      <ScrollView style={styles.content}>
-        {/* Friends List */}
-        {activeTab === "friends" && (
-          <View style={styles.listContainer}>
-            {filteredFriends.map((friend) => (
-              <View key={friend.id} style={styles.friendCard}>
-                <View style={styles.friendInfo}>
-                  <View style={styles.avatarContainer}>
-                    <Image
-                      source={{ uri: friend.avatar }}
-                      style={styles.avatar}
-                    />
-                    {friend.isOnline && <View style={styles.onlineIndicator} />}
-                  </View>
-                  <View style={styles.friendDetails}>
-                    <Text style={styles.friendName}>{friend.name}</Text>
-                    <Text style={styles.friendEmail}>{friend.email}</Text>
-                    <Text style={styles.friendStatus}>
-                      {friend.isOnline ? "🟢 Online" : "⚫ Offline"}
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.actions}>
-                  <TouchableOpacity style={styles.messageButton}>
-                    <MessageCircle size={20} color="#FF6B35" />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.removeButton}
-                    onPress={() => handleRemoveFriend(friend.id, friend.name)}
-                  >
-                    <UserMinus size={20} color="#EF4444" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ))}
+      
+      {searchError && <Text style={styles.errorText}>{searchError}</Text>}
+      
+      {searchResult && (
+        <View style={styles.card}>
+          <View>
+            <Text style={styles.cardName}>{searchResult.name}</Text>
+            <Text style={styles.cardCode}>{searchResult.friendCode}</Text>
           </View>
-        )}
-
-        {/* Incoming Requests */}
-        {activeTab === "requests" && (
-          <View style={styles.listContainer}>
-            {incomingRequests.map((request) => (
-              <View key={request.id} style={styles.requestCard}>
-                <View style={styles.requestInfo}>
-                  <Image
-                    source={{ uri: request.avatar }}
-                    style={styles.avatar}
-                  />
-                  <View style={styles.friendDetails}>
-                    <Text style={styles.friendName}>{request.name}</Text>
-                    <Text style={styles.friendEmail}>{request.email}</Text>
-                    <Text style={styles.requestTime}>
-                      Requested {request.requestedAt}
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.requestActions}>
-                  <TouchableOpacity
-                    style={styles.acceptButton}
-                    onPress={() => handleAcceptRequest(request.id)}
-                  >
-                    <Check size={20} color="#FFFFFF" />
-                    <Text style={styles.acceptText}>Accept</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.rejectButton}
-                    onPress={() => handleRejectRequest(request.id)}
-                  >
-                    <X size={20} color="#9CA3AF" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {/* Outgoing Requests */}
-        {activeTab === "sent" && (
-          <View style={styles.listContainer}>
-            {outgoingRequests.map((request) => (
-              <View key={request.id} style={styles.requestCard}>
-                <View style={styles.requestInfo}>
-                  <Image
-                    source={{ uri: request.avatar }}
-                    style={styles.avatar}
-                  />
-                  <View style={styles.friendDetails}>
-                    <Text style={styles.friendName}>{request.name}</Text>
-                    <Text style={styles.friendEmail}>{request.email}</Text>
-                    <Text style={styles.requestTime}>
-                      Sent {request.sentAt}
-                    </Text>
-                  </View>
-                </View>
-                <TouchableOpacity style={styles.cancelButton}>
-                  <Text style={styles.cancelText}>Cancel</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
-          </View>
-        )}
-      </ScrollView>
-
-      {/* Add Friend Modal */}
-      <AddFriendModalComponent
-        visible={showAddFriend}
-        onClose={() => setShowAddFriend(false)}
-      />
+          <TouchableOpacity style={styles.sendButton} onPress={handleSendRequest} disabled={sendLoading}>
+             {sendLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Send Request</Text>}
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
-}
+};
 
-// Add Friend Modal Component
-function AddFriendModalComponent({ visible, onClose }) {
-  const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  return (
-    <Modal visible={visible} transparent animationType="slide">
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <View style={styles.modalHeaderLeft}>
-              <UserPlus size={24} color="#FF6B35" />
-              <Text style={styles.modalTitle}>Add Friend</Text>
-            </View>
-            <TouchableOpacity onPress={onClose}>
-              <X size={24} color="#9CA3AF" />
-            </TouchableOpacity>
-          </View>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalDescription}>
-              Search for friends by name or email
-            </Text>
-            <View style={styles.modalSearchContainer}>
-              <TextInput
-                style={styles.modalSearchInput}
-                placeholder="Enter name or email..."
-                placeholderTextColor="#6B7280"
-                value={search}
-                onChangeText={setSearch}
-              />
-              <TouchableOpacity style={styles.modalSearchButton}>
-                <Search size={20} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-}
+// --- Helper & Styles ---
+const EmptyState = ({ message }: { message: string }) => (
+  <View style={styles.emptyContainer}>
+    <Text style={styles.emptyText}>{message}</Text>
+  </View>
+);
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0A0A0A", paddingTop: 40 },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: "#1C1C1C",
-    borderBottomWidth: 1,
-    borderBottomColor: "#2A2A2A",
-  },
-  backButton: { padding: 8 },
-  headerTitle: { fontSize: 20, fontWeight: "600", color: "#FFFFFF" },
-  addButton: { padding: 8 },
-  searchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#1C1C1C",
-    marginHorizontal: 20,
-    marginVertical: 16,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#2A2A2A",
-  },
-  searchInput: {
+  container: {
     flex: 1,
-    height: 48,
-    fontSize: 14,
-    color: "#FFFFFF",
-    marginLeft: 12,
+    backgroundColor: COLORS.background,
   },
-  tabsContainer: {
-    flexDirection: "row",
-    backgroundColor: "#1C1C1C",
+  pageTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: COLORS.text,
     paddingHorizontal: 20,
+    paddingTop: 10,
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingHorizontal: 20,
+    marginTop: 20,
+    marginBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#2A2A2A",
+    borderBottomColor: COLORS.border,
   },
-  tab: {
-    flex: 1,
-    paddingVertical: 16,
-    alignItems: "center",
-    position: "relative",
+  tabButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
   },
-  activeTab: { borderBottomWidth: 2, borderBottomColor: "#FF6B35" },
-  tabText: { fontSize: 14, fontWeight: "500", color: "#9CA3AF" },
-  activeTabText: { color: "#FF6B35" },
-  badge: {
-    position: "absolute",
-    top: 8,
-    right: "25%",
-    backgroundColor: "#EF4444",
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 6,
+  tabActiveButton: {
+    borderBottomColor: COLORS.primary,
   },
-  badgeText: { color: "#FFFFFF", fontSize: 11, fontWeight: "600" },
-  content: { flex: 1 },
-  listContainer: { padding: 20 },
-  friendCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#1C1C1C",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "#2A2A2A",
-  },
-  friendInfo: { flexDirection: "row", alignItems: "center", flex: 1 },
-  avatarContainer: { position: "relative", marginRight: 12 },
-  avatar: { width: 56, height: 56, borderRadius: 28 },
-  onlineIndicator: {
-    position: "absolute",
-    bottom: 2,
-    right: 2,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: "#10B981",
-    borderWidth: 2,
-    borderColor: "#1C1C1C",
-  },
-  friendDetails: { flex: 1 },
-  friendName: {
+  tabText: {
+    color: COLORS.textLight,
     fontSize: 16,
-    fontWeight: "600",
-    color: "#FFFFFF",
-    marginBottom: 2,
+    fontWeight: '500',
   },
-  friendEmail: { fontSize: 13, color: "#9CA3AF", marginBottom: 4 },
-  friendStatus: { fontSize: 12, color: "#6B7280" },
-  actions: { flexDirection: "row", gap: 8 },
-  messageButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#252525",
-    alignItems: "center",
-    justifyContent: "center",
+  tabActiveText: {
+    color: COLORS.primary,
+    fontWeight: '600',
   },
-  removeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#2A1515",
-    alignItems: "center",
-    justifyContent: "center",
+  badge: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
   },
-  requestCard: {
-    backgroundColor: "#1C1C1C",
+  badgeText: {
+    color: COLORS.gradientText,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  content: {
+    flex: 1,
+  },
+  card: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: COLORS.card,
+    padding: 15,
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "#2A2A2A",
+    marginHorizontal: 20,
+    marginVertical: 5,
   },
-  requestInfo: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
-  requestTime: { fontSize: 12, color: "#6B7280" },
-  requestActions: { flexDirection: "row", gap: 8 },
-  acceptButton: {
+  cardName: {
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  cardCode: {
+    color: COLORS.textLight,
+    fontSize: 12,
+  },
+  buttonGroup: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  iconButton: {
+    padding: 8,
+    borderRadius: 8,
+  },
+  emptyContainer: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#FF6B35",
-    borderRadius: 8,
-    paddingVertical: 12,
-    gap: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 50,
   },
-  acceptText: { color: "#FFFFFF", fontSize: 14, fontWeight: "600" },
-  rejectButton: {
-    width: 48,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#252525",
-    borderRadius: 8,
+  emptyText: {
+    color: COLORS.textLight,
+    fontSize: 16,
   },
-  cancelButton: {
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#2A1515",
-    borderRadius: 8,
-    paddingVertical: 12,
+  sectionHeader: {
+    color: COLORS.text,
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 20,
+    marginBottom: 10,
+    paddingHorizontal: 20,
   },
-  cancelText: { color: "#EF4444", fontSize: 14, fontWeight: "600" },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
-    justifyContent: "flex-end",
-  },
-  modalContainer: {
-    backgroundColor: "#1C1C1C",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: "70%",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+  addFriendContainer: {
     padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#2A2A2A",
   },
-  modalHeaderLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
-  modalTitle: { fontSize: 20, fontWeight: "600", color: "#FFFFFF" },
-  modalContent: { padding: 20 },
-  modalDescription: { fontSize: 14, color: "#9CA3AF", marginBottom: 16 },
-  modalSearchContainer: { flexDirection: "row", gap: 12 },
-  modalSearchInput: {
+  label: {
+    color: COLORS.text,
+    fontSize: 16,
+    marginBottom: 10,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  input: {
     flex: 1,
-    height: 48,
+    backgroundColor: COLORS.card,
+    color: COLORS.text,
+    padding: 12,
+    borderRadius: 8,
+    fontSize: 16,
     borderWidth: 1,
-    borderColor: "#2A2A2A",
-    backgroundColor: "#252525",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    fontSize: 14,
-    color: "#FFFFFF",
+    borderColor: COLORS.border,
   },
-  modalSearchButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: "#FF6B35",
-    alignItems: "center",
-    justifyContent: "center",
+  searchButton: {
+    backgroundColor: COLORS.primary,
+    padding: 12,
+    borderRadius: 8,
+    justifyContent: 'center',
   },
+  sendButton: {
+    backgroundColor: COLORS.success,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  buttonText: {
+    color: COLORS.gradientText,
+    fontWeight: '600',
+  },
+  errorText: {
+    color: COLORS.error,
+    marginTop: 10,
+  }
 });

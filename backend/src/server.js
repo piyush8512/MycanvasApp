@@ -59,43 +59,35 @@ import userRoutes from "./routes/user.routes.js";
 import folderRoutes from "./routes/folder.routes.js";
 import canvasRoutes from "./routes/canvas.routes.js";
 import storageRoutes from "./routes/storage.routes.js";
-// Make sure this is imported if you use it in other routes
-// import { requireAuth } from "./middleware/clerkAuth.js"; 
+import friendRoutes from "./routes/friend.routes.js";
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// --- THIS IS THE CRITICAL FIX ---
-// 1. Get your Extension ID from chrome://extensions (Developer mode)
-//    I am using the ID from your previous logs: 'jlgedciogpkojlojkgmdamhaomdofkan'
-//    !! IMPORTANT: Replace this if your ID is different !!
 const EXTENSION_ID = 'ajfafhdnmjahkkdkefjlpcclpjobmend'; 
 
-// 2. Add your extension's origin to the whitelist
 const corsOptions = {
   origin: [
-    process.env.FRONTEND_URL || 'http://localhost:5173', // Your React Native app
-    'http://localhost:3000', // Your Next.js login app
-    `chrome-extension://${EXTENSION_ID}` // Allow your extension
+    process.env.FRONTEND_URL || 'http://localhost:5173',
+    'http://localhost:3000',
+    `chrome-extension://${EXTENSION_ID}` 
   ],
   credentials: true
 };
 
-app.use(cors(corsOptions)); // 3. Use the new options
-// --- END FIX ---
+app.use(cors(corsOptions));
 
 app.use(express.json());
 
-// Your existing routes
 app.use("/api/users", userRoutes);
 app.use("/api/folders",folderRoutes);
 app.use("/api/canvas", canvasRoutes);
 app.use("/api/shared",userRoutes);
 app.use('/api/storage', storageRoutes);
+app.use('/api/friends', friendRoutes);
 
-// 404 Handler
 app.use((req, res) => {
   res.status(404).json({ 
     success: false,
@@ -103,7 +95,6 @@ app.use((req, res) => {
   });
 });
 
-// Start Server
 app.listen(PORT, () => {
   console.log(`\n🚀 Server running on http://localhost:${PORT}`);
   console.log(`🔐 Clerk authentication enabled`);

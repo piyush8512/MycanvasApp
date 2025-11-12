@@ -216,6 +216,7 @@ import {
   Home as HomeIcon,
   Users,
   User,
+  Search,
 } from "lucide-react-native";
 import axios from "axios";
 import { useAuth } from "@clerk/clerk-expo";
@@ -309,16 +310,17 @@ export default function TabLayout() {
         }}
       />
 
-      {/* 📁 Folders */}
+      {/* 📁 Search */}
       <Tabs.Screen
-        name="folders"
+        name="search"
         options={{
-          title: "Folders",
+          title: "Search",
+
           tabBarIcon: ({ focused }) => (
             <TabIcon
               focused={focused}
               icon={
-                <FolderOpen
+                <Search
                   size={24}
                   strokeWidth={2.5}
                   color={focused ? "#FF6B35" : "#666"}
@@ -368,6 +370,8 @@ export default function TabLayout() {
           ),
         }}
       />
+
+
 
       <Tabs.Screen
         name="folder/[id]"
