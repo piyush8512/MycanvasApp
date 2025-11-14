@@ -7,33 +7,29 @@ import React, {
 } from "react";
 import {
   View,
-  ScrollView,
   Text,
   StyleSheet,
   RefreshControl,
   TouchableOpacity,
   StatusBar,
+  SafeAreaView,
 } from "react-native";
 import { useAuth, useUser } from "@clerk/clerk-expo";
-
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-
+import { useRouter } from "expo-router";
 import { FolderResponse, Space } from "@/types/space";
 import { useFolders } from "@/hooks/useFolders";
 import { useCanvas } from "@/hooks/useCanvas";
 import { Bell, Search } from "lucide-react-native";
 
-import { HeaderSection } from "@/components/home/HeaderSection";
-import { SearchBar } from "@/components/home/SearchBar";
 import { FilterTabs } from "@/components/home/FilterTabs";
 import { SpacesGrid } from "@/components/home/SpacesGrid";
 import { ActionButtonsSection } from "@/components/home/ActionButtonSection";
 import { CreateFolderModal } from "@/components/modal/CreateFolderModal";
-import COLORS from "@/constants/colors"; // Import COLORS
+import COLORS from "@/constants/colors";
+import ShareModal from "@/components/ShareModal";
 
 export default function HomeScreen() {
-  const insets = useSafeAreaInsets(); // <-- added
-
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<
     "all" | "folder" | "file" | "Recent"
@@ -43,6 +39,7 @@ export default function HomeScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [initialDataLoaded, setInitialDataLoaded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [shareModalSpace, setShareModalSpace] = useState<Space | null>(null);
 
   const { getToken } = useAuth();
   const { user } = useUser();
@@ -184,87 +181,96 @@ export default function HomeScreen() {
     });
   }, [spaces, activeTab, searchQuery]);
 
+  // --- ADD NAVIGATION HANDLER ---
+  const handleSpacePress = useCallback(
+    (space: Space) => {
+      if (space.type === "folder") {
+        router.push(`/folder/${space.id}`);
+      } else if (space.type === "file") {
+        router.push(`/canvas/${space.id}`);
+      }
+    },
+    [router]
+  );
+
+  // --- ADD SHARE HANDLER ---
+  const handleSharePress = (space: Space) => {
+    setShareModalSpace(space);
+  };
+
   return (
-    <View style={[styles.container, { paddingBottom: insets.bottom }]}>
+    <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
-      <View style={[styles.headerContainer, { paddingTop: insets.top + 12 }]}>
+      <View style={[styles.headerContainer, { paddingTop: 12 }]}>
         <Text style={styles.greetingText}>
           <Text style={styles.greyText}>Hello, </Text>
           {user?.firstName || "Piyush"} 👋
         </Text>
-
         <TouchableOpacity style={styles.notificationButton}>
           <Bell size={22} strokeWidth={2.5} color="#fff" />
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        style={styles.content}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={COLORS.primary} // Use theme color
-            colors={[COLORS.primary]} // Use theme color
-          />
+      {/* Pass onPress and onShare to SpacesGrid */}
+      <SpacesGrid
+        spaces={filteredSpaces}
+        isLoading={isLoading}
+        onPress={handleSpacePress}
+        onShare={handleSharePress}
+        ListHeaderComponent={
+          <FilterTabs activeTab={activeTab} onTabChange={setActiveTab} />
         }
-      >
-        <FilterTabs activeTab={activeTab} onTabChange={setActiveTab} />
-        <SpacesGrid spaces={filteredSpaces} isLoading={isLoading} />
-      </ScrollView>
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+      />
+
       <ActionButtonsSection
         onCreateFolder={() => setShowFolderModal(true)}
         onCreateCanvas={handleCreateCanvas}
         folderId={null}
       />
+
       <CreateFolderModal
         visible={showFolderModal}
         onClose={() => setShowFolderModal(false)}
         onSubmit={handleCreateFolder}
       />
-    </View>
+
+      <ShareModal
+        visible={!!shareModalSpace}
+        onClose={() => setShareModalSpace(null)}
+        space={shareModalSpace}
+      />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background, // Use theme color
-    paddingTop: 0, // header now handles top safe area
+    backgroundColor: COLORS.background,
   },
   headerContainer: {
     paddingHorizontal: 20,
     paddingBottom: 16,
-    // --- ADDED STYLES ---
+    paddingTop: 20,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    // --- END ---
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
   },
   greyText: {
-    color: COLORS.textLight, // Use theme color
+    color: COLORS.textLight,
     fontWeight: "500",
   },
   greetingText: {
-    color: COLORS.text, // Use theme color
+    color: COLORS.text,
     fontSize: 22,
     fontWeight: "700",
     letterSpacing: -0.5,
   },
   notificationButton: {
-    backgroundColor: COLORS.card, // Use theme color
+    backgroundColor: COLORS.card,
     padding: 10,
     borderRadius: 12,
-  },
-  welcomeText: {
-    color: COLORS.textLight, // Use theme color
-    fontSize: 16,
-    fontWeight: "500",
-    marginTop: 4,
   },
 });

@@ -326,6 +326,7 @@
 // });
 // import SafeScreen from "../components/SafeScreen";
 import SafeScreen from "../components/SafeScreen";
+import "react-native-gesture-handler";
 import React, { useEffect, useState } from "react";
 import { SplashScreen, Stack, router } from "expo-router";
 import { ClerkProvider, useAuth } from "@clerk/clerk-expo";

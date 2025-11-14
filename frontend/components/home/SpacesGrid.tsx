@@ -1,92 +1,76 @@
-import React, { useMemo } from "react";
+import React from "react";
 import {
+  FlatList,
   View,
-  StyleSheet,
   ActivityIndicator,
+  StyleSheet,
   Text,
-  Dimensions,
 } from "react-native";
-import { SpaceCard } from "./SpaceCard";
 import { Space } from "@/types/space";
+import { SpaceCard } from "./SpaceCard";
+import COLORS from "@/constants/colors";
 
-interface SpacesGridProps {
+type Props = {
   spaces: Space[];
   isLoading?: boolean;
-}
+  onPress?: (space: Space) => void; // <-- add this
+  onShare?: (space: Space) => void;
+  ListHeaderComponent?: React.ReactElement | null;
+  refreshing?: boolean;
+  onRefresh?: () => void;
+};
 
-export const SpacesGrid = ({ spaces, isLoading }: SpacesGridProps) => {
-  const renderContent = () => {
-    if (isLoading) {
-      return (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF6B35" />
-          <Text style={styles.loadingText}>Loading spaces...</Text>
-        </View>
-      );
-    }
-    if (!spaces || spaces.length === 0) {
-      return (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>No spaces found</Text>
-          <Text style={styles.emptySubtext}>
-            Create a new folder or canvas to get started
-          </Text>
-        </View>
-      );
-    }
+export const SpacesGrid = ({
+  spaces = [],
+  isLoading,
+  onPress, // <-- add this
+  onShare,
+  ListHeaderComponent = null,
+  refreshing = false,
+  onRefresh,
+}: Props) => {
+  if (isLoading && (!spaces || spaces.length === 0)) {
     return (
-      <View style={styles.spacesGrid}>
-        {spaces.map((space) => (
-          <View key={space.id} style={styles.cardWrapper}>
-            <SpaceCard space={space} />
-          </View>
-        ))}
+      <View style={styles.loadingWrap}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
       </View>
     );
-  };
-  return useMemo(() => renderContent(), [spaces, isLoading]);
+  }
+
+  return (
+    <FlatList
+      data={spaces}
+      keyExtractor={(item) => item.id}
+      numColumns={2}
+      renderItem={({ item }) => (
+        <View style={styles.cardWrapper}>
+          <SpaceCard
+            space={item}
+            onPress={() => onPress?.(item)} // <-- call onPress here
+            onShare={() => onShare?.(item)}
+          />
+        </View>
+      )}
+      contentContainerStyle={styles.listContent}
+      ListHeaderComponent={ListHeaderComponent}
+      ListEmptyComponent={<Text style={styles.empty}>No items</Text>}
+      refreshing={refreshing}
+      onRefresh={onRefresh}
+      nestedScrollEnabled={true}
+      removeClippedSubviews={true}
+      initialNumToRender={8}
+    />
+  );
 };
-// const { width } = Dimensions.get("window");
-// const CARD_MARGIN = 8;
-// const CARD_WIDTH = (width - (40 + CARD_MARGIN * 2)) / 2; // 40 is the total horizontal padding
 
 const styles = StyleSheet.create({
-  spacesGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginHorizontal: -6, // Compensate for card wrapper padding
-    paddingBottom: 100, // Space for action buttons
-  },
-  cardWrapper: {
-    width: "50%", // Two columns
-    padding: 6,
-  },
-  loadingContainer: {
+  listContent: { paddingHorizontal: 20, paddingBottom: 24 },
+  cardWrapper: { flex: 1, padding: 8, maxWidth: "50%" },
+  loadingWrap: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingVertical: 40,
+    paddingTop: 40,
   },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: "#6B7280",
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: 40,
-  },
-  emptyText: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#374151",
-    marginBottom: 8,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: "#6B7280",
-    textAlign: "center",
-  },
+  empty: { textAlign: "center", color: COLORS.textLight, marginTop: 20 },
 });
