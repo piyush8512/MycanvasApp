@@ -34,11 +34,16 @@ model User {
 }
 
 model Folder {
-  id            String               @id @default(uuid())
-  name          String
-  ownerId       String
-  isShared      Boolean              @default(false)
-  createdAt     DateTime             @default(now())
+  id               String           @id @default(uuid())
+  name             String
+  ownerId          String
+  isShared         Boolean          @default(false)
+  createdAt        DateTime         @default(now())
+  shareToken       String?          @unique // Unique token for shareable link
+  isPubliclyShared Boolean          @default(false) // Enable/disable link sharing
+  publicShareRole  CollaboratorRole @default(VIEWER) // Default role for link users
+  shareTokenExpiry DateTime? // Optional: link expiration
+
   updatedAt     DateTime             @updatedAt
   activities    Activity[]
   files         File[]
@@ -51,22 +56,27 @@ model Folder {
 }
 
 model File {
-  id            String             @id @default(uuid())
-  name          String
+  id       String  @id @default(uuid())
+  name     String
   //   type          String
-  size          Int
-  url           String
-  folderId      String?
-  ownerId       String
-  isShared      Boolean            @default(false)
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
-  activities    Activity[]
-  canvasItems   CanvasItem[]       @relation("FileCanvas")
-  collaborators FileCollaborator[]
-  folder        Folder?            @relation(fields: [folderId], references: [id], onDelete: Cascade)
-  owner         User               @relation("FileOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  sharedItems   SharedItem[]
+  size     Int
+  url      String
+  folderId String?
+  ownerId  String
+  isShared Boolean @default(false)
+
+  shareToken       String?            @unique // Unique token for shareable link
+  isPubliclyShared Boolean            @default(false) // Enable/disable link sharing
+  publicShareRole  CollaboratorRole   @default(VIEWER) // Default role for link users
+  shareTokenExpiry DateTime? // Optional: link expiration
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  activities       Activity[]
+  canvasItems      CanvasItem[]       @relation("FileCanvas")
+  collaborators    FileCollaborator[]
+  folder           Folder?            @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  owner            User               @relation("FileOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  sharedItems      SharedItem[]
 
   @@index([ownerId])
   @@index([folderId])
@@ -98,6 +108,7 @@ model FolderCollaborator {
   folderId  String
   userId    String
   role      CollaboratorRole @default(VIEWER)
+  invitedBy String?
   invitedAt DateTime         @default(now())
   folder    Folder           @relation(fields: [folderId], references: [id], onDelete: Cascade)
   user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -113,6 +124,7 @@ model FileCollaborator {
   fileId    String
   userId    String
   role      CollaboratorRole @default(VIEWER)
+  invitedBy String?
   invitedAt DateTime         @default(now())
   file      File             @relation(fields: [fileId], references: [id], onDelete: Cascade)
   user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -134,6 +146,8 @@ model SharedItem {
   folder   Folder?  @relation(fields: [folderId], references: [id], onDelete: Cascade)
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, folderId], name: "userId_folderId")
+  @@unique([userId, fileId], name: "userId_fileId")
   @@index([userId])
   @@index([folderId])
   @@index([fileId])
@@ -188,8 +202,8 @@ model Friendship {
   user   User @relation("FriendshipInitiator", fields: [userId], references: [id], onDelete: Cascade)
   friend User @relation("FriendshipReceiver", fields: [friendId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, friendId]) // Prevent duplicate friendships
-  @@index([userId]) // Fast queries for "get all friends of user X"
+  @@unique([userId, friendId])
+  @@index([userId])
   @@index([friendId])
   @@map("friendships")
 }
