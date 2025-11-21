@@ -229,6 +229,7 @@ import Animated, {
 import { Pressable, View } from "react-native";
 
 import type { ReactElement } from "react";
+import { API_URL } from "@/constants/config";
 
 export default function TabLayout() {
   const { getToken, isSignedIn } = useAuth();
@@ -241,12 +242,9 @@ export default function TabLayout() {
         const token = await getToken();
         console.log("Clerk token:", token);
 
-        const response = await axios.get(
-          "http://192.168.1.33:4000/api/users/me",
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
+        const response = await axios.get(`${API_URL}/api/users/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
         console.log("User synced successfully:", response.data.user);
       } catch (err) {
@@ -370,8 +368,6 @@ export default function TabLayout() {
           ),
         }}
       />
-
-
 
       <Tabs.Screen
         name="folder/[id]"

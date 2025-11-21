@@ -9,17 +9,16 @@ import {
   View,
   Text,
   StyleSheet,
-  RefreshControl,
   TouchableOpacity,
   StatusBar,
-  SafeAreaView,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth, useUser } from "@clerk/clerk-expo";
 import { useRouter } from "expo-router";
 import { FolderResponse, Space } from "@/types/space";
 import { useFolders } from "@/hooks/useFolders";
 import { useCanvas } from "@/hooks/useCanvas";
-import { Bell, Search } from "lucide-react-native";
+import { Bell} from "lucide-react-native";
 
 import { FilterTabs } from "@/components/home/FilterTabs";
 import { SpacesGrid } from "@/components/home/SpacesGrid";
@@ -181,7 +180,6 @@ export default function HomeScreen() {
     });
   }, [spaces, activeTab, searchQuery]);
 
-  // --- ADD NAVIGATION HANDLER ---
   const handleSpacePress = useCallback(
     (space: Space) => {
       if (space.type === "folder") {
@@ -193,25 +191,24 @@ export default function HomeScreen() {
     [router]
   );
 
-  // --- ADD SHARE HANDLER ---
   const handleSharePress = (space: Space) => {
     setShareModalSpace(space);
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" />
-      <View style={[styles.headerContainer, { paddingTop: 12 }]}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+
+      <View style={styles.headerContainer}>
         <Text style={styles.greetingText}>
           <Text style={styles.greyText}>Hello, </Text>
-          {user?.firstName || "Piyush"} 👋
+          {user?.firstName || "user"} 👋
         </Text>
         <TouchableOpacity style={styles.notificationButton}>
           <Bell size={22} strokeWidth={2.5} color="#fff" />
         </TouchableOpacity>
       </View>
 
-      {/* Pass onPress and onShare to SpacesGrid */}
       <SpacesGrid
         spaces={filteredSpaces}
         isLoading={isLoading}
@@ -253,7 +250,7 @@ const styles = StyleSheet.create({
   headerContainer: {
     paddingHorizontal: 20,
     paddingBottom: 16,
-    paddingTop: 20,
+    paddingTop: 12,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
