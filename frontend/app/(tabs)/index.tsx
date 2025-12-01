@@ -1,24 +1,13 @@
-import React, {
-  useState,
-  useCallback,
-  useRef,
-  useEffect,
-  useMemo,
-} from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  StatusBar,
-} from "react-native";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { StyleSheet, StatusBar } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth, useUser } from "@clerk/clerk-expo";
 import { useRouter } from "expo-router";
 import { FolderResponse, Space } from "@/types/space";
 import { useFolders } from "@/hooks/useFolders";
 import { useCanvas } from "@/hooks/useCanvas";
-import { Bell} from "lucide-react-native";
+
+import HeaderSection from "@/components/home/HeaderSection";
 
 import { FilterTabs } from "@/components/home/FilterTabs";
 import { SpacesGrid } from "@/components/home/SpacesGrid";
@@ -31,7 +20,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<
-    "all" | "folder" | "file" | "Recent"
+    "all" | "folder" | "file" | "Shared"
   >("all");
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [spaces, setSpaces] = useState<Space[]>([]);
@@ -152,12 +141,6 @@ export default function HomeScreen() {
     fetchSpaces();
   }, [fetchSpaces]);
 
-  const handleLogToken = async () => {
-    const token = await getToken();
-    console.log("JWT Token:", token);
-    console.warn("JWT has been printed to your console!");
-  };
-
   useEffect(() => {
     if (user && !initialDataLoaded) {
       fetchSpaces()
@@ -198,16 +181,7 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
-
-      <View style={styles.headerContainer}>
-        <Text style={styles.greetingText}>
-          <Text style={styles.greyText}>Hello, </Text>
-          {user?.firstName || "user"} 👋
-        </Text>
-        <TouchableOpacity style={styles.notificationButton}>
-          <Bell size={22} strokeWidth={2.5} color="#fff" />
-        </TouchableOpacity>
-      </View>
+      <HeaderSection />
 
       <SpacesGrid
         spaces={filteredSpaces}

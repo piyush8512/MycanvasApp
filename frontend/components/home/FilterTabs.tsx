@@ -2,8 +2,8 @@ import React from "react";
 import { View, TouchableOpacity, Text, StyleSheet } from "react-native";
 
 interface FilterTabsProps {
-  activeTab?: "all" | "folder" | "file" | "Recent";
-  onTabChange?: (tab: "all" | "folder" | "file" | "Recent") => void;
+  activeTab?: "all" | "folder" | "file" | "Shared" ;
+  onTabChange?: (tab: "all" | "folder" | "file" | "Shared") => void;
 }
 
 export const FilterTabs = ({
@@ -56,16 +56,16 @@ export const FilterTabs = ({
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.filterTab, activeTab === "Recent" && styles.activeTab]}
-          onPress={() => onTabChange("Recent")}
+          style={[styles.filterTab, activeTab === "Shared" && styles.activeTab]}
+          onPress={() => onTabChange("Shared")}
         >
           <Text
             style={[
               styles.filterText,
-              activeTab === "Recent" && styles.activeFilterText,
+              activeTab === "Shared" && styles.activeFilterText,
             ]}
           >
-            Recent
+            Shared
           </Text>
         </TouchableOpacity>
       </View>

@@ -1,11 +1,5 @@
-import React from "react";
-import {
-  FlatList,
-  View,
-  ActivityIndicator,
-  StyleSheet,
-  Text,
-} from "react-native";
+import React, { useEffect, useRef } from "react";
+import { FlatList, View, StyleSheet, Text, Animated } from "react-native";
 import { Space } from "@/types/space";
 import { SpaceCard } from "./SpaceCard";
 import COLORS from "@/constants/colors";
@@ -13,29 +7,69 @@ import COLORS from "@/constants/colors";
 type Props = {
   spaces: Space[];
   isLoading?: boolean;
-  onPress?: (space: Space) => void; // <-- add this
+  onPress?: (space: Space) => void;
   onShare?: (space: Space) => void;
   ListHeaderComponent?: React.ReactElement | null;
   refreshing?: boolean;
   onRefresh?: () => void;
 };
 
+const SpaceCardSkeleton = () => {
+  const opacity = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, {
+          toValue: 0.7,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 0.3,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [opacity]);
+
+  return (
+    <View style={styles.cardWrapper}>
+      <Animated.View style={[styles.skeletonBox, { opacity }]} />
+    </View>
+  );
+};
+
 export const SpacesGrid = ({
   spaces = [],
   isLoading,
-  onPress, // <-- add this
+  onPress,
   onShare,
   ListHeaderComponent = null,
   refreshing = false,
   onRefresh,
 }: Props) => {
+
   if (isLoading && (!spaces || spaces.length === 0)) {
+    
+    const skeletonData = Array.from({ length: 10 });
+
     return (
-      <View style={styles.loadingWrap}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-      </View>
+      <FlatList
+        data={skeletonData}
+        keyExtractor={(_, index) => `skeleton-${index}`}
+        numColumns={2}
+        renderItem={() => <SpaceCardSkeleton />}
+        contentContainerStyle={styles.listContent}
+        ListHeaderComponent={ListHeaderComponent} 
+        scrollEnabled={false} 
+      />
     );
   }
+
 
   return (
     <FlatList
@@ -46,7 +80,7 @@ export const SpacesGrid = ({
         <View style={styles.cardWrapper}>
           <SpaceCard
             space={item}
-            onPress={() => onPress?.(item)} // <-- call onPress here
+            onPress={() => onPress?.(item)}
             onShare={() => onShare?.(item)}
           />
         </View>
@@ -64,13 +98,25 @@ export const SpacesGrid = ({
 };
 
 const styles = StyleSheet.create({
-  listContent: { paddingHorizontal: 20, paddingBottom: 24 },
-  cardWrapper: { flex: 1, padding: 8, maxWidth: "50%" },
-  loadingWrap: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingTop: 40,
+  listContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 24,
   },
-  empty: { textAlign: "center", color: COLORS.textLight, marginTop: 20 },
+  cardWrapper: {
+    flex: 1,
+    padding: 8,
+    maxWidth: "50%",
+  },
+
+  skeletonBox: {
+    width: "100%",
+    height: 140,
+    backgroundColor: COLORS.card, 
+    borderRadius: 16,
+  },
+  empty: {
+    textAlign: "center",
+    color: COLORS.textLight,
+    marginTop: 20,
+  },
 });

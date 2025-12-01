@@ -24,7 +24,7 @@ import { Space } from "@/types/space";
 import { useFolders } from "@/hooks/useFolders";
 import { useCanvas } from "@/hooks/useCanvas";
 import { UserAvatarGroup } from "@/components/UserAvatarGroup";
-import  COLORS  from "@/constants/colors"; // Import COLORS
+import COLORS from "@/constants/colors"; // Import COLORS
 
 interface SpaceCardProps {
   space: Space;
@@ -59,7 +59,8 @@ export const SpaceCard = ({
       return;
     }
 
-    if (space.type === "file") { // 'file' is your canvas type
+    if (space.type === "file") {
+      // 'file' is your canvas type
       router.push({
         pathname: "/canvas/[id]",
         params: { id: space.id },
@@ -114,7 +115,7 @@ export const SpaceCard = ({
   const handleSaveEdit = async () => {
     if (editedName.trim()) {
       try {
-        if (space.type === 'folder') {
+        if (space.type === "folder") {
           await updateFolder(space.id, { name: editedName.trim() });
           onEdit?.(space.id, editedName.trim());
           setEditModalVisible(false);
@@ -141,7 +142,7 @@ export const SpaceCard = ({
       setInfoModalVisible(true);
     }
   };
-  
+
   // (FormatDate functions are unchanged)
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -191,14 +192,8 @@ export const SpaceCard = ({
             size={16}
             maxVisible={5}
           />
-          {space.collaborators && space.collaborators.length > 0 && (
-            <View style={styles.commentsBadge}>
-              <MessageSquare size={12} color="#FFFFFF" />
-              <Text style={styles.commentsCount}>
-                {space.collaborators.length}
-              </Text>
-            </View>
-          )}
+          {space.collaborators && space.collaborators.length > 0}
+          
         </View>
       </TouchableOpacity>
 
@@ -221,7 +216,7 @@ export const SpaceCard = ({
               <Text style={styles.menuText}>Share</Text>
             </TouchableOpacity>
             {/* --- END ADD --- */}
-          
+
             <TouchableOpacity style={styles.menuItem} onPress={handleEdit}>
               <Edit2 size={20} color={COLORS.text} />
               <Text style={styles.menuText}>Edit Name</Text>
@@ -367,7 +362,7 @@ export const SpaceCard = ({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: COLORS.card,
-    borderRadius: 20,
+    borderRadius: 10,
     padding: 12,
     borderWidth: 1,
     borderColor: COLORS.border,
@@ -493,7 +488,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 20,
     color: COLORS.text,
-    backgroundColor: COLORS.background
+    backgroundColor: COLORS.background,
   },
   editModalButtons: {
     flexDirection: "row",
