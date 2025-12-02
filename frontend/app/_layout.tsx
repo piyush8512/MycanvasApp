@@ -5,6 +5,7 @@ import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
 import * as SecureStore from "expo-secure-store";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { View, ActivityIndicator, StyleSheet, Image } from "react-native";
+import { useSync } from "@/hooks/useSync";
 
 const CLERK_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
@@ -61,6 +62,8 @@ export default function RootLayout() {
 
   const AppNavigator = () => {
     const { isSignedIn } = useAuth();
+    // Initialize sync hook to automatically sync when online
+    useSync();
 
     useEffect(() => {
       if (!isAppReady || hasOnboarded === null || !isClerkReady) {

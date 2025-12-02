@@ -305,7 +305,7 @@ export default function FolderScreen() {
       <FlatList
         data={contents}
         numColumns={2}
-        contentContainerStyle={styles.grid}
+        contentContainerStyle={[styles.grid, { paddingBottom: 100 }]}
         renderItem={({ item }) => (
           <View style={styles.cardWrapper}>
             <SpaceCard

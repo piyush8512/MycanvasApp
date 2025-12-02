@@ -99,8 +99,9 @@ export const SpacesGrid = ({
 
 const styles = StyleSheet.create({
   listContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 24,
+    paddingHorizontal: 15,
+    paddingBottom: 100, // Increased to account for bottom navigation bar (75px + spacing)
+    
   },
   cardWrapper: {
     flex: 1,

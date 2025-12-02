@@ -36,12 +36,15 @@
 
 import { useState } from "react";
 import { useAuth } from "@clerk/clerk-expo";
-import { canvasService } from "@/services/canvasService";
+import { offlineCanvasService } from "@/services/offlineCanvasService";
+import { useNetworkStatus } from "./useNetworkStatus";
 
 export const useCanvas = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { getToken } = useAuth();
+  const { isConnected } = useNetworkStatus();
+  const isOnline = isConnected;
 
   const createCanvas = async (
     name: string,
@@ -69,7 +72,7 @@ export const useCanvas = () => {
         canvasData.folderId = folderId;
       }
 
-      const result = await canvasService.createCanvas(canvasData, token);
+      const result = await offlineCanvasService.createCanvas(canvasData, token, isOnline);
       console.log("Canvas created:", result);
       return result.canvas;
     } catch (err) {
@@ -90,8 +93,8 @@ export const useCanvas = () => {
       if (!token) {
         throw new Error("No authentication token available");
       }
-      const response = await canvasService.deleteCanvas(canvasId, token);
-      return response.canvas;
+      await offlineCanvasService.deleteCanvas(canvasId, token, isOnline);
+      return { id: canvasId };
     } catch (error) {
       console.error("Delete canvas by ID error:", error);
       throw new Error("Failed to delete canvas by ID");
@@ -107,7 +110,7 @@ export const useCanvas = () => {
     try {
       const token = await getToken();
       if (!token) throw new Error("No authentication token");
-      const result = await canvasService.getCanvas(token);
+      const result = await offlineCanvasService.getCanvas(token, isOnline);
       console.log("Canvas fetched:", result);
       return result.canvas;
     } catch (err) {

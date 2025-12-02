@@ -36,6 +36,11 @@ app.get('/', (req, res) => {
   });
 });
 
+// Health check endpoint for network detection
+app.get('/api/health', (req, res) => {
+  res.status(200).send('OK');
+});
+
 // API Routes
 app.use("/api/users", userRoutes);
 app.use("/api/folders", folderRoutes);

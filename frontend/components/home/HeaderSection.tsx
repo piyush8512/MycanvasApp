@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Bell, Search } from "lucide-react-native";
 import { useUser } from "@clerk/clerk-expo";
-import { useRouter } from "expo-router"; // 1. Import useRouter
+import { useRouter } from "expo-router";
 
 import COLORS from "@/constants/colors";
 
@@ -63,5 +63,23 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.card,
     padding: 10,
     borderRadius: 12,
+    position: "relative",
+  },
+  badge: {
+    position: "absolute",
+    top: -2,
+    right: -2,
+    backgroundColor: "#FF6B35",
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "bold",
   },
 });

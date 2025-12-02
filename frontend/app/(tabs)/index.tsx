@@ -1,11 +1,14 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
-import { StyleSheet, StatusBar } from "react-native";
+import { StyleSheet, StatusBar, View, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth, useUser } from "@clerk/clerk-expo";
 import { useRouter } from "expo-router";
 import { FolderResponse, Space } from "@/types/space";
 import { useFolders } from "@/hooks/useFolders";
 import { useCanvas } from "@/hooks/useCanvas";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
+import { useSync } from "@/hooks/useSync";
+import { WifiOff } from "lucide-react-native";
 
 import HeaderSection from "@/components/home/HeaderSection";
 
@@ -33,8 +36,11 @@ export default function HomeScreen() {
   const { user } = useUser();
   const { createFolder, getAllFolders } = useFolders();
   const { getAllCanvas } = useCanvas();
+  const { isConnected } = useNetworkStatus();
+  const { pendingItems, isSyncing } = useSync();
 
   const loadingRef = useRef(false);
+  const [isOfflineError, setIsOfflineError] = useState(false);
 
   const fetchSpaces = useCallback(
     async (isManualRefresh = false) => {
@@ -107,15 +113,68 @@ export default function HomeScreen() {
         });
 
         setSpaces(allSpaces);
+        setIsOfflineError(false);
+        
+        // After successful fetch, also update offline storage
+        if (allSpaces.length > 0) {
+          try {
+            const { offlineStorage } = await import('@/services/offlineStorage');
+            const folders = allSpaces.filter(s => s.type === 'folder');
+            const canvases = allSpaces.filter(s => s.type === 'file');
+            await offlineStorage.saveFolders(folders as any);
+            await offlineStorage.saveCanvases(canvases);
+          } catch (storageError) {
+            console.warn('Failed to update offline storage:', storageError);
+          }
+        }
       } catch (error) {
         console.error("Failed to load spaces:", error);
+        // If offline, show friendly message instead of error
+        if (!isConnected) {
+          setIsOfflineError(true);
+          // Try to load from offline storage
+          try {
+            const { offlineStorage } = await import('@/services/offlineStorage');
+            const offlineCanvases = await offlineStorage.getCanvases() || [];
+            const offlineFolders = await offlineStorage.getFolders() || [];
+            
+            const allOfflineSpaces: Space[] = [
+              ...offlineFolders.map((folder: FolderResponse) => ({
+                id: folder.id,
+                name: folder.name,
+                type: "folder" as const,
+                updatedAt: folder.updatedAt,
+                isShared: folder.isShared,
+                owner: folder.owner,
+                collaborators: [],
+                items: 0,
+                color: folder.color || "#17f389ff",
+              })),
+              ...offlineCanvases.map((canvas: any) => ({
+                id: canvas.id,
+                name: canvas.name,
+                type: "file" as const,
+                items: 0,
+                updatedAt: canvas.updatedAt,
+                isShared: canvas.isShared || false,
+                owner: canvas.owner || { id: '', name: null, email: '' },
+                collaborators: [],
+                color: "#FF6B35",
+              }))
+            ];
+            
+            setSpaces(allOfflineSpaces);
+          } catch (offlineError) {
+            console.error("Failed to load offline data:", offlineError);
+          }
+        }
       } finally {
         setIsLoading(false);
         setRefreshing(false);
         loadingRef.current = false;
       }
     },
-    [getToken, getAllFolders, getAllCanvas]
+    [getToken, getAllFolders, getAllCanvas, isConnected]
   );
 
   const onRefresh = useCallback(() => {
@@ -152,6 +211,27 @@ export default function HomeScreen() {
     };
   }, [user, fetchSpaces, initialDataLoaded]);
 
+  // Refresh data after sync completes (when pending items go to 0)
+  const prevPendingItemsRef = useRef(pendingItems);
+  useEffect(() => {
+    // Only refresh if pending items decreased (sync completed)
+    if (
+      !isSyncing && 
+      pendingItems === 0 && 
+      prevPendingItemsRef.current > 0 && 
+      isConnected && 
+      initialDataLoaded
+    ) {
+      // Small delay to ensure sync has fully completed
+      const timeoutId = setTimeout(() => {
+        fetchSpaces(true).catch(() => {});
+      }, 1000);
+      prevPendingItemsRef.current = pendingItems;
+      return () => clearTimeout(timeoutId);
+    }
+    prevPendingItemsRef.current = pendingItems;
+  }, [isSyncing, pendingItems, isConnected, initialDataLoaded, fetchSpaces]);
+
   const filteredSpaces = useMemo(() => {
     if (!spaces || spaces.length === 0) return [];
     return spaces.filter((space) => {
@@ -182,6 +262,15 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.container} edges={["top"]}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <HeaderSection />
+
+      {isOfflineError && !isLoading && (
+        <View style={styles.offlineBanner}>
+          <WifiOff size={20} color="#FF6B35" />
+          <Text style={styles.offlineText}>
+            You are offline. Showing cached data. Changes will sync when you're back online.
+          </Text>
+        </View>
+      )}
 
       <SpacesGrid
         spaces={filteredSpaces}
@@ -220,6 +309,22 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  offlineBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#1a1a1a",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#2a2a2a",
+  },
+  offlineText: {
+    color: "#FF6B35",
+    fontSize: 13,
+    flex: 1,
+    fontWeight: "500",
   },
   headerContainer: {
     paddingHorizontal: 20,

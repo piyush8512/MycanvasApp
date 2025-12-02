@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { useAuth } from "@clerk/clerk-expo";
-import { folderService } from "@/services/folderService";
+import { offlineFolderService } from "@/services/offlineFolderService";
+import { useNetworkStatus } from "./useNetworkStatus";
 
 export const useFolders = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { getToken } = useAuth();
+  const { isConnected } = useNetworkStatus();
+  const isOnline = isConnected;
 
   const createFolder = async (name: string, isStarred: boolean = false) => {
     setLoading(true);
@@ -14,9 +17,10 @@ export const useFolders = () => {
       const token = await getToken();
       if (!token) throw new Error("No authentication token");
 
-      const result = await folderService.createFolder(
+      const result = await offlineFolderService.createFolder(
         { name, isStarred },
-        token
+        token,
+        isOnline
       );
       console.log("Folder created:", result);
       return result.folder;
@@ -39,10 +43,14 @@ export const useFolders = () => {
         throw new Error("No authentication token available");
       }
 
-      const response = await folderService.getFolders(token);
+      const response = await offlineFolderService.getFolders(token, isOnline);
       return response.folders;
     } catch (error) {
       console.error("Get folders error:", error);
+      // Don't throw error if offline - return empty array instead
+      if (!isOnline) {
+        return [];
+      }
       throw new Error("Failed to fetch folders");
     } finally {
       setLoading(false);
