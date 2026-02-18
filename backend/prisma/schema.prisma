@@ -3,8 +3,8 @@ generator client {
   binaryTargets = ["native", "rhel-openssl-1.0.x"]
 }
 
-datasource db { 
-  provider = "postgresql"
+datasource db {
+  provider  = "postgresql"
   // url       = env("DATABASE_URL")
   // directUrl = env("DIRECT_URL")
 }
@@ -31,44 +31,52 @@ model User {
   friendshipsInitiated   Friendship[]    @relation("FriendshipInitiator")
   friendshipsReceived    Friendship[]    @relation("FriendshipReceiver")
 
+  // User-specific layouts
+  canvasLayouts UserCanvasLayout[]
+  folderLayouts UserFolderLayout[]
+
   @@map("users")
 }
 
 model Folder {
-  id               String           @id @default(uuid())
+  id               String               @id @default(uuid())
   name             String
+  positionX        Float?               @default(0)
+  positionY        Float?               @default(0)
   ownerId          String
-  isShared         Boolean          @default(false)
-  createdAt        DateTime         @default(now())
-  shareToken       String?          @unique // Unique token for shareable link
-  isPubliclyShared Boolean          @default(false) // Enable/disable link sharing
-  publicShareRole  CollaboratorRole @default(VIEWER) // Default role for link users
-  shareTokenExpiry DateTime? // Optional: link expiration
-
-  updatedAt     DateTime             @updatedAt
-  activities    Activity[]
-  files         File[]
-  collaborators FolderCollaborator[]
-  owner         User                 @relation("FolderOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  sharedItems   SharedItem[]
+  isShared         Boolean              @default(false)
+  createdAt        DateTime             @default(now())
+  shareToken       String?              @unique
+  isPubliclyShared Boolean              @default(false)
+  publicShareRole  CollaboratorRole     @default(VIEWER)
+  shareTokenExpiry DateTime?
+  updatedAt        DateTime             @updatedAt
+  activities       Activity[]
+  files            File[]
+  collaborators    FolderCollaborator[]
+  owner            User                 @relation("FolderOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  sharedItems      SharedItem[]
+  userLayouts      UserFolderLayout[] // User-specific positions for this folder
 
   @@index([ownerId])
   @@map("folders")
 }
 
 model File {
-  id       String  @id @default(uuid())
-  name     String
+  id        String  @id @default(uuid())
+  name      String
+  positionX Float?  @default(0)
+  positionY Float?  @default(0)
   //   type          String
-  size     Int
-  url      String
-  folderId String?
-  ownerId  String
-  isShared Boolean @default(false)
+  size      Int
+  url       String
+  folderId  String?
+  ownerId   String
+  isShared  Boolean @default(false)
 
-  shareToken       String?            @unique // Unique token for shareable link
-  isPubliclyShared Boolean            @default(false) // Enable/disable link sharing
-  publicShareRole  CollaboratorRole   @default(VIEWER) // Default role for link users
+  shareToken       String?            @unique
+  isPubliclyShared Boolean            @default(false)
+  publicShareRole  CollaboratorRole   @default(VIEWER)
   shareTokenExpiry DateTime? // Optional: link expiration
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
@@ -78,6 +86,7 @@ model File {
   folder           Folder?            @relation(fields: [folderId], references: [id], onDelete: Cascade)
   owner            User               @relation("FileOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   sharedItems      SharedItem[]
+  userLayouts      UserCanvasLayout[] // User-specific positions for this canvas
 
   @@index([ownerId])
   @@index([folderId])
@@ -153,6 +162,42 @@ model SharedItem {
   @@index([folderId])
   @@index([fileId])
   @@map("shared_items")
+}
+
+model UserCanvasLayout {
+  id        String   @id @default(uuid())
+  userId    String
+  fileId    String
+  positionX Float    @default(0)
+  positionY Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  file File @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, fileId])
+  @@index([userId])
+  @@index([fileId])
+  @@map("user_canvas_layouts")
+}
+
+model UserFolderLayout {
+  id        String   @id @default(uuid())
+  userId    String
+  folderId  String
+  positionX Float    @default(0)
+  positionY Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  folder Folder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, folderId])
+  @@index([userId])
+  @@index([folderId])
+  @@map("user_folder_layouts")
 }
 
 model Activity {

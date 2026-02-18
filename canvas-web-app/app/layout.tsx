@@ -42,14 +42,14 @@
 
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
+import { ThemeProvider } from "@/lib/theme";
+import { QueryProvider } from "@/providers/QueryProvider";
 import "./globals.css";
 
-// Your default font (e.g., Inter or Geist)
-// is imported here by create-next-app. Leave it as-is.
-// (e.g., const inter = Inter({ subsets: ["latin"] });)
-
 export const metadata: Metadata = {
-  title: "My Canvas App",
+  title: "Canvas App - Organize Your Ideas",
+  description:
+    "An infinite canvas workspace for organizing your projects and ideas",
 };
 
 export default function RootLayout({
@@ -58,15 +58,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    // Wrap the *outside* of <html> with ClerkProvider
-    <ClerkProvider>
-      <html lang="en">
-        {/*
-          Your default className (e.g., inter.className)
-          from create-next-app stays here.
-        */}
-        <body>{children}</body>
-      </html>
-    </ClerkProvider>
+    <html lang="en" suppressHydrationWarning>
+      <body>
+        <ClerkProvider>
+          <ThemeProvider>
+            <QueryProvider>{children}</QueryProvider>
+          </ThemeProvider>
+        </ClerkProvider>
+      </body>
+    </html>
   );
 }

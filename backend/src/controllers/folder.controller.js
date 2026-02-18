@@ -349,7 +349,7 @@ export const updateFolder = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.auth.userId;
-    const { name } = req.body;
+    const { name, position } = req.body;
 
     // Get user from database
     const dbUser = await prisma.user.findUnique({
@@ -396,7 +396,8 @@ export const updateFolder = async (req, res) => {
       const updatedFolder = await tx.folder.update({
         where: { id },
         data: {
-          ...(name && { name: name.trim() })
+          ...(name && { name: name.trim() }),
+          ...(position && { positionX: position.x, positionY: position.y })
         },
         include: {
           owner: {

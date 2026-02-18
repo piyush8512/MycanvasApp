@@ -488,17 +488,40 @@ export const getAllCanvas = async (req, res) => {
       });
     }
 
-    const canvas = await prisma.file.findMany({
+    // Get canvases owned by user (not in folders)
+    const ownedCanvases = await prisma.file.findMany({
       where: {
         ownerId: dbUser.id,
         folderId: null,
       },
     });
 
+    // Get user's layout positions for these canvases
+    const layouts = await prisma.userCanvasLayout.findMany({
+      where: {
+        userId: dbUser.id,
+        fileId: { in: ownedCanvases.map(c => c.id) }
+      },
+    });
+
+    // Create a map for quick lookup
+    const layoutMap = new Map(layouts.map(l => [l.fileId, l]));
+
+    // Merge canvas data with user-specific positions
+    const canvasWithLayout = ownedCanvases.map(canvas => {
+      const layout = layoutMap.get(canvas.id);
+      return {
+        ...canvas,
+        // Use user-specific position if available, otherwise default to 0
+        positionX: layout?.positionX ?? 0,
+        positionY: layout?.positionY ?? 0,
+      };
+    });
+
     res.status(200).json({
       success: true,
       message: "Canvas fetched successfully",
-      canvas,
+      canvas: canvasWithLayout,
     });
   } catch (error) {
     console.error("Failed to fetch canvas:", error);
@@ -717,6 +740,119 @@ export const updateItem = async (req, res) => {
     });
   }
 };
+
+export const updateCanvas = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const clerkId = req.auth.userId;
+    const { name, position } = req.body;
+
+    // Get user from database
+    const dbUser = await prisma.user.findUnique({
+      where: { clerkId }
+    });
+
+    if (!dbUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Check if canvas exists and user is the owner
+    const existingCanvas = await prisma.file.findUnique({
+      where: { id },
+      include: {
+        collaborators: true
+      }
+    });
+
+    if (!existingCanvas) {
+      return res.status(404).json({
+        success: false,
+        message: 'Canvas not found'
+      });
+    }
+
+    // Check permissions (owner or editor)
+    const isOwner = existingCanvas.ownerId === dbUser.id;
+    const isEditor = existingCanvas.collaborators.some(
+      c => c.userId === dbUser.id && c.role === 'EDITOR'
+    );
+
+    if (!isOwner && !isEditor) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to update this canvas'
+      });
+    }
+
+    // Use a transaction to update both canvas name and user-specific position
+    const result = await prisma.$transaction(async (tx) => {
+      // Update canvas name (if provided) - this affects all users
+      let updatedCanvas = existingCanvas;
+      if (name) {
+        updatedCanvas = await tx.file.update({
+          where: { id },
+          data: { name: name.trim() },
+          include: {
+            owner: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            }
+          }
+        });
+      }
+
+      // Update user-specific position (if provided) - this only affects current user
+      let layout = null;
+      if (position) {
+        layout = await tx.userCanvasLayout.upsert({
+          where: {
+            userId_fileId: {
+              userId: dbUser.id,
+              fileId: id,
+            },
+          },
+          update: {
+            positionX: position.x,
+            positionY: position.y,
+          },
+          create: {
+            userId: dbUser.id,
+            fileId: id,
+            positionX: position.x,
+            positionY: position.y,
+          },
+        });
+      }
+
+      return { canvas: updatedCanvas, layout };
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Canvas updated successfully",
+      canvas: {
+        ...result.canvas,
+        // Include user-specific position in response
+        positionX: result.layout?.positionX ?? 0,
+        positionY: result.layout?.positionY ?? 0,
+      }
+    });
+  } catch (error) {
+    console.error("Failed to update canvas:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update canvas",
+      error: error.message
+    });
+  }
+};
+
 
 // delete cavasn by id 
 export const deleteCanvas = async (req, res) => {

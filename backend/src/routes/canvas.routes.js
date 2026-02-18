@@ -63,6 +63,7 @@ import {
   getCanvasItems,
   createItem,
   updateItem,
+  updateCanvas,
   deleteCanvas
 } from "../controllers/canvas.controller.js";
 
@@ -74,7 +75,10 @@ router.route("/").post(requireAuth, createCanvas); // Create a new canvas
 router.route("/").get(requireAuth, getAllCanvas); // Get all user's canvases (without folder)
 // GET /api/canvas/:id
 router.route("/:id").get(requireAuth, getCanvasDetails); // Get a single canvas's details
-router.route("/:id").delete(requireAuth,deleteCanvas );
+// PATCH /api/canvas/:id
+router.route("/:id").patch(requireAuth, updateCanvas); // Update canvas (name, position)
+// DELETE /api/canvas/:id
+router.route("/:id").delete(requireAuth, deleteCanvas);
  
 // --- CanvasItem Routes ---
 // GET /api/canvas/:canvasId/items

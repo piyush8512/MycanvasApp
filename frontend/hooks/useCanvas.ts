@@ -72,6 +72,7 @@ export const useCanvas = () => {
         canvasData.folderId = folderId;
       }
 
+      console.log("Creating canvas with isOnline:", isOnline); // Debug log
       const result = await offlineCanvasService.createCanvas(canvasData, token, isOnline);
       console.log("Canvas created:", result);
       return result.canvas;

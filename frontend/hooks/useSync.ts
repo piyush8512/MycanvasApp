@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@clerk/clerk-expo';
 import { syncService } from '@/services/syncService';
 import { useNetworkStatus } from './useNetworkStatus';
 import { offlineStorage } from '@/services/offlineStorage';
 import { mutate } from 'swr';
+import { AppState, AppStateStatus } from 'react-native';
 
 export interface SyncStatus {
   isSyncing: boolean;
@@ -25,11 +26,17 @@ export const useSync = () => {
     const loadSyncStatus = async () => {
       const lastSync = await offlineStorage.getLastSync();
       const queue = await offlineStorage.getSyncQueue();
+      console.log('Initial sync status - pending items:', queue.length);
       setSyncStatus({
         isSyncing: false,
         lastSync,
         pendingItems: queue.length,
       });
+      
+      // If online and have pending items, sync immediately
+      if (queue.length > 0 && isConnected) {
+        console.log('Found pending items on mount, will sync...');
+      }
     };
     loadSyncStatus();
   }, []);
@@ -42,8 +49,10 @@ export const useSync = () => {
         if (!token) return;
 
         const queue = await offlineStorage.getSyncQueue();
+        console.log('Network sync check - isConnected:', isConnected, 'queue length:', queue.length);
         if (queue.length === 0) return;
 
+        console.log('Starting network sync for', queue.length, 'items');
         setSyncStatus(prev => ({ ...prev, isSyncing: true }));
 
       try {
@@ -92,6 +101,43 @@ export const useSync = () => {
     const intervalId = setInterval(updatePendingCount, 5000);
     return () => clearInterval(intervalId);
   }, []);
+
+  // Sync when app comes to foreground
+  useEffect(() => {
+    const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active' && isConnected && !syncStatus.isSyncing) {
+        console.log('App came to foreground, checking for pending sync items...');
+        const queue = await offlineStorage.getSyncQueue();
+        if (queue.length > 0) {
+          console.log(`Found ${queue.length} pending items, syncing...`);
+          const token = await getToken();
+          if (token) {
+            setSyncStatus(prev => ({ ...prev, isSyncing: true }));
+            try {
+              const result = await syncService.syncAll(token);
+              console.log('Foreground sync completed:', result);
+              if (result.synced > 0) {
+                mutate(() => true, undefined, { revalidate: true });
+              }
+              const newQueue = await offlineStorage.getSyncQueue();
+              const lastSync = await offlineStorage.getLastSync();
+              setSyncStatus({
+                isSyncing: false,
+                lastSync,
+                pendingItems: newQueue.length,
+              });
+            } catch (error) {
+              console.error('Foreground sync failed:', error);
+              setSyncStatus(prev => ({ ...prev, isSyncing: false }));
+            }
+          }
+        }
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription?.remove();
+  }, [isConnected, getToken, syncStatus.isSyncing]);
 
   // Manual sync function
   const syncNow = async () => {

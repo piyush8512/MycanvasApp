@@ -682,6 +682,7 @@ import {
   getCardDefaultSize,
   getCardColor,
 } from "@/utils/linkDetector";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function CanvasScreen() {
   // --- Core Data & Auth ---
@@ -885,6 +886,7 @@ export default function CanvasScreen() {
   }
 
   return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#121212" }}>
     <GestureHandlerRootView style={styles.container}>
       <CanvasHeader
         title="My workspace" // TODO: Get real canvas title from a /api/canvas/:id fetch
@@ -972,6 +974,7 @@ export default function CanvasScreen() {
         />
       )}
     </GestureHandlerRootView>
+    </SafeAreaView>
   );
 }
 

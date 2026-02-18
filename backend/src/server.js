@@ -7,6 +7,7 @@ import canvasRoutes from "./routes/canvas.routes.js";
 import storageRoutes from "./routes/storage.routes.js";
 import friendRoutes from "./routes/friend.routes.js";
 import sharingRoutes from "./routes/sharing.routes.js";
+import layoutRoutes from "./routes/layout.routes.js";
 
 dotenv.config();
 
@@ -39,6 +40,9 @@ app.use('/api/friends', friendRoutes);
 // --- FIX: Added the leading "/" ---
 app.use('/api/sharing', sharingRoutes);
 // --- END FIX ---
+
+// User-specific layout positions (canvas/folder positions per user)
+app.use('/api/layouts', layoutRoutes);
 
 // 404 Handler
 app.use((req, res) => {

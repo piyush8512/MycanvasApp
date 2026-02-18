@@ -21,8 +21,8 @@
   "description": "",
   "dependencies": {
     "@clerk/clerk-sdk-node": "^5.1.6",
-    "@prisma/adapter-pg": "^7.0.0",
-    "@prisma/client": "^6.19.0",
+    "@prisma/adapter-pg": "^7.4.0",
+    "@prisma/client": "^7.4.0",
     "@supabase/supabase-js": "^2.78.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",

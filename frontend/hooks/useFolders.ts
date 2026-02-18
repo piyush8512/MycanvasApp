@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@clerk/clerk-expo";
 import { offlineFolderService } from "@/services/offlineFolderService";
+import { folderService } from "@/services/folderService";
 import { useNetworkStatus } from "./useNetworkStatus";
 
 export const useFolders = () => {

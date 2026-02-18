@@ -10,9 +10,10 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  SafeAreaView,
+
   StatusBar,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 
 import COLORS from "@/constants/colors";

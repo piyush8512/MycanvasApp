@@ -1,8 +1,52 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* Light Theme (default) */
+:root,
+[data-theme="light"] {
+  /* Backgrounds */
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --header-bg: rgba(255, 255, 255, 0.9);
+  --card-bg: #ffffff;
+  --canvas-area-bg: #f1f5f9;
+  --input-bg: #f1f5f9;
+  --hover-bg: #e2e8f0;
+
+  /* Colors */
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --border-color: #e2e8f0;
+  --grid-color: #cbd5e1;
+
+  /* Item specific */
+  --folder-bg: #fffbeb;
+  --folder-border: #fcd34d;
+  --canvas-bg: #eff6ff;
+  --canvas-border: #93c5fd;
+}
+
+/* Dark Theme */
+[data-theme="dark"] {
+  /* Backgrounds */
+  --background: #0a0a0f;
+  --foreground: #f8fafc;
+  --header-bg: rgba(15, 15, 23, 0.9);
+  --card-bg: #16161f;
+  --canvas-area-bg: #0d0d14;
+  --input-bg: #1e1e2a;
+  --hover-bg: #252532;
+
+  /* Colors */
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --border-color: #2e2e3a;
+  --grid-color: #1e1e2a;
+
+  /* Item specific */
+  --folder-bg: #1c1917;
+  --folder-border: #92400e;
+  --canvas-bg: #172554;
+  --canvas-border: #1e40af;
 }
 
 @theme inline {
@@ -12,15 +56,51 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Smooth transitions for theme changes */
+*,
+*::before,
+*::after {
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--canvas-area-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* Utility classes */
+.scale-102 {
+  transform: scale(1.02);
 }
