@@ -12,10 +12,10 @@ import type {
 } from "@/types/canvas";
 
 // Base API URL - can be configured via environment variable
+export const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "https://mycanvas-app-backend.vercel.app/api";
 // const API_BASE_URL =
-//   process.env.NEXT_PUBLIC_API_URL || "https://mycanvas-app-backend.vercel.app/api";
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+//   process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 
 // ============================================================
 // Backend Response Types (matching your actual backend)

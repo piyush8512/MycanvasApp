@@ -8,17 +8,15 @@ import {
   Plus,
   Minus,
   Maximize2,
-  MousePointer2,
-  Square,
-  Circle,
-  StickyNote,
-  Type,
-  Pencil,
   Share2,
   MoreHorizontal,
   Users,
+  Image,
+  Link2,
+  Paperclip,
 } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
+import { API_BASE_URL } from "@/services/api";
 
 // Types
 interface Position {
@@ -50,6 +48,8 @@ interface CanvasData {
 const GRID_SIZE = 40;
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 3;
+const CANVAS_WIDTH = 3800;
+const CANVAS_HEIGHT = 1800;
 
 type Tool = "select" | "sticky" | "text" | "rectangle" | "circle" | "draw";
 
@@ -70,7 +70,26 @@ export default function CanvasEditorPage() {
   const [dragOffset, setDragOffset] = useState<Position>({ x: 0, y: 0 });
   const lastMousePos = useRef<Position>({ x: 0, y: 0 });
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+  const API_URL = API_BASE_URL
+
+  const clampPan = useCallback(
+    (nextPan: Position) => {
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return nextPan;
+
+      const scaledWidth = CANVAS_WIDTH * zoom;
+      const scaledHeight = CANVAS_HEIGHT * zoom;
+
+      const minX = Math.min(0, rect.width - scaledWidth);
+      const minY = Math.min(0, rect.height - scaledHeight);
+
+      return {
+        x: Math.max(minX, Math.min(0, nextPan.x)),
+        y: Math.max(minY, Math.min(0, nextPan.y)),
+      };
+    },
+    [zoom],
+  );
 
   // Fetch canvas data
   const fetchCanvas = useCallback(async () => {
@@ -78,7 +97,7 @@ export default function CanvasEditorPage() {
       setLoading(true);
       const token = await getToken();
 
-      const res = await fetch(`${API_URL}/api/canvas/${id}`, {
+      const res = await fetch(`${API_URL}/canvas/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -104,18 +123,23 @@ export default function CanvasEditorPage() {
   }, [isLoaded, id, fetchCanvas]);
 
   // Handle wheel zoom
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    if (e.ctrlKey || e.metaKey) {
-      e.preventDefault();
-      const delta = e.deltaY > 0 ? 0.9 : 1.1;
-      setZoom((prev) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev * delta)));
-    } else {
-      setPan((prev) => ({
-        x: prev.x - e.deltaX,
-        y: prev.y - e.deltaY,
-      }));
-    }
-  }, []);
+  const handleWheel = useCallback(
+    (e: React.WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? 0.9 : 1.1;
+        setZoom((prev) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev * delta)));
+      } else {
+        setPan((prev) =>
+          clampPan({
+            x: prev.x - e.deltaX,
+            y: prev.y - e.deltaY,
+          }),
+        );
+      }
+    },
+    [clampPan],
+  );
 
   // Handle mouse down
   const handleMouseDown = useCallback(
@@ -140,7 +164,7 @@ export default function CanvasEditorPage() {
       if (isPanning) {
         const dx = e.clientX - lastMousePos.current.x;
         const dy = e.clientY - lastMousePos.current.y;
-        setPan((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+        setPan((prev) => clampPan({ x: prev.x + dx, y: prev.y + dy }));
         lastMousePos.current = { x: e.clientX, y: e.clientY };
       }
 
@@ -164,7 +188,7 @@ export default function CanvasEditorPage() {
         }
       }
     },
-    [isPanning, draggedItem, pan, zoom, dragOffset, canvas],
+    [isPanning, draggedItem, pan, zoom, dragOffset, canvas, clampPan],
   );
 
   // Handle mouse up
@@ -239,7 +263,7 @@ export default function CanvasEditorPage() {
       // Add to canvas (temporary - will need to save to backend)
       try {
         const token = await getToken();
-        const res = await fetch(`${API_URL}/api/canvas/${id}/items`, {
+        const res = await fetch(`${API_URL}/canvas/${id}/items`, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
@@ -292,38 +316,46 @@ export default function CanvasEditorPage() {
     setPan({ x: 0, y: 0 });
   };
 
-  // Render grid
-  const renderGrid = () => {
-    const gridSpacing = GRID_SIZE * zoom;
-    const offsetX = pan.x % gridSpacing;
-    const offsetY = pan.y % gridSpacing;
+  useEffect(() => {
+    setPan((prev) => clampPan(prev));
+  }, [zoom, clampPan]);
 
-    return (
-      <svg
-        className="absolute inset-0 w-full h-full pointer-events-none"
-        style={{ opacity: 0.3 }}
-      >
-        <defs>
-          <pattern
-            id="editor-grid"
-            width={gridSpacing}
-            height={gridSpacing}
-            patternUnits="userSpaceOnUse"
-            x={offsetX}
-            y={offsetY}
-          >
-            <path
-              d={`M ${gridSpacing} 0 L 0 0 0 ${gridSpacing}`}
-              fill="none"
-              stroke="var(--grid-color)"
-              strokeWidth="1"
-            />
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#editor-grid)" />
-      </svg>
+  const miniMapSize = { width: 160, height: 110 };
+  const miniMapViewport = (() => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) {
+      return {
+        x: 0,
+        y: 0,
+        width: miniMapSize.width,
+        height: miniMapSize.height,
+      };
+    }
+
+    const viewWidth = rect.width / zoom;
+    const viewHeight = rect.height / zoom;
+    const viewX = Math.max(
+      0,
+      Math.min(CANVAS_WIDTH - viewWidth, -pan.x / zoom),
     );
-  };
+    const viewY = Math.max(
+      0,
+      Math.min(CANVAS_HEIGHT - viewHeight, -pan.y / zoom),
+    );
+
+    return {
+      x: (viewX / CANVAS_WIDTH) * miniMapSize.width,
+      y: (viewY / CANVAS_HEIGHT) * miniMapSize.height,
+      width: Math.min(
+        miniMapSize.width,
+        (viewWidth / CANVAS_WIDTH) * miniMapSize.width,
+      ),
+      height: Math.min(
+        miniMapSize.height,
+        (viewHeight / CANVAS_HEIGHT) * miniMapSize.height,
+      ),
+    };
+  })();
 
   // Render canvas item
   const renderItem = (item: CanvasItemType) => {
@@ -397,27 +429,6 @@ export default function CanvasEditorPage() {
     );
   };
 
-  const tools: { id: Tool; icon: React.ReactNode; label: string }[] = [
-    {
-      id: "select",
-      icon: <MousePointer2 className="w-5 h-5" />,
-      label: "Select",
-    },
-    {
-      id: "sticky",
-      icon: <StickyNote className="w-5 h-5" />,
-      label: "Sticky Note",
-    },
-    { id: "text", icon: <Type className="w-5 h-5" />, label: "Text" },
-    {
-      id: "rectangle",
-      icon: <Square className="w-5 h-5" />,
-      label: "Rectangle",
-    },
-    { id: "circle", icon: <Circle className="w-5 h-5" />, label: "Circle" },
-    { id: "draw", icon: <Pencil className="w-5 h-5" />, label: "Draw" },
-  ];
-
   if (!isLoaded || loading) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-[var(--background)]">
@@ -462,29 +473,11 @@ export default function CanvasEditorPage() {
         </div>
       </header>
 
-      <div className="flex-1 flex">
-        {/* Left Toolbar */}
-        <aside className="w-14 bg-[var(--card-bg)] border-r border-[var(--border-color)] flex flex-col items-center py-4 gap-2">
-          {tools.map((tool) => (
-            <button
-              key={tool.id}
-              onClick={() => setSelectedTool(tool.id)}
-              className={`p-2.5 rounded-lg transition-colors ${
-                selectedTool === tool.id
-                  ? "bg-blue-600 text-white"
-                  : "text-[var(--text-secondary)] hover:bg-[var(--hover-bg)]"
-              }`}
-              title={tool.label}
-            >
-              {tool.icon}
-            </button>
-          ))}
-        </aside>
-
+      <div className="flex-1">
         {/* Canvas Area */}
         <main
           ref={containerRef}
-          className="flex-1 relative overflow-hidden bg-[var(--canvas-area-bg)]"
+          className="w-full h-full relative overflow-hidden bg-[var(--canvas-area-bg)]"
           onWheel={handleWheel}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
@@ -492,8 +485,6 @@ export default function CanvasEditorPage() {
           onMouseLeave={handleMouseUp}
           onClick={handleCanvasClick}
         >
-          {renderGrid()}
-
           {/* Canvas content */}
           <div
             className="absolute origin-top-left"
@@ -501,7 +492,19 @@ export default function CanvasEditorPage() {
               transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
             }}
           >
-            {canvas?.items.map(renderItem)}
+            <div
+              className="relative rounded-2xl border border-[var(--border-color)] shadow-[0_0_0_1px_rgba(0,0,0,0.02)]"
+              style={{
+                width: CANVAS_WIDTH,
+                height: CANVAS_HEIGHT,
+                backgroundImage:
+                  "linear-gradient(to right, var(--grid-color) 1px, transparent 1px), linear-gradient(to bottom, var(--grid-color) 1px, transparent 1px)",
+                backgroundSize: `${GRID_SIZE}px ${GRID_SIZE}px`,
+                opacity: 0.9,
+              }}
+            >
+              {canvas?.items.map(renderItem)}
+            </div>
           </div>
 
           {/* Zoom controls */}
@@ -527,6 +530,60 @@ export default function CanvasEditorPage() {
               className="p-2 hover:bg-[var(--hover-bg)] rounded transition-colors"
             >
               <Maximize2 className="w-4 h-4 text-[var(--text-secondary)]" />
+            </button>
+          </div>
+
+          {/* Mini map */}
+          <div className="absolute bottom-24 right-6 bg-[var(--card-bg)]/90 backdrop-blur-md rounded-xl border border-[var(--border-color)] shadow-lg p-2">
+            <div
+              className="relative rounded-md border border-[var(--border-color)]"
+              style={{
+                width: miniMapSize.width,
+                height: miniMapSize.height,
+                backgroundImage:
+                  "linear-gradient(to right, var(--grid-color) 1px, transparent 1px), linear-gradient(to bottom, var(--grid-color) 1px, transparent 1px)",
+                backgroundSize: `${GRID_SIZE / 2}px ${GRID_SIZE / 2}px`,
+                opacity: 0.8,
+              }}
+            >
+              <div
+                className="absolute rounded-sm border border-blue-500/80 bg-blue-500/10"
+                style={{
+                  left: miniMapViewport.x,
+                  top: miniMapViewport.y,
+                  width: miniMapViewport.width,
+                  height: miniMapViewport.height,
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Bottom action tray */}
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-[var(--card-bg)]/90 backdrop-blur-md rounded-2xl shadow-lg border border-[var(--border-color)] px-3 py-2">
+            <button
+              className="p-2 rounded-xl hover:bg-[var(--hover-bg)] transition-colors"
+              title="Add image"
+            >
+              <Image className="w-5 h-5 text-[var(--text-secondary)]" />
+            </button>
+            <button
+              className="p-2 rounded-xl hover:bg-[var(--hover-bg)] transition-colors"
+              title="Add link"
+            >
+              <Link2 className="w-5 h-5 text-[var(--text-secondary)]" />
+            </button>
+            <button
+              className="p-2 rounded-xl hover:bg-[var(--hover-bg)] transition-colors"
+              title="Attach file"
+            >
+              <Paperclip className="w-5 h-5 text-[var(--text-secondary)]" />
+            </button>
+            <div className="w-px h-6 bg-[var(--border-color)]" />
+            <button
+              className="p-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+              title="Create"
+            >
+              <Plus className="w-5 h-5" />
             </button>
           </div>
         </main>
