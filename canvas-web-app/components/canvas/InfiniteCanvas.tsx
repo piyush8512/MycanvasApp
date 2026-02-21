@@ -114,6 +114,9 @@ export default function InfiniteCanvas({
     resetView,
     navigateToPosition,
     setViewportSize,
+    setItemPosition,
+    getItemPosition,
+    removeItemPosition,
   } = useCanvasStore();
 
   // Track container size for minimap and pan limits
@@ -184,18 +187,32 @@ export default function InfiniteCanvas({
             (e.clientY - rect.top - pan.y) / zoom - dragOffset.current.y;
           // Clamp position to canvas bounds
           const clampedPos = clampItemPosition({ x: rawX, y: rawY });
-          onItemMove(draggedItemId, clampedPos);
+          setItemPosition(draggedItemId, clampedPos);
         }
       }
     },
-    [isPanning, draggedItemId, pan, zoom, adjustPan, onItemMove],
+    [isPanning, draggedItemId, pan, zoom, adjustPan, setItemPosition],
   );
 
   // Handle mouse up
   const handleMouseUp = useCallback(() => {
     setIsPanning(false);
+    if (draggedItemId) {
+      const finalPosition = getItemPosition(draggedItemId);
+      if (finalPosition) {
+        onItemMove(draggedItemId, finalPosition);
+        removeItemPosition(draggedItemId);
+      }
+    }
     endDrag();
-  }, [setIsPanning, endDrag]);
+  }, [
+    setIsPanning,
+    draggedItemId,
+    getItemPosition,
+    onItemMove,
+    removeItemPosition,
+    endDrag,
+  ]);
 
   // Handle item drag start
   const handleItemDragStart = useCallback(
@@ -298,6 +315,7 @@ export default function InfiniteCanvas({
     const isBeingDragged = draggedItemId === item.id;
     const isLocked = lockedItems.has(item.id);
     const isMenuOpen = activeMenu === item.id;
+    const position = getItemPosition(item.id) || item.position;
 
     return (
       <div
@@ -306,10 +324,10 @@ export default function InfiniteCanvas({
           isBeingDragged ? "z-50" : "z-10"
         }`}
         style={{
-          transform: `translate(${item.position.x}px, ${item.position.y}px)`,
+          transform: `translate(${position.x}px, ${position.y}px)`,
           cursor: isLocked ? "default" : isBeingDragged ? "grabbing" : "grab",
         }}
-        onMouseDown={(e) => handleItemDragStart(e, item.id, item.position)}
+        onMouseDown={(e) => handleItemDragStart(e, item.id, position)}
         onDoubleClick={(e) => {
           e.stopPropagation();
           if (isFolder) {
@@ -509,7 +527,7 @@ export default function InfiniteCanvas({
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-full overflow-hidden bg-gray-50 dark:bg-[#0f0f12]"
+      className="relative w-full h-full overflow-hidden light:bg-white dark:bg-black"
       style={{ cursor: isPanning ? "grabbing" : "default" }}
       onWheel={handleWheel}
       onMouseDown={handleMouseDown}

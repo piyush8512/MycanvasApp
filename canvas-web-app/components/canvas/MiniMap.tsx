@@ -27,8 +27,8 @@ export default function MiniMap({
   const miniMapRef = useRef<HTMLDivElement>(null);
 
   // MiniMap dimensions
-  const mapWidth = isExpanded ? 200 : 150;
-  const mapHeight = isExpanded ? 150 : 100;
+  const mapWidth = isExpanded ? 155 : 150;
+  const mapHeight = isExpanded ? 160 : 100;
 
   // Use fixed canvas bounds for consistent minimap
   const scale = Math.min(mapWidth / CANVAS_SIZE, mapHeight / CANVAS_SIZE);

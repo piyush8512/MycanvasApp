@@ -98,10 +98,10 @@ export type ViewMode = "home" | "edit";
 export type ToolType = "select" | "pan" | "image" | "note" | "link" | "attachment";
 
 // Zoom presets
-export const ZOOM_PRESETS = [0.5, 0.8, 1.0, 1.2, 1.5] as const;
-export const MIN_ZOOM = 0.25;
+export const ZOOM_PRESETS = [ 0.5,0.8, 1.0, 1.2, 1.5] as const;
+export const MIN_ZOOM = 0.5;
 export const MAX_ZOOM = 2;
-export const GRID_SIZE = 40;
+export const GRID_SIZE = 50;
 
 // Canvas boundaries - starts from 0,0
 export const CANVAS_SIZE = 4000;

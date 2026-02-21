@@ -71,6 +71,7 @@ interface CanvasActions {
   // Item position (for local/optimistic updates)
   setItemPosition: (itemId: string, position: Position) => void;
   getItemPosition: (itemId: string) => Position | undefined;
+  removeItemPosition: (itemId: string) => void;
   clearItemPositions: () => void;
 }
 
@@ -267,6 +268,14 @@ export const useCanvasStore = create<CanvasStore>()(
 
       getItemPosition: (itemId) => {
         return get().itemPositions.get(itemId);
+      },
+
+      removeItemPosition: (itemId) => {
+        const { itemPositions } = get();
+        if (!itemPositions.has(itemId)) return;
+        const newMap = new Map(itemPositions);
+        newMap.delete(itemId);
+        set({ itemPositions: newMap });
       },
 
       clearItemPositions: () => {
