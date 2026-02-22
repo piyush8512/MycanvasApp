@@ -2,7 +2,7 @@
 
 import { useAuth } from "@clerk/nextjs";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import {
   ArrowLeft,
   Plus,
@@ -14,9 +14,18 @@ import {
   Image,
   Link2,
   Paperclip,
+  ChevronLeft,
+  ChevronRight,
+  ListTree,
 } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import { API_BASE_URL } from "@/services/api";
+import CardRenderer from "@/components/canvas/CardRenderer";
+import {
+  createLinkItem,
+  createYoutubeItem,
+  updateCanvasItemPosition,
+} from "@/services/canvasItemService";
 
 // Types
 interface Position {
@@ -32,7 +41,14 @@ interface Size {
 interface CanvasItemType {
   id: string;
   name: string;
-  type: "sticky" | "text" | "shape" | "image";
+  type:
+    | "sticky"
+    | "text"
+    | "shape"
+    | "image"
+    | "youtube"
+    | "link"
+    | "instagram";
   content: any;
   color?: string;
   position: Position;
@@ -46,8 +62,8 @@ interface CanvasData {
 }
 
 const GRID_SIZE = 40;
-const MIN_ZOOM = 0.1;
-const MAX_ZOOM = 3;
+const MIN_ZOOM = 0.4;
+const MAX_ZOOM = 2;
 const CANVAS_WIDTH = 3800;
 const CANVAS_HEIGHT = 1800;
 
@@ -68,9 +84,10 @@ export default function CanvasEditorPage() {
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState<Position>({ x: 0, y: 0 });
+  const [isLinksPanelOpen, setIsLinksPanelOpen] = useState(true);
   const lastMousePos = useRef<Position>({ x: 0, y: 0 });
 
-  const API_URL = API_BASE_URL
+  const API_URL = API_BASE_URL;
 
   const clampPan = useCallback(
     (nextPan: Position) => {
@@ -97,16 +114,40 @@ export default function CanvasEditorPage() {
       setLoading(true);
       const token = await getToken();
 
-      const res = await fetch(`${API_URL}/canvas/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const [canvasRes, itemsRes] = await Promise.all([
+        fetch(`${API_URL}/canvas/${id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${API_URL}/canvas/${id}/items`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
 
-      if (res.ok) {
-        const data = await res.json();
+      if (canvasRes.ok) {
+        const canvasData = await canvasRes.json();
+        let items: CanvasItemType[] = [];
+
+        if (itemsRes.ok) {
+          const itemsData = await itemsRes.json();
+          items = (itemsData.items || []).map((item: any) => ({
+            ...item,
+            content:
+              typeof item.content === "string"
+                ? (() => {
+                    try {
+                      return JSON.parse(item.content);
+                    } catch {
+                      return { text: item.content };
+                    }
+                  })()
+                : item.content,
+          }));
+        }
+
         setCanvas({
-          id: data.canvas.id,
-          name: data.canvas.name,
-          items: data.canvas.canvasItems || [],
+          id: canvasData.canvas.id,
+          name: canvasData.canvas.name,
+          items,
         });
       }
     } catch (error) {
@@ -192,13 +233,29 @@ export default function CanvasEditorPage() {
   );
 
   // Handle mouse up
-  const handleMouseUp = useCallback(() => {
+  const handleMouseUp = useCallback(async () => {
     setIsPanning(false);
-    if (draggedItem) {
-      // TODO: Save position to backend
+    if (draggedItem && canvas) {
+      try {
+        const draggedItemData = canvas.items.find(
+          (item) => item.id === draggedItem,
+        );
+        if (draggedItemData) {
+          const token = await getToken();
+          if (!token) return;
+          await updateCanvasItemPosition(
+            canvas.id,
+            draggedItem,
+            token,
+            draggedItemData.position,
+          );
+        }
+      } catch (error) {
+        console.error("Failed to save item position:", error);
+      }
       setDraggedItem(null);
     }
-  }, [draggedItem]);
+  }, [draggedItem, canvas, getToken]);
 
   // Handle item drag start
   const handleItemDragStart = useCallback(
@@ -316,6 +373,116 @@ export default function CanvasEditorPage() {
     setPan({ x: 0, y: 0 });
   };
 
+  const getViewportCenterPosition = useCallback(() => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) {
+      return { x: 120, y: 120 };
+    }
+
+    const viewX = -pan.x / zoom + rect.width / (2 * zoom);
+    const viewY = -pan.y / zoom + rect.height / (2 * zoom);
+
+    return {
+      x: Math.max(0, Math.min(CANVAS_WIDTH - 320, viewX - 160)),
+      y: Math.max(0, Math.min(CANVAS_HEIGHT - 220, viewY - 110)),
+    };
+  }, [pan.x, pan.y, zoom]);
+
+  const createLocalLinkItem = useCallback(
+    (urlValue: string, position: Position): CanvasItemType => {
+      const youtubeMatch = urlValue.match(
+        /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/,
+      );
+      const videoId = youtubeMatch?.[1];
+
+      if (videoId) {
+        return {
+          id: `temp-${Date.now()}`,
+          name: "YouTube Video",
+          type: "youtube",
+          content: {
+            url: urlValue,
+            videoId,
+            title: "YouTube Video",
+            thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+          },
+          position,
+          size: { width: 320, height: 260 },
+        };
+      }
+
+      let domain = "link";
+      try {
+        domain = new URL(urlValue).hostname;
+      } catch {
+        domain = "link";
+      }
+
+      return {
+        id: `temp-${Date.now()}`,
+        name: domain,
+        type: "link",
+        content: {
+          url: urlValue,
+          domain,
+          title: domain,
+        },
+        position,
+        size: { width: 320, height: 180 },
+      };
+    },
+    [],
+  );
+
+  const handleAddLink = useCallback(async () => {
+    if (!canvas) return;
+
+    const url = window.prompt("Paste YouTube or website URL");
+    if (!url || !url.trim()) return;
+
+    try {
+      const token = await getToken();
+      if (!token) return;
+      const position = getViewportCenterPosition();
+
+      let created = await createYoutubeItem(
+        canvas.id,
+        url.trim(),
+        token,
+        position,
+      );
+      if (!created) {
+        created = await createLinkItem(canvas.id, url.trim(), token, position);
+      }
+
+      if (created) {
+        fetchCanvas();
+      }
+    } catch (error) {
+      console.error("Failed to create link item:", error);
+      const position = getViewportCenterPosition();
+      const localItem = createLocalLinkItem(url.trim(), position);
+      setCanvas((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          items: [...prev.items, localItem],
+        };
+      });
+      window.alert(
+        error instanceof Error
+          ? `Saved only on web (not synced yet): ${error.message}`
+          : "Saved only on web (not synced yet). Backend rejected create.",
+      );
+    }
+  }, [
+    canvas,
+    getToken,
+    getViewportCenterPosition,
+    fetchCanvas,
+    createLocalLinkItem,
+  ]);
+
   useEffect(() => {
     setPan((prev) => clampPan(prev));
   }, [zoom, clampPan]);
@@ -357,6 +524,63 @@ export default function CanvasEditorPage() {
     };
   })();
 
+  const linkCategories = useMemo(() => {
+    const groups: Record<string, CanvasItemType[]> = {
+      YouTube: [],
+      Instagram: [],
+      Link: [],
+      Facebook: [],
+      Twitter: [],
+      TikTok: [],
+      LinkedIn: [],
+      Other: [],
+    };
+
+    for (const item of canvas?.items || []) {
+      const type = String(item.type || "").toLowerCase();
+      const url = String(item.content?.url || "").toLowerCase();
+
+      if (type === "youtube" || url.includes("youtube.com") || url.includes("youtu.be")) {
+        groups.YouTube.push(item);
+      } else if (type === "instagram" || url.includes("instagram.com")) {
+        groups.Instagram.push(item);
+      } else if (type === "facebook" || url.includes("facebook.com")) {
+        groups.Facebook.push(item);
+      } else if (type === "twitter" || url.includes("twitter.com") || url.includes("x.com")) {
+        groups.Twitter.push(item);
+      } else if (type === "tiktok" || url.includes("tiktok.com")) {
+        groups.TikTok.push(item);
+      } else if (type === "linkedin" || url.includes("linkedin.com")) {
+        groups.LinkedIn.push(item);
+      } else if (type === "link") {
+        groups.Link.push(item);
+      } else if (item.content?.url) {
+        groups.Other.push(item);
+      }
+    }
+
+    return groups;
+  }, [canvas?.items]);
+
+  const focusOnItem = useCallback(
+    (item: CanvasItemType) => {
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) {
+        setSelectedItem(item.id);
+        return;
+      }
+
+      const targetPan = {
+        x: rect.width / 2 - (item.position.x + item.size.width / 2) * zoom,
+        y: rect.height / 2 - (item.position.y + item.size.height / 2) * zoom,
+      };
+
+      setSelectedItem(item.id);
+      setPan(clampPan(targetPan));
+    },
+    [zoom, clampPan],
+  );
+
   // Render canvas item
   const renderItem = (item: CanvasItemType) => {
     const isSelected = selectedItem === item.id;
@@ -385,80 +609,41 @@ export default function CanvasEditorPage() {
           setSelectedItem(item.id);
         }}
       >
-        {item.type === "sticky" && (
-          <div
-            className="w-full h-full rounded-lg shadow-md p-3 overflow-hidden"
-            style={{ backgroundColor: item.color || "#fef08a" }}
-          >
-            <p className="text-gray-800 text-sm">
-              {item.content?.text || "Empty note"}
-            </p>
-          </div>
-        )}
-
-        {item.type === "text" && (
-          <div className="w-full h-full p-2">
-            <p className="text-[var(--text-primary)]">
-              {item.content?.text || ""}
-            </p>
-          </div>
-        )}
-
-        {item.type === "shape" && (
-          <div className="w-full h-full flex items-center justify-center">
-            {item.content?.shape === "rectangle" ? (
-              <div
-                className="w-full h-full rounded-lg border-2"
-                style={{
-                  backgroundColor: `${item.color}40`,
-                  borderColor: item.color,
-                }}
-              />
-            ) : (
-              <div
-                className="w-full h-full rounded-full border-2"
-                style={{
-                  backgroundColor: `${item.color}40`,
-                  borderColor: item.color,
-                }}
-              />
-            )}
-          </div>
-        )}
+        <CardRenderer item={item as any} isSelected={isSelected} />
       </div>
     );
   };
 
   if (!isLoaded || loading) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center bg-[var(--background)]">
+      <div className="h-screen w-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-[var(--text-secondary)]">Loading canvas...</p>
+          <p className="mt-4 text-(--text-secondary)">Loading canvas...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-[var(--background)] flex flex-col">
+    <div className="h-screen w-screen overflow-hidden bg-background flex flex-col">
       {/* Header */}
-      <header className="h-14 bg-[var(--header-bg)] border-b border-[var(--border-color)] flex items-center justify-between px-4 z-50">
+      <header className="h-14 bg-(--header-bg) border-b border-(--border-color) flex items-center justify-between px-4 z-50">
         <div className="flex items-center gap-4">
           <button
             onClick={() => router.push("/dashboard")}
-            className="p-2 hover:bg-[var(--hover-bg)] rounded-lg transition-colors"
+            className="p-2 hover:bg-(--hover-bg) rounded-lg transition-colors"
           >
-            <ArrowLeft className="w-5 h-5 text-[var(--text-secondary)]" />
+            <ArrowLeft className="w-5 h-5 text-(--text-secondary)" />
           </button>
-          <div className="h-6 w-px bg-[var(--border-color)]" />
-          <h1 className="font-semibold text-[var(--text-primary)]">
+          <div className="h-6 w-px bg-(--border-color)" />
+          <h1 className="font-semibold text-(--text-primary)">
             {canvas?.name || "Untitled Canvas"}
           </h1>
         </div>
 
         <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] rounded-lg transition-colors">
+          <button className="flex items-center gap-2 px-3 py-1.5 text-sm text-(--text-secondary) hover:bg-(--hover-bg) rounded-lg transition-colors">
             <Users className="w-4 h-4" />
             <span>Invite</span>
           </button>
@@ -467,8 +652,8 @@ export default function CanvasEditorPage() {
             <span>Share</span>
           </button>
           <ThemeToggle />
-          <button className="p-2 hover:bg-[var(--hover-bg)] rounded-lg transition-colors">
-            <MoreHorizontal className="w-5 h-5 text-[var(--text-secondary)]" />
+          <button className="p-2 hover:bg-(--hover-bg) rounded-lg transition-colors">
+            <MoreHorizontal className="w-5 h-5 text-(--text-secondary)" />
           </button>
         </div>
       </header>
@@ -477,7 +662,7 @@ export default function CanvasEditorPage() {
         {/* Canvas Area */}
         <main
           ref={containerRef}
-          className="w-full h-full relative overflow-hidden bg-[var(--canvas-area-bg)]"
+          className="w-full h-full relative overflow-hidden bg-(--canvas-area-bg)"
           onWheel={handleWheel}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
@@ -485,6 +670,75 @@ export default function CanvasEditorPage() {
           onMouseLeave={handleMouseUp}
           onClick={handleCanvasClick}
         >
+          {/* Left links panel */}
+          <div className="absolute left-4 top-6 z-40 flex items-start gap-2">
+            <button
+              onClick={() => setIsLinksPanelOpen((prev) => !prev)}
+              className="p-2 rounded-lg bg-(--card-bg) border border-(--border-color) shadow hover:bg-(--hover-bg) transition-colors"
+              title={isLinksPanelOpen ? "Hide links list" : "Show links list"}
+            >
+              {isLinksPanelOpen ? (
+                <ChevronLeft className="w-4 h-4 text-(--text-secondary)" />
+              ) : (
+                <ChevronRight className="w-4 h-4 text-(--text-secondary)" />
+              )}
+            </button>
+
+            {isLinksPanelOpen && (
+              <aside className="w-72 max-h-[70vh] overflow-y-auto rounded-xl bg-(--card-bg)/95 backdrop-blur-md border border-(--border-color) shadow-lg p-3">
+                <div className="flex items-center gap-2 mb-3">
+                  <ListTree className="w-4 h-4 text-(--text-secondary)" />
+                  <p className="text-sm font-semibold text-(--text-primary)">
+                    Links by category
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  {Object.entries(linkCategories)
+                    .filter(([, items]) => items.length > 0)
+                    .map(([category, items]) => (
+                      <div key={category}>
+                        <p className="text-xs uppercase tracking-wide text-(--text-secondary) mb-1">
+                          {category} ({items.length})
+                        </p>
+                        <div className="space-y-1">
+                          {items.map((item) => (
+                            <button
+                              key={item.id}
+                              onClick={() => focusOnItem(item)}
+                              className={`w-full text-left px-2 py-1.5 rounded-md text-sm transition-colors ${
+                                selectedItem === item.id
+                                  ? "bg-blue-600 text-white"
+                                  : "text-(--text-primary) hover:bg-(--hover-bg)"
+                              }`}
+                              title={item.content?.url || item.name}
+                            >
+                              <p className="truncate font-medium">{item.name || "Untitled"}</p>
+                              <p
+                                className={`truncate text-xs ${
+                                  selectedItem === item.id
+                                    ? "text-blue-100"
+                                    : "text-(--text-secondary)"
+                                }`}
+                              >
+                                {item.content?.url || "No URL"}
+                              </p>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+
+                  {Object.values(linkCategories).every((items) => items.length === 0) && (
+                    <p className="text-xs text-(--text-secondary)">
+                      No links yet. Use the bottom link button to add one.
+                    </p>
+                  )}
+                </div>
+              </aside>
+            )}
+          </div>
+
           {/* Canvas content */}
           <div
             className="absolute origin-top-left"
@@ -493,7 +747,7 @@ export default function CanvasEditorPage() {
             }}
           >
             <div
-              className="relative rounded-2xl border border-[var(--border-color)] shadow-[0_0_0_1px_rgba(0,0,0,0.02)]"
+              className="relative rounded-2xl border border-(--border-color) shadow-[0_0_0_1px_rgba(0,0,0,0.02)]"
               style={{
                 width: CANVAS_WIDTH,
                 height: CANVAS_HEIGHT,
@@ -508,35 +762,35 @@ export default function CanvasEditorPage() {
           </div>
 
           {/* Zoom controls */}
-          <div className="absolute bottom-6 right-6 flex items-center gap-2 bg-[var(--card-bg)] rounded-lg shadow-lg border border-[var(--border-color)] p-2">
+          <div className="absolute bottom-6 right-6 flex items-center gap-2 bg-(--card-bg) rounded-lg shadow-lg border border-(--border-color) p-2">
             <button
               onClick={handleZoomOut}
-              className="p-2 hover:bg-[var(--hover-bg)] rounded transition-colors"
+              className="p-2 hover:bg-(--hover-bg) rounded transition-colors"
             >
-              <Minus className="w-4 h-4 text-[var(--text-secondary)]" />
+              <Minus className="w-4 h-4 text-(--text-secondary)" />
             </button>
-            <span className="text-sm text-[var(--text-primary)] min-w-[50px] text-center">
+            <span className="text-sm text-(--text-primary) min-w-[50px] text-center">
               {Math.round(zoom * 100)}%
             </span>
             <button
               onClick={handleZoomIn}
-              className="p-2 hover:bg-[var(--hover-bg)] rounded transition-colors"
+              className="p-2 hover:bg-(--hover-bg) rounded transition-colors"
             >
-              <Plus className="w-4 h-4 text-[var(--text-secondary)]" />
+              <Plus className="w-4 h-4 text-(--text-secondary)" />
             </button>
-            <div className="w-px h-6 bg-[var(--border-color)]" />
+            <div className="w-px h-6 bg-(--border-color)" />
             <button
               onClick={handleZoomReset}
-              className="p-2 hover:bg-[var(--hover-bg)] rounded transition-colors"
+              className="p-2 hover:bg-(--hover-bg) rounded transition-colors"
             >
-              <Maximize2 className="w-4 h-4 text-[var(--text-secondary)]" />
+              <Maximize2 className="w-4 h-4 text-(--text-secondary)" />
             </button>
           </div>
 
           {/* Mini map */}
-          <div className="absolute bottom-24 right-6 bg-[var(--card-bg)]/90 backdrop-blur-md rounded-xl border border-[var(--border-color)] shadow-lg p-2">
+          <div className="absolute bottom-24 right-6 bg-(--card-bg)/90 backdrop-blur-md rounded-xl border border-(--border-color) shadow-lg p-2">
             <div
-              className="relative rounded-md border border-[var(--border-color)]"
+              className="relative rounded-md border border-(--border-color)"
               style={{
                 width: miniMapSize.width,
                 height: miniMapSize.height,
@@ -559,26 +813,27 @@ export default function CanvasEditorPage() {
           </div>
 
           {/* Bottom action tray */}
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-[var(--card-bg)]/90 backdrop-blur-md rounded-2xl shadow-lg border border-[var(--border-color)] px-3 py-2">
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-(--card-bg)/90 backdrop-blur-md rounded-2xl shadow-lg border border-(--border-color) px-3 py-2">
             <button
-              className="p-2 rounded-xl hover:bg-[var(--hover-bg)] transition-colors"
+              className="p-2 rounded-xl hover:bg-(--hover-bg) transition-colors"
               title="Add image"
             >
-              <Image className="w-5 h-5 text-[var(--text-secondary)]" />
+              <Image className="w-5 h-5 text-(--text-secondary)" />
             </button>
             <button
-              className="p-2 rounded-xl hover:bg-[var(--hover-bg)] transition-colors"
+              onClick={handleAddLink}
+              className="p-2 rounded-xl hover:bg-(--hover-bg) transition-colors"
               title="Add link"
             >
-              <Link2 className="w-5 h-5 text-[var(--text-secondary)]" />
+              <Link2 className="w-5 h-5 text-(--text-secondary)" />
             </button>
             <button
-              className="p-2 rounded-xl hover:bg-[var(--hover-bg)] transition-colors"
+              className="p-2 rounded-xl hover:bg-(--hover-bg) transition-colors"
               title="Attach file"
             >
-              <Paperclip className="w-5 h-5 text-[var(--text-secondary)]" />
+              <Paperclip className="w-5 h-5 text-(--text-secondary)" />
             </button>
-            <div className="w-px h-6 bg-[var(--border-color)]" />
+            <div className="w-px h-6 bg-(--border-color)" />
             <button
               className="p-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors"
               title="Create"

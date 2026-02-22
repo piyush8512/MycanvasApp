@@ -37,24 +37,63 @@ export interface Canvas extends BaseItem {
 // Union type for items on the dashboard
 export type DashboardItem = Folder | Canvas;
 
-// Canvas item inside a canvas (notes, images, links, etc.)
+export type ItemType =
+  | "sticky"
+  | "text"
+  | "shape"
+  | "youtube"
+  | "link"
+  | "instagram"
+  | "image"
+  | "note"
+  | "attachment";
+
+export interface Size {
+  width: number;
+  height: number;
+}
+
+export interface YoutubeContent {
+  videoId: string;
+  title?: string;
+  thumbnail?: string;
+  url?: string;
+}
+
+export interface LinkContent {
+  url: string;
+  title?: string;
+  description?: string;
+  thumbnail?: string;
+  domain?: string;
+}
+
 export interface CanvasItem {
   id: string;
-  canvasId: string;
-  type: "note" | "image" | "link" | "attachment" | "text";
-  content: string;
+  canvasId?: string;
+  name: string;
+  type: ItemType;
+  content: any;
+  color?: string;
   position: Position;
-  size: {
-    width: number;
-    height: number;
-  };
+  size: Size;
   style?: {
     backgroundColor?: string;
     textColor?: string;
     fontSize?: number;
   };
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface YoutubeItem extends CanvasItem {
+  type: "youtube";
+  content: YoutubeContent;
+}
+
+export interface LinkItem extends CanvasItem {
+  type: "link";
+  content: LinkContent;
 }
 
 // ============================================================
@@ -95,7 +134,17 @@ export interface ApiResponse<T> {
 export type ViewMode = "home" | "edit";
 
 // Tool types
-export type ToolType = "select" | "pan" | "image" | "note" | "link" | "attachment";
+export type ToolType =
+  | "select"
+  | "pan"
+  | "sticky"
+  | "text"
+  | "rectangle"
+  | "circle"
+  | "youtube"
+  | "image"
+  | "link"
+  | "attachment";
 
 // Zoom presets
 export const ZOOM_PRESETS = [ 0.5,0.8, 1.0, 1.2, 1.5] as const;
