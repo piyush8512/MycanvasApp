@@ -31,6 +31,16 @@ interface FoldersResponse {
     createdAt: string;
     updatedAt: string;
     ownerId: string;
+    files?: Array<{
+      id: string;
+      name: string;
+      positionX?: number;
+      positionY?: number;
+      size: number;
+      url: string;
+      createdAt: string;
+      updatedAt: string;
+    }>;
     owner?: { id: string; name: string; email: string };
     collaborators?: Array<{ user: { id: string; name: string; email: string } }>;
   }>;
@@ -112,20 +122,61 @@ interface CanvasItemsResponse {
     createdAt: string;
     updatedAt: string;
   }>;
+  pagination?: {
+    limit: number;
+    offset: number;
+    total: number;
+    hasMore: boolean;
+    nextOffset: number | null;
+  };
+}
+
+interface GetCanvasItemsOptions {
+  limit?: number;
+  offset?: number;
+}
+
+interface CanvasItemsResult {
+  items: CanvasItem[];
+  pagination?: CanvasItemsResponse["pagination"];
 }
 
 // ============================================================
 // Helper Functions
 // ============================================================
 
+let apiAuthToken: string | null = null;
+const isApiDebugEnabled =
+  process.env.NODE_ENV !== "production" &&
+  process.env.NEXT_PUBLIC_DEBUG_API === "true";
+
+function apiDebugLog(...args: unknown[]): void {
+  if (isApiDebugEnabled) {
+    console.log(...args);
+  }
+}
+
+export function setApiAuthToken(token: string | null): void {
+  apiAuthToken = token;
+
+  if (typeof window !== "undefined") {
+    if (token) {
+      localStorage.setItem("clerk-token", token);
+    } else {
+      localStorage.removeItem("clerk-token");
+    }
+  }
+}
+
 /**
  * Get auth token from localStorage (set by React Query hooks)
  */
 async function getAuthHeaders(): Promise<HeadersInit> {
   const token =
-    typeof window !== "undefined" ? localStorage.getItem("clerk-token") : null;
+    apiAuthToken ||
+    (typeof window !== "undefined" ? localStorage.getItem("clerk-token") : null);
 
-  console.log(`[API] Token present: ${!!token}, Token length: ${token?.length || 0}`);
+  apiDebugLog(`[API] Token present: ${!!token}, Token length: ${token?.length || 0}`);
 
   return {
     "Content-Type": "application/json",
@@ -142,8 +193,8 @@ async function fetchApi<T>(
 ): Promise<T> {
   const headers = await getAuthHeaders();
   const url = `${API_BASE_URL}${endpoint}`;
-  
-  console.log(`[API] Fetching: ${url}`);
+
+  apiDebugLog(`[API] Fetching: ${url}`);
 
   try {
     const response = await fetch(url, {
@@ -152,24 +203,36 @@ async function fetchApi<T>(
         ...headers,
         ...options.headers,
       },
-      credentials: "include",
+      credentials: options.credentials ?? "omit",
     });
 
-    console.log(`[API] Response status: ${response.status}`);
+    apiDebugLog(`[API] Response status: ${response.status}`);
 
     if (!response.ok) {
       const error = await response
         .json()
         .catch(() => ({ message: "Request failed" }));
-      console.error(`[API] Error:`, error);
+      console.error(`[API] Request failed:`, {
+        endpoint,
+        status: response.status,
+        message: error.message || "Request failed",
+      });
       throw new Error(error.message || `HTTP ${response.status}`);
     }
 
     const data = await response.json();
-    console.log(`[API] Success:`, data);
+    apiDebugLog(`[API] Success`);
     return data;
   } catch (err) {
-    console.error(`[API] Fetch error:`, err);
+    console.error(`[API] Fetch error:`, {
+      endpoint,
+      message: err instanceof Error ? err.message : "Unknown error",
+    });
+    if (err instanceof TypeError && err.message.includes("Failed to fetch")) {
+      throw new Error(
+        `Network request failed before reaching the server. Check API URL (${API_BASE_URL}), CORS origin allowlist, and local DNS/ISP connectivity.`
+      );
+    }
     throw err;
   }
 }
@@ -393,12 +456,26 @@ export const canvasApi = {
    * Get items in a canvas
    * Backend returns: { success: true, items: [...] }
    */
-  getItems: async (canvasId: string): Promise<CanvasItem[]> => {
+  getItems: async (
+    canvasId: string,
+    options: GetCanvasItemsOptions = {}
+  ): Promise<CanvasItemsResult> => {
+    const params = new URLSearchParams();
+    if (options.limit !== undefined) {
+      params.set("limit", String(options.limit));
+    }
+    if (options.offset !== undefined) {
+      params.set("offset", String(options.offset));
+    }
+
+    const query = params.toString();
     const response = await fetchApi<CanvasItemsResponse>(
-      `/canvas/${canvasId}/items`
+      `/canvas/${canvasId}/items${query ? `?${query}` : ""}`
     );
-    return response.items.map((item) => ({
+
+    const items = response.items.map((item) => ({
       id: item.id,
+      name: item.name || "Unnamed Item",
       canvasId: item.canvasId,
       type: item.type as CanvasItem["type"],
       content: item.content || "",
@@ -408,6 +485,11 @@ export const canvasApi = {
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
     }));
+
+    return {
+      items,
+      pagination: response.pagination,
+    };
   },
 
   /**
@@ -433,6 +515,7 @@ export const canvasApi = {
     );
     return {
       id: response.item.id,
+      name: response.item.name || "Unnamed Item",
       canvasId: response.item.canvasId,
       type: response.item.type as CanvasItem["type"],
       content: response.item.content || "",
@@ -465,6 +548,7 @@ export const canvasApi = {
     );
     return {
       id: response.item.id,
+      name: response.item.name || "Unnamed Item",
       canvasId: response.item.canvasId,
       type: response.item.type as CanvasItem["type"],
       content: response.item.content || "",
@@ -483,7 +567,6 @@ export const canvasApi = {
 export const dashboardApi = {
   /**
    * Get all dashboard items (folders + root canvases)
-   * Fetches folder contents (canvas files) for each folder
    */
   getAll: async (): Promise<{ folders: Folder[]; canvases: Canvas[] }> => {
     const [foldersResponse, canvasesResponse] = await Promise.all([
@@ -491,45 +574,30 @@ export const dashboardApi = {
       fetchApi<CanvasesResponse>("/canvas"),
     ]);
 
-    // Transform folders
-    const folders: Folder[] = await Promise.all(
-      foldersResponse.folders.map(async (folder) => {
-        // Fetch folder details to get files inside
-        let canvasFiles: Canvas[] = [];
-        try {
-          const folderDetails = await fetchApi<FolderByIdResponse>(
-            `/folders/${folder.id}`
-          );
-          canvasFiles =
-            folderDetails.folder.files?.map((file) => ({
-              id: file.id,
-              name: file.name,
-              type: "canvas" as const,
-              position: { x: file.positionX || 0, y: file.positionY || 0 },
-              createdAt: file.createdAt,
-              updatedAt: file.updatedAt,
-              isShared: false,
-              userId: folder.ownerId,
-              folderId: folder.id,
-              itemCount: 0,
-            })) || [];
-        } catch {
-          // Ignore errors fetching folder details
-        }
-
-        return {
-          id: folder.id,
-          name: folder.name,
-          type: "folder" as const,
-          position: { x: folder.positionX || 0, y: folder.positionY || 0 },
-          createdAt: folder.createdAt,
-          updatedAt: folder.updatedAt,
-          isShared: (folder.collaborators?.length || 0) > 0,
+    // Transform folders from /folders response directly (no per-folder fetches)
+    const folders: Folder[] = foldersResponse.folders.map((folder) => ({
+      id: folder.id,
+      name: folder.name,
+      type: "folder" as const,
+      position: { x: folder.positionX || 0, y: folder.positionY || 0 },
+      createdAt: folder.createdAt,
+      updatedAt: folder.updatedAt,
+      isShared: (folder.collaborators?.length || 0) > 0,
+      userId: folder.ownerId,
+      canvasFiles:
+        folder.files?.map((file) => ({
+          id: file.id,
+          name: file.name,
+          type: "canvas" as const,
+          position: { x: file.positionX || 0, y: file.positionY || 0 },
+          createdAt: file.createdAt,
+          updatedAt: file.updatedAt,
+          isShared: false,
           userId: folder.ownerId,
-          canvasFiles,
-        };
-      })
-    );
+          folderId: folder.id,
+          itemCount: 0,
+        })) || [],
+    }));
 
     // Transform canvases (only root level - without folder)
     const canvases: Canvas[] = canvasesResponse.canvas.map((canvas) => ({

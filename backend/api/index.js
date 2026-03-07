@@ -27,6 +27,23 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
+app.use((req, res, next) => {
+  const start = process.hrtime.bigint();
+
+  res.on('finish', () => {
+    const end = process.hrtime.bigint();
+    const durationMs = Number(end - start) / 1_000_000;
+
+    if (process.env.NODE_ENV !== 'production' || durationMs >= 500) {
+      console.log(
+        `[API] ${req.method} ${req.originalUrl} ${res.statusCode} ${durationMs.toFixed(1)}ms`
+      );
+    }
+  });
+
+  next();
+});
+
 // Health check
 app.get('/', (req, res) => {
   res.json({ 

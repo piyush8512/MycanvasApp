@@ -61,11 +61,27 @@ interface CanvasData {
   items: CanvasItemType[];
 }
 
+interface CanvasItemsPagination {
+  limit: number;
+  offset: number;
+  total: number;
+  hasMore: boolean;
+  nextOffset: number | null;
+}
+
+interface CreateCanvasItemResponse {
+  success: boolean;
+  item?: any;
+}
+
 const GRID_SIZE = 40;
 const MIN_ZOOM = 0.4;
 const MAX_ZOOM = 2;
 const CANVAS_WIDTH = 3800;
 const CANVAS_HEIGHT = 1800;
+const ITEMS_PAGE_SIZE = 120;
+const VIEWPORT_RENDER_BUFFER = 260;
+const OFFSCREEN_RENDER_CHUNK = 40;
 
 type Tool = "select" | "sticky" | "text" | "rectangle" | "circle" | "draw";
 
@@ -76,9 +92,12 @@ export default function CanvasEditorPage() {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [canvas, setCanvas] = useState<CanvasData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [isCanvasMetaLoading, setIsCanvasMetaLoading] = useState(true);
+  const [isItemsLoading, setIsItemsLoading] = useState(true);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState<Position>({ x: 0, y: 0 });
+  const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
+  const [offscreenRenderCount, setOffscreenRenderCount] = useState(0);
   const [isPanning, setIsPanning] = useState(false);
   const [selectedTool, setSelectedTool] = useState<Tool>("select");
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
@@ -86,8 +105,55 @@ export default function CanvasEditorPage() {
   const [dragOffset, setDragOffset] = useState<Position>({ x: 0, y: 0 });
   const [isLinksPanelOpen, setIsLinksPanelOpen] = useState(true);
   const lastMousePos = useRef<Position>({ x: 0, y: 0 });
+  const activeLoadIdRef = useRef(0);
 
   const API_URL = API_BASE_URL;
+  const canvasId = Array.isArray(id) ? id[0] : id;
+
+  const normalizeCanvasItem = useCallback((item: any): CanvasItemType => {
+    return {
+      ...item,
+      content:
+        typeof item.content === "string"
+          ? (() => {
+              try {
+                return JSON.parse(item.content);
+              } catch {
+                return { text: item.content };
+              }
+            })()
+          : item.content,
+    };
+  }, []);
+
+  const appendCanvasItem = useCallback((item: CanvasItemType) => {
+    setCanvas((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        items: [...prev.items, item],
+      };
+    });
+  }, []);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const updateViewport = () => {
+      const rect = el.getBoundingClientRect();
+      setViewportSize({ width: rect.width, height: rect.height });
+    };
+
+    updateViewport();
+
+    const observer = new ResizeObserver(updateViewport);
+    observer.observe(el);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
 
   const clampPan = useCallback(
     (nextPan: Position) => {
@@ -108,60 +174,251 @@ export default function CanvasEditorPage() {
     [zoom],
   );
 
-  // Fetch canvas data
+  const fetchItemsPage = useCallback(
+    async (token: string, offset: number) => {
+      if (!canvasId) {
+        return {
+          items: [] as CanvasItemType[],
+          pagination: null as CanvasItemsPagination | null,
+        };
+      }
+
+      const itemsRes = await fetch(
+        `${API_URL}/canvas/${canvasId}/items?limit=${ITEMS_PAGE_SIZE}&offset=${offset}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+
+      if (!itemsRes.ok) {
+        return {
+          items: [] as CanvasItemType[],
+          pagination: null as CanvasItemsPagination | null,
+        };
+      }
+
+      const itemsData = await itemsRes.json();
+      const items = (itemsData.items || []).map(normalizeCanvasItem);
+
+      return {
+        items,
+        pagination: (itemsData.pagination ||
+          null) as CanvasItemsPagination | null,
+      };
+    },
+    [API_URL, canvasId, normalizeCanvasItem],
+  );
+
+  const loadRemainingItemsInBackground = useCallback(
+    async (token: string, initialOffset: number, loadId: number) => {
+      let offset = initialOffset;
+
+      try {
+        while (activeLoadIdRef.current === loadId) {
+          const { items, pagination } = await fetchItemsPage(token, offset);
+          if (items.length === 0) {
+            break;
+          }
+
+          if (activeLoadIdRef.current !== loadId) {
+            break;
+          }
+
+          setCanvas((prev) => {
+            if (!prev || prev.id !== canvasId) return prev;
+            return {
+              ...prev,
+              items: [...prev.items, ...items],
+            };
+          });
+
+          if (!pagination?.hasMore || pagination.nextOffset == null) {
+            break;
+          }
+
+          offset = pagination.nextOffset;
+        }
+      } finally {
+        if (activeLoadIdRef.current === loadId) {
+          setIsItemsLoading(false);
+        }
+      }
+    },
+    [fetchItemsPage, canvasId],
+  );
+
+  // Fetch canvas data (first page first, then background pages)
   const fetchCanvas = useCallback(async () => {
     try {
-      setLoading(true);
-      const token = await getToken();
+      setIsCanvasMetaLoading(true);
+      setIsItemsLoading(true);
+      setOffscreenRenderCount(0);
+      const loadId = Date.now();
+      activeLoadIdRef.current = loadId;
 
-      const [canvasRes, itemsRes] = await Promise.all([
-        fetch(`${API_URL}/canvas/${id}`, {
+      if (!canvasId) {
+        setIsCanvasMetaLoading(false);
+        setIsItemsLoading(false);
+        return;
+      }
+
+      const token = await getToken();
+      if (!token) {
+        setIsCanvasMetaLoading(false);
+        setIsItemsLoading(false);
+        return;
+      }
+
+      const [canvasRes, firstItemsResult] = await Promise.all([
+        fetch(`${API_URL}/canvas/${canvasId}`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch(`${API_URL}/canvas/${id}/items`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
+        fetchItemsPage(token, 0),
       ]);
 
       if (canvasRes.ok) {
         const canvasData = await canvasRes.json();
-        let items: CanvasItemType[] = [];
-
-        if (itemsRes.ok) {
-          const itemsData = await itemsRes.json();
-          items = (itemsData.items || []).map((item: any) => ({
-            ...item,
-            content:
-              typeof item.content === "string"
-                ? (() => {
-                    try {
-                      return JSON.parse(item.content);
-                    } catch {
-                      return { text: item.content };
-                    }
-                  })()
-                : item.content,
-          }));
-        }
 
         setCanvas({
           id: canvasData.canvas.id,
           name: canvasData.canvas.name,
-          items,
+          items: firstItemsResult.items,
         });
+        setIsCanvasMetaLoading(false);
+
+        const nextOffset = firstItemsResult.pagination?.nextOffset;
+        if (firstItemsResult.pagination?.hasMore && nextOffset != null) {
+          void loadRemainingItemsInBackground(token, nextOffset, loadId);
+        } else {
+          setIsItemsLoading(false);
+        }
+      } else {
+        setIsCanvasMetaLoading(false);
+        setIsItemsLoading(false);
       }
     } catch (error) {
       console.error("Failed to fetch canvas:", error);
+      setIsCanvasMetaLoading(false);
+      setIsItemsLoading(false);
     } finally {
-      setLoading(false);
+      setIsCanvasMetaLoading(false);
     }
-  }, [id, getToken, API_URL]);
+  }, [
+    canvasId,
+    getToken,
+    API_URL,
+    fetchItemsPage,
+    loadRemainingItemsInBackground,
+  ]);
 
   useEffect(() => {
-    if (isLoaded && id) {
+    if (isLoaded && canvasId) {
       fetchCanvas();
     }
-  }, [isLoaded, id, fetchCanvas]);
+  }, [isLoaded, canvasId, fetchCanvas]);
+
+  const renderPartition = useMemo(() => {
+    if (!canvas?.items?.length) {
+      return {
+        viewportItems: [] as CanvasItemType[],
+        offscreenItems: [] as CanvasItemType[],
+      };
+    }
+
+    const width = viewportSize.width || 0;
+    const height = viewportSize.height || 0;
+
+    const viewLeft = -pan.x / zoom - VIEWPORT_RENDER_BUFFER;
+    const viewTop = -pan.y / zoom - VIEWPORT_RENDER_BUFFER;
+    const viewRight = (-pan.x + width) / zoom + VIEWPORT_RENDER_BUFFER;
+    const viewBottom = (-pan.y + height) / zoom + VIEWPORT_RENDER_BUFFER;
+
+    const viewportItems: CanvasItemType[] = [];
+    const offscreenItems: CanvasItemType[] = [];
+
+    for (const item of canvas.items) {
+      const left = item.position.x;
+      const top = item.position.y;
+      const right = item.position.x + item.size.width;
+      const bottom = item.position.y + item.size.height;
+
+      const intersectsViewport =
+        right >= viewLeft &&
+        left <= viewRight &&
+        bottom >= viewTop &&
+        top <= viewBottom;
+
+      if (intersectsViewport) {
+        viewportItems.push(item);
+      } else {
+        offscreenItems.push(item);
+      }
+    }
+
+    return {
+      viewportItems,
+      offscreenItems,
+    };
+  }, [
+    canvas?.items,
+    pan.x,
+    pan.y,
+    zoom,
+    viewportSize.width,
+    viewportSize.height,
+  ]);
+
+  useEffect(() => {
+    if (offscreenRenderCount >= renderPartition.offscreenItems.length) {
+      return;
+    }
+
+    let cancelled = false;
+    let idleId: number | null = null;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const runChunk = () => {
+      if (cancelled) return;
+      setOffscreenRenderCount((prev) =>
+        Math.min(
+          prev + OFFSCREEN_RENDER_CHUNK,
+          renderPartition.offscreenItems.length,
+        ),
+      );
+    };
+
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      idleId = (window as any).requestIdleCallback(runChunk, { timeout: 120 });
+    } else {
+      timeoutId = globalThis.setTimeout(runChunk, 24);
+    }
+
+    return () => {
+      cancelled = true;
+      if (
+        idleId != null &&
+        typeof window !== "undefined" &&
+        "cancelIdleCallback" in window
+      ) {
+        (window as any).cancelIdleCallback(idleId);
+      }
+      if (timeoutId != null) {
+        globalThis.clearTimeout(timeoutId);
+      }
+    };
+  }, [offscreenRenderCount, renderPartition.offscreenItems.length]);
+
+  const renderedItems = useMemo(() => {
+    const offscreenSlice = renderPartition.offscreenItems.slice(
+      0,
+      offscreenRenderCount,
+    );
+    return [...renderPartition.viewportItems, ...offscreenSlice];
+  }, [
+    renderPartition.viewportItems,
+    renderPartition.offscreenItems,
+    offscreenRenderCount,
+  ]);
 
   // Handle wheel zoom
   const handleWheel = useCallback(
@@ -319,8 +576,10 @@ export default function CanvasEditorPage() {
 
       // Add to canvas (temporary - will need to save to backend)
       try {
+        if (!canvasId) return;
         const token = await getToken();
-        const res = await fetch(`${API_URL}/canvas/${id}/items`, {
+        if (!token) return;
+        const res = await fetch(`${API_URL}/canvas/${canvasId}/items`, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
@@ -330,39 +589,34 @@ export default function CanvasEditorPage() {
         });
 
         if (res.ok) {
-          fetchCanvas();
+          const payload = (await res.json()) as CreateCanvasItemResponse;
+          if (payload.item) {
+            appendCanvasItem(normalizeCanvasItem(payload.item));
+          }
         } else {
           // Add locally for now if API doesn't exist yet
           const tempId = `temp-${Date.now()}`;
-          setCanvas((prev) => {
-            if (!prev) return prev;
-            return {
-              ...prev,
-              items: [
-                ...prev.items,
-                { ...newItem, id: tempId } as CanvasItemType,
-              ],
-            };
-          });
+          appendCanvasItem({ ...newItem, id: tempId } as CanvasItemType);
         }
       } catch (error) {
         // Add locally if API fails
         const tempId = `temp-${Date.now()}`;
-        setCanvas((prev) => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            items: [
-              ...prev.items,
-              { ...newItem, id: tempId } as CanvasItemType,
-            ],
-          };
-        });
+        appendCanvasItem({ ...newItem, id: tempId } as CanvasItemType);
       }
 
       setSelectedTool("select");
     },
-    [selectedTool, isPanning, pan, zoom, id, getToken, API_URL, fetchCanvas],
+    [
+      selectedTool,
+      isPanning,
+      pan,
+      zoom,
+      canvasId,
+      getToken,
+      API_URL,
+      appendCanvasItem,
+      normalizeCanvasItem,
+    ],
   );
 
   // Zoom controls
@@ -456,7 +710,7 @@ export default function CanvasEditorPage() {
       }
 
       if (created) {
-        fetchCanvas();
+        appendCanvasItem(normalizeCanvasItem(created));
       }
     } catch (error) {
       console.error("Failed to create link item:", error);
@@ -479,7 +733,8 @@ export default function CanvasEditorPage() {
     canvas,
     getToken,
     getViewportCenterPosition,
-    fetchCanvas,
+    appendCanvasItem,
+    normalizeCanvasItem,
     createLocalLinkItem,
   ]);
 
@@ -540,13 +795,21 @@ export default function CanvasEditorPage() {
       const type = String(item.type || "").toLowerCase();
       const url = String(item.content?.url || "").toLowerCase();
 
-      if (type === "youtube" || url.includes("youtube.com") || url.includes("youtu.be")) {
+      if (
+        type === "youtube" ||
+        url.includes("youtube.com") ||
+        url.includes("youtu.be")
+      ) {
         groups.YouTube.push(item);
       } else if (type === "instagram" || url.includes("instagram.com")) {
         groups.Instagram.push(item);
       } else if (type === "facebook" || url.includes("facebook.com")) {
         groups.Facebook.push(item);
-      } else if (type === "twitter" || url.includes("twitter.com") || url.includes("x.com")) {
+      } else if (
+        type === "twitter" ||
+        url.includes("twitter.com") ||
+        url.includes("x.com")
+      ) {
         groups.Twitter.push(item);
       } else if (type === "tiktok" || url.includes("tiktok.com")) {
         groups.TikTok.push(item);
@@ -614,12 +877,12 @@ export default function CanvasEditorPage() {
     );
   };
 
-  if (!isLoaded || loading) {
+  if (!isLoaded) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-(--text-secondary)">Loading canvas...</p>
+          <p className="mt-4 text-(--text-secondary)">Loading session...</p>
         </div>
       </div>
     );
@@ -638,7 +901,8 @@ export default function CanvasEditorPage() {
           </button>
           <div className="h-6 w-px bg-(--border-color)" />
           <h1 className="font-semibold text-(--text-primary)">
-            {canvas?.name || "Untitled Canvas"}
+            {canvas?.name ||
+              (isCanvasMetaLoading ? "Loading canvas..." : "Untitled Canvas")}
           </h1>
         </div>
 
@@ -713,7 +977,9 @@ export default function CanvasEditorPage() {
                               }`}
                               title={item.content?.url || item.name}
                             >
-                              <p className="truncate font-medium">{item.name || "Untitled"}</p>
+                              <p className="truncate font-medium">
+                                {item.name || "Untitled"}
+                              </p>
                               <p
                                 className={`truncate text-xs ${
                                   selectedItem === item.id
@@ -729,7 +995,9 @@ export default function CanvasEditorPage() {
                       </div>
                     ))}
 
-                  {Object.values(linkCategories).every((items) => items.length === 0) && (
+                  {Object.values(linkCategories).every(
+                    (items) => items.length === 0,
+                  ) && (
                     <p className="text-xs text-(--text-secondary)">
                       No links yet. Use the bottom link button to add one.
                     </p>
@@ -757,9 +1025,17 @@ export default function CanvasEditorPage() {
                 opacity: 0.9,
               }}
             >
-              {canvas?.items.map(renderItem)}
+              {renderedItems.map(renderItem)}
             </div>
           </div>
+
+          {(isCanvasMetaLoading || isItemsLoading) && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 rounded-full border border-(--border-color) bg-(--card-bg)/95 px-3 py-1.5 text-xs text-(--text-secondary) shadow">
+              {isCanvasMetaLoading
+                ? "Preparing canvas..."
+                : `Loading items ${renderedItems.length}/${canvas?.items.length || 0}`}
+            </div>
+          )}
 
           {/* Zoom controls */}
           <div className="absolute bottom-6 right-6 flex items-center gap-2 bg-(--card-bg) rounded-lg shadow-lg border border-(--border-color) p-2">

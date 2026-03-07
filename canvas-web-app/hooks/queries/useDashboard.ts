@@ -4,7 +4,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
-import { folderApi, canvasApi, dashboardApi } from "@/services/api";
+import { folderApi, canvasApi, dashboardApi, setApiAuthToken } from "@/services/api";
 import type { 
   Folder, 
   Canvas, 
@@ -40,23 +40,18 @@ export function useDashboardItems() {
   return useQuery({
     queryKey: queryKeys.dashboard,
     queryFn: async () => {
-      console.log("[useDashboard] Starting fetch, isSignedIn:", isSignedIn);
-      
       // Get fresh token for API calls
       const token = await getToken();
-      console.log("[useDashboard] Got token:", !!token, "length:", token?.length || 0);
-      
+
       if (!token) {
         throw new Error("Not authenticated. Please sign in.");
       }
-      
+
       // Store token for API service to use
-      localStorage.setItem("clerk-token", token);
-      console.log("[useDashboard] Token stored in localStorage");
-      
+      setApiAuthToken(token);
+
       const { folders, canvases } = await dashboardApi.getAll();
-      console.log("[useDashboard] Got data:", { folderCount: folders.length, canvasCount: canvases.length });
-      
+
       // Assign positions if not set (grid layout)
       // Position items starting from a nice offset, not at 0,0
       const itemsWithPositions: DashboardItem[] = [];
@@ -95,8 +90,10 @@ export function useDashboardItems() {
     },
     // Only run query when user is signed in
     enabled: isSignedIn === true,
-    staleTime: 30 * 1000, // 30 seconds
+    staleTime: 2 * 60 * 1000, // 2 minutes
     gcTime: 5 * 60 * 1000, // 5 minutes (formerly cacheTime)
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 }
 
@@ -115,7 +112,7 @@ export function useFolders() {
     queryFn: async () => {
       const token = await getToken();
       if (token) {
-        localStorage.setItem("clerk-token", token);
+        setApiAuthToken(token);
       }
       return folderApi.getAll();
     },
@@ -134,7 +131,7 @@ export function useFolder(id: string) {
     queryFn: async () => {
       const token = await getToken();
       if (token) {
-        localStorage.setItem("clerk-token", token);
+        setApiAuthToken(token);
       }
       return folderApi.getById(id);
     },
@@ -157,7 +154,7 @@ export function useCanvases() {
     queryFn: async () => {
       const token = await getToken();
       if (token) {
-        localStorage.setItem("clerk-token", token);
+        setApiAuthToken(token);
       }
       return canvasApi.getAll();
     },
@@ -176,7 +173,7 @@ export function useCanvas(id: string) {
     queryFn: async () => {
       const token = await getToken();
       if (token) {
-        localStorage.setItem("clerk-token", token);
+        setApiAuthToken(token);
       }
       return canvasApi.getById(id);
     },
@@ -195,9 +192,10 @@ export function useCanvasItems(canvasId: string) {
     queryFn: async () => {
       const token = await getToken();
       if (token) {
-        localStorage.setItem("clerk-token", token);
+        setApiAuthToken(token);
       }
-      return canvasApi.getItems(canvasId);
+      const result = await canvasApi.getItems(canvasId);
+      return result.items;
     },
     enabled: !!canvasId,
   });
@@ -218,7 +216,7 @@ export function useCreateFolder() {
     mutationFn: async (data: CreateFolderRequest) => {
       const token = await getToken();
       if (token) {
-        localStorage.setItem("clerk-token", token);
+        setApiAuthToken(token);
       }
       return folderApi.create(data);
     },
@@ -241,7 +239,7 @@ export function useCreateCanvas() {
     mutationFn: async (data: CreateCanvasRequest) => {
       const token = await getToken();
       if (token) {
-        localStorage.setItem("clerk-token", token);
+        setApiAuthToken(token);
       }
       return canvasApi.create(data);
     },
@@ -264,7 +262,7 @@ export function useDeleteFolder() {
     mutationFn: async (id: string) => {
       const token = await getToken();
       if (token) {
-        localStorage.setItem("clerk-token", token);
+        setApiAuthToken(token);
       }
       return folderApi.delete(id);
     },
@@ -286,7 +284,7 @@ export function useDeleteCanvas() {
     mutationFn: async (id: string) => {
       const token = await getToken();
       if (token) {
-        localStorage.setItem("clerk-token", token);
+        setApiAuthToken(token);
       }
       return canvasApi.delete(id);
     },
@@ -316,7 +314,7 @@ export function useUpdateItemPosition() {
     }) => {
       const token = await getToken();
       if (token) {
-        localStorage.setItem("clerk-token", token);
+        setApiAuthToken(token);
       }
       return dashboardApi.updatePosition(itemId, itemType, position);
     },

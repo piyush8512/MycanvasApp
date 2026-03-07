@@ -21,15 +21,17 @@ export function QueryProvider({ children }: QueryProviderProps) {
         defaultOptions: {
           queries: {
             // Stale time - how long data is considered fresh
-            staleTime: 30 * 1000, // 30 seconds
+            staleTime: 60 * 1000, // 60 seconds
             // Cache time - how long inactive data stays in cache
             gcTime: 5 * 60 * 1000, // 5 minutes
             // Retry failed requests
             retry: 1,
-            // Refetch on window focus (useful for dashboard)
-            refetchOnWindowFocus: true,
-            // Don't refetch on mount if data is fresh
-            refetchOnMount: true,
+            // Avoid noisy refetches when users tab between windows.
+            refetchOnWindowFocus: false,
+            // Keep mount behavior cheap unless query is stale.
+            refetchOnMount: false,
+            // Recover after network drops.
+            refetchOnReconnect: true,
           },
           mutations: {
             // Retry failed mutations once

@@ -13,9 +13,14 @@ const pool = new Pool({
 
 const adapter = new PrismaPg(pool);
 
+const isProduction = process.env.NODE_ENV === 'production';
+const prismaLogLevels = isProduction
+  ? ['error']
+  : ['query', 'error', 'warn'];
+
 const prisma = new PrismaClient({
   adapter,
-  log: ['query', 'error', 'warn'],
+  log: prismaLogLevels,
 });
 
 // Test connection on startup

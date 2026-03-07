@@ -118,7 +118,8 @@ export const getAllFolders = async (req, res) => {
       });
     }
 
-    // Get all folders for the user
+    // Get all folders for the user with lightweight file summaries.
+    // This allows dashboard rendering without N+1 folder detail calls.
     const folders = await prisma.folder.findMany({
       where: {
         OR: [
@@ -149,6 +150,21 @@ export const getAllFolders = async (req, res) => {
                 email: true
               }
             }
+          }
+        },
+        files: {
+          select: {
+            id: true,
+            name: true,
+            positionX: true,
+            positionY: true,
+            size: true,
+            url: true,
+            createdAt: true,
+            updatedAt: true
+          },
+          orderBy: {
+            createdAt: 'desc'
           }
         }
       }

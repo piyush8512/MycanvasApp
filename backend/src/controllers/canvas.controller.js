@@ -578,22 +578,50 @@ export const getCanvasItems = async (req, res) => {
     const { canvasId } = req.params;
     const clerkId = req.auth.userId;
 
+    const rawLimit = Number.parseInt(req.query.limit, 10);
+    const rawOffset = Number.parseInt(req.query.offset, 10);
+
+    // Guardrails: keep payload bounded for smooth first paint and predictable costs.
+    const limit = Number.isFinite(rawLimit)
+      ? Math.min(Math.max(rawLimit, 1), 200)
+      : 200;
+    const offset = Number.isFinite(rawOffset)
+      ? Math.max(rawOffset, 0)
+      : 0;
+
     // TODO: Add logic to verify user has access to this canvas
     // For now, we just fetch all items for the canvas
 
-    const items = await prisma.canvasItem.findMany({
-      where: {
-        canvasId: canvasId,
-      },
-      // You can order them if you like
-      // orderBy: {
-      //   createdAt: 'asc',
-      // }
-    });
+    const [items, total] = await Promise.all([
+      prisma.canvasItem.findMany({
+        where: {
+          canvasId: canvasId,
+        },
+        orderBy: {
+          createdAt: "asc",
+        },
+        skip: offset,
+        take: limit,
+      }),
+      prisma.canvasItem.count({
+        where: {
+          canvasId: canvasId,
+        },
+      }),
+    ]);
+
+    const nextOffset = offset + items.length;
 
     res.status(200).json({
       success: true,
       items: items,
+      pagination: {
+        limit,
+        offset,
+        total,
+        hasMore: nextOffset < total,
+        nextOffset: nextOffset < total ? nextOffset : null,
+      },
     });
   } catch (error) {
     console.error("Failed to get canvas items:", error);
