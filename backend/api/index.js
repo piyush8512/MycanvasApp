@@ -16,8 +16,10 @@ const EXTENSION_ID = 'ajfafhdnmjahkkdkefjlpcclpjobmend';
 
 const corsOptions = {
   origin: [
-    process.env.FRONTEND_URL || 'http://localhost:5173',
+    process.env.FRONTEND_URL || 
+    'http://localhost:5173',
     'http://localhost:3000',
+    'https://mycanvas-app-seven.vercel.app/dashboard',
     `chrome-extension://${EXTENSION_ID}`,
     process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null
   ].filter(Boolean),
