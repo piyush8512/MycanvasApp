@@ -150,21 +150,8 @@ export default function DashboardPage() {
     [toggleFolderExpansion, handleCanvasOpen, closeModal, clearSearch],
   );
 
-  // ========== Loading & Error States ==========
-  if (isLoading) {
-    return (
-      <div className="h-screen w-screen flex items-center justify-center bg-gray-50 dark:bg-[#0f0f12]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-500 dark:text-gray-400">
-            Loading your workspace...
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
+  // ========== Error State ==========
+  if (error && items.length === 0 && !isLoading) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-gray-50 dark:bg-[#0f0f12]">
         <div className="text-center max-w-md px-4">
@@ -187,7 +174,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="h-screen w-screen overflow-hidden">
+    <div className="h-screen w-screen overflow-hidden relative">
       {/* Main Canvas Area - Full screen */}
       <InfiniteCanvas
         items={filteredItems}
@@ -198,6 +185,12 @@ export default function DashboardPage() {
         onCanvasOpen={handleCanvasOpen}
         onSearch={() => openModal("search")}
       />
+
+      {isLoading && items.length === 0 && (
+        <div className="absolute top-4 left-4 z-50 rounded-lg border border-gray-200 dark:border-gray-700 bg-white/90 dark:bg-[#1a1a1f]/90 px-3 py-2 text-xs text-gray-600 dark:text-gray-300 shadow-sm backdrop-blur">
+          Loading your workspace...
+        </div>
+      )}
 
       {/* Create Item Modal */}
       <CreateItemModal

@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useRef, useCallback, useState, useEffect } from "react";
+import React, {
+  useRef,
+  useCallback,
+  useState,
+  useEffect,
+  useMemo,
+} from "react";
 import {
   Folder,
   File,
@@ -40,6 +46,11 @@ import {
 } from "@/types/canvas";
 import type { Position, DashboardItem } from "@/types/canvas";
 
+const VIEWPORT_RENDER_BUFFER = 280;
+const OFFSCREEN_RENDER_CHUNK = 36;
+const ITEM_RENDER_WIDTH = 220;
+const ITEM_RENDER_HEIGHT = 180;
+
 // Re-export types for components that import from here
 export type { Position };
 
@@ -70,6 +81,8 @@ export default function InfiniteCanvas({
     width: 1200,
     height: 800,
   });
+
+  const [offscreenRenderCount, setOffscreenRenderCount] = useState(0);
   const [lockedItems, setLockedItems] = useState<Set<string>>(new Set());
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
 
@@ -279,6 +292,114 @@ export default function InfiniteCanvas({
     [setPan],
   );
 
+  const renderPartition = useMemo(() => {
+    if (!items.length) {
+      return {
+        viewportItems: [] as DashboardItem[],
+        offscreenItems: [] as DashboardItem[],
+      };
+    }
+
+    const viewLeft = -pan.x / zoom - VIEWPORT_RENDER_BUFFER;
+    const viewTop = -pan.y / zoom - VIEWPORT_RENDER_BUFFER;
+    const viewRight =
+      (-pan.x + containerSize.width) / zoom + VIEWPORT_RENDER_BUFFER;
+    const viewBottom =
+      (-pan.y + containerSize.height) / zoom + VIEWPORT_RENDER_BUFFER;
+
+    const viewportItems: DashboardItem[] = [];
+    const offscreenItems: DashboardItem[] = [];
+
+    for (const item of items) {
+      const position = getItemPosition(item.id) || item.position;
+      const left = position.x;
+      const top = position.y;
+      const right = position.x + ITEM_RENDER_WIDTH;
+      const bottom = position.y + ITEM_RENDER_HEIGHT;
+
+      const intersectsViewport =
+        right >= viewLeft &&
+        left <= viewRight &&
+        bottom >= viewTop &&
+        top <= viewBottom;
+
+      if (intersectsViewport) {
+        viewportItems.push(item);
+      } else {
+        offscreenItems.push(item);
+      }
+    }
+
+    return {
+      viewportItems,
+      offscreenItems,
+    };
+  }, [
+    items,
+    pan.x,
+    pan.y,
+    zoom,
+    containerSize.width,
+    containerSize.height,
+    getItemPosition,
+  ]);
+
+  useEffect(() => {
+    setOffscreenRenderCount(0);
+  }, [items]);
+
+  useEffect(() => {
+    if (offscreenRenderCount >= renderPartition.offscreenItems.length) {
+      return;
+    }
+
+    let cancelled = false;
+    let idleId: number | null = null;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const runChunk = () => {
+      if (cancelled) return;
+      setOffscreenRenderCount((prev) =>
+        Math.min(
+          prev + OFFSCREEN_RENDER_CHUNK,
+          renderPartition.offscreenItems.length,
+        ),
+      );
+    };
+
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      idleId = (window as any).requestIdleCallback(runChunk, { timeout: 120 });
+    } else {
+      timeoutId = globalThis.setTimeout(runChunk, 24);
+    }
+
+    return () => {
+      cancelled = true;
+      if (
+        idleId != null &&
+        typeof window !== "undefined" &&
+        "cancelIdleCallback" in window
+      ) {
+        (window as any).cancelIdleCallback(idleId);
+      }
+      if (timeoutId != null) {
+        globalThis.clearTimeout(timeoutId);
+      }
+    };
+  }, [offscreenRenderCount, renderPartition.offscreenItems.length]);
+
+  const renderedItems = useMemo(() => {
+    const offscreenSlice = renderPartition.offscreenItems.slice(
+      0,
+      offscreenRenderCount,
+    );
+    return [...renderPartition.viewportItems, ...offscreenSlice];
+  }, [
+    renderPartition.viewportItems,
+    renderPartition.offscreenItems,
+    offscreenRenderCount,
+  ]);
+
   // Render grid pattern (dots like in mobile app)
   const renderGrid = () => {
     const gridSpacing = GRID_SIZE * zoom;
@@ -341,7 +462,7 @@ export default function InfiniteCanvas({
         <div
           className={`
             relative bg-white dark:bg-[#1a1a1f] rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700
-            min-w-[160px] overflow-visible transition-all duration-200
+            min-w-40 overflow-visible transition-all duration-200
             ${isLocked ? "ring-2 ring-gray-300 dark:ring-gray-600" : ""}
             ${isBeingDragged ? "shadow-xl scale-105" : "hover:shadow-md"}
           `}
@@ -548,8 +669,16 @@ export default function InfiniteCanvas({
           top: 0,
         }}
       >
-        <div className="pointer-events-auto">{items.map(renderItem)}</div>
+        <div className="pointer-events-auto">
+          {renderedItems.map(renderItem)}
+        </div>
       </div>
+
+      {renderedItems.length < items.length && (
+        <div className="floating-ui absolute top-4 left-4 z-50 rounded-lg border border-gray-200 dark:border-gray-700 bg-white/90 dark:bg-[#1a1a1f]/90 px-3 py-2 text-xs text-gray-600 dark:text-gray-300 shadow-sm backdrop-blur">
+          Loading items {renderedItems.length}/{items.length}
+        </div>
+      )}
 
       {/* ========== FLOATING UI - Fixed, not affected by zoom ========== */}
 
