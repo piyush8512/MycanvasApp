@@ -63,11 +63,34 @@
 
 import { clerkClient } from '@clerk/clerk-sdk-node';
 import prisma from '../config/prisma.js'; // Import prisma
+import { createUserWithFriendCode } from '../services/friend.service.js';
 
 // --- Helper function to get the DB user from Clerk ID ---
 async function getDbUser(clerkId) {
   if (!clerkId) return null;
   return await prisma.user.findUnique({ where: { clerkId } });
+}
+
+function getClerkPrimaryEmail(clerkUser) {
+  if (!clerkUser) return null;
+  const primary = clerkUser.emailAddresses?.find(
+    (email) => email.id === clerkUser.primaryEmailAddressId
+  );
+  return primary?.emailAddress || clerkUser.emailAddresses?.[0]?.emailAddress || null;
+}
+
+async function ensureDbUser(clerkUserId, clerkUser) {
+  let dbUser = await getDbUser(clerkUserId);
+  if (dbUser) return dbUser;
+
+  const email = getClerkPrimaryEmail(clerkUser);
+  if (!email) {
+    throw new Error('Authenticated Clerk user has no primary email address');
+  }
+
+  const name = `${clerkUser?.firstName || ''} ${clerkUser?.lastName || ''}`.trim() || null;
+  dbUser = await createUserWithFriendCode(clerkUserId, email, name);
+  return dbUser;
 }
 
 export const requireAuth = async (req, res, next) => {
@@ -88,7 +111,7 @@ export const requireAuth = async (req, res, next) => {
     // 1. Fetch the full Clerk user object
     const clerkUser = await clerkClient.users.getUser(sessionClaims.sub);
     // 2. Fetch your internal database user
-    const dbUser = await getDbUser(sessionClaims.sub);
+    const dbUser = await ensureDbUser(sessionClaims.sub, clerkUser);
     
     // 3. Attach all auth info to the request
     req.auth = {
@@ -125,7 +148,7 @@ export const optionalAuth = async (req, res, next) => {
     
     if (sessionClaims) {
       const clerkUser = await clerkClient.users.getUser(sessionClaims.sub);
-      const dbUser = await getDbUser(sessionClaims.sub); // Add this
+      const dbUser = await ensureDbUser(sessionClaims.sub, clerkUser);
       
       req.auth = {
         userId: sessionClaims.sub,

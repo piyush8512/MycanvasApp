@@ -75,8 +75,8 @@ export default function ExtensionLogin() {
             // This is the key:
             // Force the user to come BACK to this page after logging in
             // instead of going to /dashboard.
-            afterSignInUrl="/extension-login"
-            afterSignUpUrl="/extension-login"
+            fallbackRedirectUrl="/extension-login"
+            forceRedirectUrl="/extension-login"
           />
         </div>
       </div>
