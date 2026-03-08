@@ -45,6 +45,7 @@ import {
   ZOOM_PRESETS,
 } from "@/types/canvas";
 import type { Position, DashboardItem } from "@/types/canvas";
+import RenderGrid from "../dashboard/canvas/rendergrid";
 
 const VIEWPORT_RENDER_BUFFER = 280;
 const OFFSCREEN_RENDER_CHUNK = 36;
@@ -85,6 +86,7 @@ export default function InfiniteCanvas({
   const [offscreenRenderCount, setOffscreenRenderCount] = useState(0);
   const [lockedItems, setLockedItems] = useState<Set<string>>(new Set());
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  const [showGrid, setShowGrid] = useState(false);
 
   // Toggle lock state for an item
   const toggleItemLock = useCallback((itemId: string) => {
@@ -400,36 +402,6 @@ export default function InfiniteCanvas({
     offscreenRenderCount,
   ]);
 
-  // Render grid pattern (dots like in mobile app)
-  const renderGrid = () => {
-    const gridSpacing = GRID_SIZE * zoom;
-    const offsetX = pan.x % gridSpacing;
-    const offsetY = pan.y % gridSpacing;
-
-    return (
-      <svg className="absolute inset-0 w-full h-full pointer-events-none">
-        <defs>
-          <pattern
-            id="grid-dots"
-            width={gridSpacing}
-            height={gridSpacing}
-            patternUnits="userSpaceOnUse"
-            x={offsetX}
-            y={offsetY}
-          >
-            <circle
-              cx={gridSpacing / 2}
-              cy={gridSpacing / 2}
-              r="1.5"
-              fill="var(--grid-color)"
-            />
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#grid-dots)" />
-      </svg>
-    );
-  };
-
   // Render canvas item (folder or canvas file)
   const renderItem = (item: DashboardItem) => {
     const isFolder = item.type === "folder";
@@ -658,7 +630,7 @@ export default function InfiniteCanvas({
       onDoubleClick={handleDoubleClick}
     >
       {/* Grid Pattern */}
-      {renderGrid()}
+      {showGrid && <RenderGrid />}
 
       {/* Canvas Content - Moves with pan/zoom */}
       <div
@@ -693,7 +665,10 @@ export default function InfiniteCanvas({
       {/* Top Center - Main Toolbar */}
       <div className="floating-ui absolute top-4 left-1/2 -translate-x-1/2 z-50">
         <div className="bg-white dark:bg-[#1a1a1f] rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 flex items-center p-1 gap-1">
-          <button className="p-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors">
+          <button
+            onClick={() => setShowGrid((prev) => !prev)}
+            className="p-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors"
+          >
             <Grid3X3 className="w-5 h-5" />
           </button>
           <button className="p-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors">
