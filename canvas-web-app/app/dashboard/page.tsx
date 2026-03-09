@@ -90,7 +90,8 @@ export default function DashboardPage() {
   const handleFolderToggle = useCallback(
     (folderId: string) => {
       const folder = items.find(
-        (item): item is Folder => item.type === "folder" && item.id === folderId,
+        (item): item is Folder =>
+          item.type === "folder" && item.id === folderId,
       );
       if (folder) {
         setActiveFolder(folder);
@@ -102,7 +103,8 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!activeFolder) return;
     const latestFolder = items.find(
-      (item): item is Folder => item.type === "folder" && item.id === activeFolder.id,
+      (item): item is Folder =>
+        item.type === "folder" && item.id === activeFolder.id,
     );
     if (!latestFolder) {
       setActiveFolder(null);

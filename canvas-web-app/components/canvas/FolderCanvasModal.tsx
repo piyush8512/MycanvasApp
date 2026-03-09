@@ -1,7 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { X, Plus, Pencil, Trash2, ExternalLink, Check, Folder } from "lucide-react";
+import {
+  X,
+  Plus,
+  Pencil,
+  Trash2,
+  ExternalLink,
+  Check,
+  Folder,
+} from "lucide-react";
 import type { Folder as FolderType } from "@/types/canvas";
 
 interface FolderCanvasModalProps {
@@ -122,7 +130,9 @@ export default function FolderCanvasModal({
                           className="h-9 w-full rounded-lg border border-[#355185] bg-[#0b1424] px-2 text-sm text-[#d9e4ff] outline-none"
                         />
                       ) : (
-                        <p className="truncate text-sm font-medium text-white">{canvas.name}</p>
+                        <p className="truncate text-sm font-medium text-white">
+                          {canvas.name}
+                        </p>
                       )}
                     </div>
 
