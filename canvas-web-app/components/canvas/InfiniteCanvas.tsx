@@ -13,7 +13,6 @@ import type { Position, DashboardItem } from "@/types/canvas";
 import RenderGrid from "../dashboard/canvas/rendergrid";
 import FolderCard from "./infinite-canvas/components/FolderCard";
 import CanvasCard from "./infinite-canvas/components/CanvasCard";
-import ExpandedFolderContents from "./infinite-canvas/components/ExpandedFolderContents";
 import FloatingUiLayer from "./infinite-canvas/components/FloatingUiLayer";
 
 const VIEWPORT_RENDER_BUFFER = 280;
@@ -400,23 +399,16 @@ export default function InfiniteCanvas({
         }}
       >
         {isFolder ? (
-          <>
-            <FolderCard
-              item={item}
-              isLocked={isLocked}
-              isBeingDragged={isBeingDragged}
-              isMenuOpen={isMenuOpen}
-              onToggleLock={() => toggleItemLock(item.id)}
-              onToggleMenu={() => setActiveMenu(isMenuOpen ? null : item.id)}
-              onCloseMenu={() => setActiveMenu(null)}
-              onOpen={() => onFolderToggle(item.id)}
-            />
-            <ExpandedFolderContents
-              item={item}
-              onCanvasOpen={onCanvasOpen}
-              onCreateItem={onCreateItem}
-            />
-          </>
+          <FolderCard
+            item={item}
+            isLocked={isLocked}
+            isBeingDragged={isBeingDragged}
+            isMenuOpen={isMenuOpen}
+            onToggleLock={() => toggleItemLock(item.id)}
+            onToggleMenu={() => setActiveMenu(isMenuOpen ? null : item.id)}
+            onCloseMenu={() => setActiveMenu(null)}
+            onOpen={() => onFolderToggle(item.id)}
+          />
         ) : (
           <CanvasCard
             item={item}

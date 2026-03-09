@@ -296,6 +296,34 @@ export function useDeleteCanvas() {
 }
 
 /**
+ * Update a canvas (e.g., rename)
+ */
+export function useUpdateCanvas() {
+  const queryClient = useQueryClient();
+  const { getToken } = useAuth();
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: Partial<{ name: string; position: Position }>;
+    }) => {
+      const token = await getToken();
+      if (token) {
+        setApiAuthToken(token);
+      }
+      return canvasApi.update(id, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
+      queryClient.invalidateQueries({ queryKey: queryKeys.canvases });
+    },
+  });
+}
+
+/**
  * Update item position (optimistic update)
  */
 export function useUpdateItemPosition() {

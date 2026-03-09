@@ -1,25 +1,27 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import InfiniteCanvas from "@/components/canvas/InfiniteCanvas";
 import CreateItemModal from "@/components/canvas/CreateItemModal";
 import SearchModal from "@/components/canvas/SearchModal";
+import FolderCanvasModal from "@/components/canvas/FolderCanvasModal";
 
 // React Query hooks
 import {
   useDashboardItems,
   useCreateFolder,
   useCreateCanvas,
+  useDeleteCanvas,
+  useUpdateCanvas,
   useUpdateItemPosition,
 } from "@/hooks/queries/useDashboard";
 
 // Zustand stores
-import { useCanvasStore } from "@/stores/canvasStore";
 import { useUIStore } from "@/stores/uiStore";
 
 // Types
-import type { DashboardItem, Position } from "@/types/canvas";
+import type { DashboardItem, Position, Folder } from "@/types/canvas";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -28,10 +30,12 @@ export default function DashboardPage() {
   const { data: items = [], isLoading, error } = useDashboardItems();
   const createFolderMutation = useCreateFolder();
   const createCanvasMutation = useCreateCanvas();
+  const deleteCanvasMutation = useDeleteCanvas();
+  const updateCanvasMutation = useUpdateCanvas();
   const updatePositionMutation = useUpdateItemPosition();
+  const [activeFolder, setActiveFolder] = useState<Folder | null>(null);
 
   // ========== Zustand Stores ==========
-  const { toggleFolderExpansion, isFolderExpanded } = useCanvasStore();
   const {
     activeModal,
     modalData,
@@ -43,13 +47,7 @@ export default function DashboardPage() {
   } = useUIStore();
 
   // ========== Derived State ==========
-  // Add isExpanded flag based on store state
-  const itemsWithExpansion = useMemo(() => {
-    return items.map((item) => ({
-      ...item,
-      isExpanded: item.type === "folder" ? isFolderExpanded(item.id) : false,
-    }));
-  }, [items, isFolderExpanded]);
+  const itemsWithExpansion = items;
 
   // Filter items based on search
   const filteredItems = useMemo(() => {
@@ -88,13 +86,30 @@ export default function DashboardPage() {
     console.log("Item clicked:", item);
   }, []);
 
-  // Handle folder toggle (expand/collapse)
+  // Handle folder click -> open modal with canvases
   const handleFolderToggle = useCallback(
     (folderId: string) => {
-      toggleFolderExpansion(folderId);
+      const folder = items.find(
+        (item): item is Folder => item.type === "folder" && item.id === folderId,
+      );
+      if (folder) {
+        setActiveFolder(folder);
+      }
     },
-    [toggleFolderExpansion],
+    [items],
   );
+
+  useEffect(() => {
+    if (!activeFolder) return;
+    const latestFolder = items.find(
+      (item): item is Folder => item.type === "folder" && item.id === activeFolder.id,
+    );
+    if (!latestFolder) {
+      setActiveFolder(null);
+      return;
+    }
+    setActiveFolder(latestFolder);
+  }, [items, activeFolder]);
 
   // Handle create item request (opens modal)
   const handleCreateItem = useCallback(
@@ -140,14 +155,40 @@ export default function DashboardPage() {
   const handleSearchItemClick = useCallback(
     (item: DashboardItem) => {
       if (item.type === "folder") {
-        toggleFolderExpansion(item.id);
+        setActiveFolder(item);
       } else {
         handleCanvasOpen(item.id);
       }
       closeModal();
       clearSearch();
     },
-    [toggleFolderExpansion, handleCanvasOpen, closeModal, clearSearch],
+    [handleCanvasOpen, closeModal, clearSearch],
+  );
+
+  const handleCreateCanvasInFolder = useCallback(
+    async (name: string) => {
+      if (!activeFolder) return;
+      await createCanvasMutation.mutateAsync({
+        name,
+        folderId: activeFolder.id,
+        position: { x: 0, y: 0 },
+      });
+    },
+    [activeFolder, createCanvasMutation],
+  );
+
+  const handleRenameCanvasInFolder = useCallback(
+    async (canvasId: string, name: string) => {
+      await updateCanvasMutation.mutateAsync({ id: canvasId, data: { name } });
+    },
+    [updateCanvasMutation],
+  );
+
+  const handleDeleteCanvasInFolder = useCallback(
+    async (canvasId: string) => {
+      await deleteCanvasMutation.mutateAsync(canvasId);
+    },
+    [deleteCanvasMutation],
   );
 
   // ========== Error State ==========
@@ -212,6 +253,21 @@ export default function DashboardPage() {
         onSearchChange={setSearchQuery}
         items={itemsWithExpansion}
         onItemClick={handleSearchItemClick}
+      />
+
+      <FolderCanvasModal
+        isOpen={!!activeFolder}
+        folder={activeFolder}
+        onClose={() => setActiveFolder(null)}
+        onOpenCanvas={handleCanvasOpen}
+        onCreateCanvas={handleCreateCanvasInFolder}
+        onRenameCanvas={handleRenameCanvasInFolder}
+        onDeleteCanvas={handleDeleteCanvasInFolder}
+        isBusy={
+          createCanvasMutation.isPending ||
+          updateCanvasMutation.isPending ||
+          deleteCanvasMutation.isPending
+        }
       />
     </div>
   );
