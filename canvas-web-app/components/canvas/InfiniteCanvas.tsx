@@ -7,45 +7,14 @@ import React, {
   useEffect,
   useMemo,
 } from "react";
-import {
-  Folder,
-  File,
-  Plus,
-  Grid3X3,
-  Users,
-  Share2,
-  MoreHorizontal,
-  Search,
-  Image,
-  StickyNote,
-  Link,
-  Paperclip,
-  Home,
-  Pencil,
-  Lock,
-  Unlock,
-  Globe,
-  Trash2,
-  Copy,
-  Edit3,
-  FolderInput,
-} from "lucide-react";
-import { UserButton } from "@clerk/nextjs";
-import ThemeToggle from "@/components/ThemeToggle";
-import FolderSidebar from "@/components/canvas/FolderSidebar";
-import MiniMap from "@/components/canvas/MiniMap";
 import { useCanvasStore, clampItemPosition } from "@/stores/canvasStore";
-import {
-  GRID_SIZE,
-  MIN_ZOOM,
-  MAX_ZOOM,
-  CANVAS_SIZE,
-  CANVAS_MIN,
-  CANVAS_MAX,
-  ZOOM_PRESETS,
-} from "@/types/canvas";
+import { MIN_ZOOM, MAX_ZOOM } from "@/types/canvas";
 import type { Position, DashboardItem } from "@/types/canvas";
 import RenderGrid from "../dashboard/canvas/rendergrid";
+import FolderCard from "./infinite-canvas/components/FolderCard";
+import CanvasCard from "./infinite-canvas/components/CanvasCard";
+import ExpandedFolderContents from "./infinite-canvas/components/ExpandedFolderContents";
+import FloatingUiLayer from "./infinite-canvas/components/FloatingUiLayer";
 
 const VIEWPORT_RENDER_BUFFER = 280;
 const OFFSCREEN_RENDER_CHUNK = 36;
@@ -86,7 +55,7 @@ export default function InfiniteCanvas({
   const [offscreenRenderCount, setOffscreenRenderCount] = useState(0);
   const [lockedItems, setLockedItems] = useState<Set<string>>(new Set());
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
-  const [showGrid, setShowGrid] = useState(false);
+  const [showGrid, setShowGrid] = useState(true);
 
   // Toggle lock state for an item
   const toggleItemLock = useCallback((itemId: string) => {
@@ -430,188 +399,35 @@ export default function InfiniteCanvas({
           }
         }}
       >
-        {/* Card design matching mobile app */}
-        <div
-          className={`
-            relative bg-white dark:bg-[#1a1a1f] rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700
-            min-w-40 overflow-visible transition-all duration-200
-            ${isLocked ? "ring-2 ring-gray-300 dark:ring-gray-600" : ""}
-            ${isBeingDragged ? "shadow-xl scale-105" : "hover:shadow-md"}
-          `}
-        >
-          {/* Icon area */}
-          <div className="p-4 pb-2 flex items-start justify-between">
-            <div
-              className={`p-2 rounded-lg ${
-                isFolder
-                  ? "bg-gray-100 dark:bg-gray-800"
-                  : "bg-blue-50 dark:bg-blue-900/30"
-              }`}
-            >
-              {isFolder ? (
-                <Folder className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-              ) : (
-                <File className="w-5 h-5 text-blue-500" />
-              )}
-            </div>
-
-            {/* Lock & Menu buttons */}
-            <div className="flex items-center gap-1">
-              {/* Lock/Unlock Button */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleItemLock(item.id);
-                }}
-                onMouseDown={(e) => e.stopPropagation()}
-                className={`p-1.5 rounded-lg transition-colors ${
-                  isLocked
-                    ? "bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400"
-                    : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400"
-                }`}
-                title={isLocked ? "Unlock to drag" : "Lock position"}
-              >
-                {isLocked ? (
-                  <Lock className="w-4 h-4" />
-                ) : (
-                  <Unlock className="w-4 h-4" />
-                )}
-              </button>
-
-              {/* Three-dot menu */}
-              <div className="relative">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setActiveMenu(isMenuOpen ? null : item.id);
-                  }}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 transition-colors"
-                >
-                  <MoreHorizontal className="w-4 h-4" />
-                </button>
-
-                {/* Dropdown Menu */}
-                {isMenuOpen && (
-                  <div
-                    className="absolute right-0 top-8 w-40 bg-white dark:bg-[#1a1a1f] rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 py-1 z-50"
-                    onClick={(e) => e.stopPropagation()}
-                    onMouseDown={(e) => e.stopPropagation()}
-                  >
-                    <button
-                      className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2"
-                      onClick={() => {
-                        if (isFolder) {
-                          onFolderToggle(item.id);
-                        } else {
-                          onCanvasOpen(item.id);
-                        }
-                        setActiveMenu(null);
-                      }}
-                    >
-                      <FolderInput className="w-4 h-4" />
-                      Open
-                    </button>
-                    <button
-                      className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2"
-                      onClick={() => {
-                        // TODO: Implement rename
-                        console.log("Rename:", item.name);
-                        setActiveMenu(null);
-                      }}
-                    >
-                      <Edit3 className="w-4 h-4" />
-                      Rename
-                    </button>
-                    <button
-                      className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2"
-                      onClick={() => {
-                        // TODO: Implement duplicate
-                        console.log("Duplicate:", item.name);
-                        setActiveMenu(null);
-                      }}
-                    >
-                      <Copy className="w-4 h-4" />
-                      Duplicate
-                    </button>
-                    <button
-                      className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2"
-                      onClick={() => {
-                        toggleItemLock(item.id);
-                        setActiveMenu(null);
-                      }}
-                    >
-                      {isLocked ? (
-                        <Unlock className="w-4 h-4" />
-                      ) : (
-                        <Lock className="w-4 h-4" />
-                      )}
-                      {isLocked ? "Unlock" : "Lock Position"}
-                    </button>
-                    <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
-                    <button
-                      className="w-full px-3 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
-                      onClick={() => {
-                        // TODO: Implement delete
-                        console.log("Delete:", item.name);
-                        setActiveMenu(null);
-                      }}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      Delete
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Name */}
-          <div className="px-4 pb-4">
-            <h3 className="font-medium text-gray-900 dark:text-white text-sm truncate">
-              {item.name}
-            </h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              {isFolder
-                ? `${item.canvasFiles?.length || 0} canvases`
-                : `${item.itemCount || 0} items`}
-            </p>
-          </div>
-        </div>
-
-        {/* Expanded folder contents */}
-        {isFolder && item.isExpanded && item.canvasFiles && (
-          <div className="mt-3 space-y-2">
-            {item.canvasFiles.map((canvasFile) => (
-              <div
-                key={canvasFile.id}
-                className="bg-white dark:bg-[#1a1a1f] rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-3 cursor-pointer hover:shadow-md transition-shadow"
-                onMouseDown={(e) => e.stopPropagation()}
-                onDoubleClick={(e) => {
-                  e.stopPropagation();
-                  onCanvasOpen(canvasFile.id);
-                }}
-              >
-                <div className="flex items-center gap-2">
-                  <File className="w-4 h-4 text-blue-500" />
-                  <span className="text-sm text-gray-900 dark:text-white truncate">
-                    {canvasFile.name}
-                  </span>
-                </div>
-              </div>
-            ))}
-            <button
-              className="w-full p-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl text-gray-500 hover:border-blue-500 hover:text-blue-500 transition-colors flex items-center justify-center gap-2"
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation();
-                onCreateItem("canvas", item.position, item.id);
-              }}
-            >
-              <Plus className="w-4 h-4" />
-              <span className="text-xs">Add Canvas</span>
-            </button>
-          </div>
+        {isFolder ? (
+          <>
+            <FolderCard
+              item={item}
+              isLocked={isLocked}
+              isBeingDragged={isBeingDragged}
+              isMenuOpen={isMenuOpen}
+              onToggleLock={() => toggleItemLock(item.id)}
+              onToggleMenu={() => setActiveMenu(isMenuOpen ? null : item.id)}
+              onCloseMenu={() => setActiveMenu(null)}
+              onOpen={() => onFolderToggle(item.id)}
+            />
+            <ExpandedFolderContents
+              item={item}
+              onCanvasOpen={onCanvasOpen}
+              onCreateItem={onCreateItem}
+            />
+          </>
+        ) : (
+          <CanvasCard
+            item={item}
+            isLocked={isLocked}
+            isBeingDragged={isBeingDragged}
+            isMenuOpen={isMenuOpen}
+            onToggleLock={() => toggleItemLock(item.id)}
+            onToggleMenu={() => setActiveMenu(isMenuOpen ? null : item.id)}
+            onCloseMenu={() => setActiveMenu(null)}
+            onOpen={() => onCanvasOpen(item.id)}
+          />
         )}
       </div>
     );
@@ -652,182 +468,25 @@ export default function InfiniteCanvas({
         </div>
       )}
 
-      {/* ========== FLOATING UI - Fixed, not affected by zoom ========== */}
-
-      {/* Left - Folder Sidebar */}
-      <FolderSidebar
-        items={items}
-        onFolderClick={onFolderToggle}
-        onCanvasClick={onCanvasOpen}
-        onNavigateToItem={handleNavigateToItem}
-      />
-
-      {/* Top Center - Main Toolbar */}
-      <div className="floating-ui absolute top-4 left-1/2 -translate-x-1/2 z-50">
-        <div className="bg-white dark:bg-[#1a1a1f] rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 flex items-center p-1 gap-1">
-          <button
-            onClick={() => setShowGrid((prev) => !prev)}
-            className="p-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors"
-          >
-            <Grid3X3 className="w-5 h-5" />
-          </button>
-          <button className="p-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors">
-            <Users className="w-5 h-5" />
-          </button>
-          <button className="p-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors">
-            <Share2 className="w-5 h-5" />
-          </button>
-          <button className="p-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors">
-            <MoreHorizontal className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
-
-      {/* Top Right - Search & User */}
-      <div className="floating-ui absolute top-4 right-4 z-50 flex items-center gap-3">
-        <button
-          onClick={onSearch}
-          className="p-2.5 bg-white dark:bg-[#1a1a1f] rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-        >
-          <Search className="w-5 h-5" />
-        </button>
-        <ThemeToggle />
-        <div className="bg-white dark:bg-[#1a1a1f] rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-1">
-          <UserButton afterSignOutUrl="/" />
-        </div>
-      </div>
-
-      {/* Bottom Left - Public/Private & Mode Toggle */}
-      <div className="floating-ui absolute bottom-4 left-4 z-50 flex items-center gap-3">
-        {/* Public/Private Toggle */}
-        <div className="bg-white dark:bg-[#1a1a1f] rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-1 flex flex-col">
-          <button
-            onClick={() => setIsPublic(false)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              !isPublic
-                ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white"
-                : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-            }`}
-          >
-            Public
-          </button>
-          <button
-            onClick={() => setIsPublic(true)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              isPublic
-                ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white"
-                : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-            }`}
-          >
-            Private
-          </button>
-        </div>
-
-        {/* Home/Edit Mode Toggle */}
-        <div className="bg-white dark:bg-[#1a1a1f] rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-1 flex items-center gap-1">
-          <button
-            onClick={() => setViewMode("home")}
-            className={`p-2 rounded-lg transition-colors ${
-              viewMode === "home"
-                ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white"
-                : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-            }`}
-          >
-            <Home className="w-4 h-4" />
-          </button>
-          <span className="text-gray-300 dark:text-gray-600">/</span>
-          <button
-            onClick={() => setViewMode("edit")}
-            className={`p-2 rounded-lg transition-colors ${
-              viewMode === "edit"
-                ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white"
-                : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-            }`}
-          >
-            <Pencil className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* Bottom Center - Tools */}
-      <div className="floating-ui absolute bottom-4 left-1/2 -translate-x-1/2 z-50">
-        <div className="bg-white dark:bg-[#1a1a1f] rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 flex items-center p-1 gap-1">
-          <button className="p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors">
-            <Image className="w-5 h-5" />
-          </button>
-          <button className="p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors">
-            <StickyNote className="w-5 h-5" />
-          </button>
-          <button className="p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors">
-            <Link className="w-5 h-5" />
-          </button>
-          <button className="p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors">
-            <Paperclip className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
-
-      {/* Bottom Right - MiniMap, Zoom Controls & Create Button */}
-      <MiniMap
+      <FloatingUiLayer
         items={items}
         pan={pan}
         zoom={zoom}
-        containerWidth={containerSize.width}
-        containerHeight={containerSize.height}
-        onNavigate={handleMiniMapNavigate}
+        containerSize={containerSize}
+        isPublic={isPublic}
+        viewMode={viewMode}
+        onSearch={onSearch}
+        onFolderToggle={onFolderToggle}
+        onCanvasOpen={onCanvasOpen}
+        onNavigateToItem={handleNavigateToItem}
+        onMiniMapNavigate={handleMiniMapNavigate}
+        onSetIsPublic={setIsPublic}
+        onSetViewMode={setViewMode}
+        onZoomChange={handleZoomChange}
+        onResetView={resetView}
+        onToggleGrid={() => setShowGrid((prev) => !prev)}
+        onCreateCanvas={() => onCreateItem("canvas", { x: 200, y: 200 })}
       />
-
-      <div className="floating-ui absolute bottom-4 right-4 z-50 flex items-center gap-3">
-        {/* Zoom Slider */}
-        <div className="bg-white dark:bg-[#1a1a1f] rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-3">
-          {/* Zoom presets */}
-          <div className="flex items-center gap-2 mb-2 text-xs text-gray-500">
-            {ZOOM_PRESETS.map((preset) => (
-              <button
-                key={preset}
-                onClick={() => handleZoomChange(preset)}
-                className={`px-1.5 py-0.5 rounded transition-colors ${
-                  Math.abs(zoom - preset) < 0.05
-                    ? "text-blue-600 font-medium"
-                    : "hover:text-gray-700 dark:hover:text-gray-300"
-                }`}
-              >
-                {preset}x
-              </button>
-            ))}
-          </div>
-          {/* Slider */}
-          <div className="flex items-center gap-2">
-            <input
-              type="range"
-              min={MIN_ZOOM}
-              max={MAX_ZOOM}
-              step={0.1}
-              value={zoom}
-              onChange={(e) => handleZoomChange(parseFloat(e.target.value))}
-              className="w-40 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full appearance-none cursor-pointer accent-blue-500"
-            />
-          </div>
-          {/* Current zoom */}
-          <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
-            <span>{Math.round(zoom * 100)}%</span>
-            <button
-              onClick={resetView}
-              className="text-blue-500 hover:text-blue-600"
-            >
-              Reset
-            </button>
-          </div>
-        </div>
-
-        {/* Create Button */}
-        <button
-          onClick={() => onCreateItem("canvas", { x: 200, y: 200 })}
-          className="p-4 bg-gray-900 dark:bg-white rounded-xl shadow-lg text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors"
-        >
-          <Plus className="w-6 h-6" />
-        </button>
-      </div>
     </div>
   );
 }
