@@ -103,11 +103,8 @@ export default function CardRenderer({
 
     case "instagram":
       return (
-        <div className="w-full h-full rounded-lg overflow-hidden bg-linear-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-          <div className="text-center text-white">
-            <p className="text-sm font-semibold">Instagram Post</p>
-            <p className="text-xs mt-1">Coming soon</p>
-          </div>
+        <div className={interactiveEnabled ? "" : "pointer-events-none"}>
+          <LinkPreviewCard item={item as any} isSelected={isSelected} />
         </div>
       );
 

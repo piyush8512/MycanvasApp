@@ -222,8 +222,11 @@ class LinkSaverPopup {
 
   handleLogin() {
     try {
-      const authUrl = 'http://localhost:3000/extension-login';
-      chrome.tabs.create({ url: authUrl });
+      const authUrl = new URL('http://localhost:3000/extension-login');
+      if (chrome.runtime?.id) {
+        authUrl.searchParams.set('extensionId', chrome.runtime.id);
+      }
+      chrome.tabs.create({ url: authUrl.toString() });
       window.close(); // Close the popup
     } catch (error) {
       console.error('Login failed:', error);

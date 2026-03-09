@@ -2,12 +2,40 @@
 import { API } from './utils/api.js';
 import { detectLinkType, getCardColor, getCardDefaultSize } from './utils/helpers.js';
 
+const ALLOWED_EXTERNAL_ORIGINS = new Set([
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:3001',
+  'http://192.168.1.33:3000',
+  'https://mycanvas-app-seven.vercel.app',
+]);
+
+function getSenderOrigin(sender) {
+  if (sender?.origin) {
+    return sender.origin;
+  }
+
+  if (sender?.url) {
+    try {
+      return new URL(sender.url).origin;
+    } catch (_error) {
+      return '';
+    }
+  }
+
+  return '';
+}
+
 // --- 1. AUTHENTICATION LISTENER ---
 // Listens for the "AUTH_SUCCESS" message from your Next.js app
 chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
   // Verify the message is from your app (for security)
-  if (sender.origin !== "http://localhost:3000") {
-    return; // Ignore messages from other websites
+  const origin = getSenderOrigin(sender);
+  if (!ALLOWED_EXTERNAL_ORIGINS.has(origin)) {
+    console.warn('Rejected external message from origin:', origin || 'unknown');
+    sendResponse({ success: false, error: 'Origin not allowed' });
+    return;
   }
 
   // Handle the successful login

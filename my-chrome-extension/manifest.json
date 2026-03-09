@@ -11,7 +11,10 @@
     "scripting"
   ],
   "host_permissions": [
-    "http://192.168.1.33:4000/*"
+    "http://localhost:4000/*",
+    "http://127.0.0.1:4000/*",
+    "http://192.168.1.33:4000/*",
+    "https://mycanvas-app-seven.vercel.app/*"
   ],
   "action": {
     "default_popup": "popup/popup.html"
@@ -31,7 +34,12 @@
   },
   "externally_connectable": {
     "matches": [
-      "http://localhost:3000/*"
+      "http://localhost:3000/*",
+      "http://localhost:3001/*",
+      "http://127.0.0.1:3000/*",
+      "http://127.0.0.1:3001/*",
+      "http://192.168.1.33:3000/*",
+      "https://mycanvas-app-seven.vercel.app/*"
     ]
   }
 }

@@ -9,12 +9,27 @@ const EXTENSION_ID = process.env.NEXT_PUBLIC_EXTENSION_ID;
 export default function ExtensionLogin() {
   const { isSignedIn, getToken } = useAuth();
   const [status, setStatus] = useState("Loading authentication...");
+  const [targetExtensionId, setTargetExtensionId] = useState<string | null>(
+    EXTENSION_ID ?? null,
+  );
 
   useEffect(() => {
-    if (!EXTENSION_ID) {
-      setStatus("Error: EXTENSION_ID is not configured in .env.local");
+    // Prefer an explicit extension ID passed by the popup for dev reliability.
+    const fromQuery = new URLSearchParams(window.location.search).get(
+      "extensionId",
+    );
+    if (fromQuery) {
+      setTargetExtensionId(fromQuery);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!targetExtensionId) {
+      setStatus(
+        "Error: Extension ID is missing. Set NEXT_PUBLIC_EXTENSION_ID or open this page from the extension popup.",
+      );
       return;
-    }  
+    }
 
     if (isSignedIn) {
       setStatus("Success! Sending token to extension...");
@@ -28,26 +43,41 @@ export default function ExtensionLogin() {
           // We check if 'chrome.runtime' exists to prevent errors
           if (window.chrome && chrome.runtime && chrome.runtime.sendMessage) {
             chrome.runtime.sendMessage(
-              EXTENSION_ID,
+              targetExtensionId,
               { type: "AUTH_SUCCESS", token: token },
               (response) => {
-                if (chrome.runtime.lastError) {
+                const runtimeError = chrome.runtime.lastError;
+
+                if (runtimeError) {
                   // This happens if the extension isn't running or listening
-                  console.error(chrome.runtime.lastError);
+                  console.error(
+                    "Extension message error:",
+                    runtimeError.message || runtimeError,
+                  );
                   setStatus(
-                    "Error: Could not connect to extension. Please make sure it's installed and enabled."
+                    `Error: ${
+                      runtimeError.message ||
+                      "Could not connect to extension. Please make sure it's installed and enabled."
+                    }`,
+                  );
+                } else if (!response?.success) {
+                  setStatus(
+                    `Error: ${
+                      response?.error ||
+                      "Extension rejected the login request from this origin."
+                    }`,
                   );
                 } else {
                   // 3. Success! Close this tab
                   setStatus("Token sent. You can close this tab.");
                   window.close();
                 }
-              }
+              },
             );
           } else {
             // This runs if the page is opened in a normal browser tab
             setStatus(
-              "Error: Not in an extension context. Please open this from your Chrome extension."
+              "Error: Not in an extension context. Please open this from your Chrome extension.",
             );
           }
         } catch (error) {
@@ -58,7 +88,7 @@ export default function ExtensionLogin() {
 
       sendToken();
     }
-  }, [isSignedIn, getToken]);
+  }, [isSignedIn, getToken, targetExtensionId]);
 
   // If user is NOT logged in, show the Clerk <SignIn> component
   if (!isSignedIn) {

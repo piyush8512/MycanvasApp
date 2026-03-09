@@ -1,187 +1,127 @@
-//   // This file will hold all our API logic
+// Consolidated API client for the extension.
+// It auto-detects an available backend URL so login/data fetch works on localhost, LAN, or deployed env.
 
-//   // IMPORTANT: Use your backend server URL, not the Next.js app URL
-//   const API_URL = 'http://192.168.1.33:4000'; 
+const API_BASE_URLS = [
+  'http://localhost:4000',
+  'http://127.0.0.1:4000',
+  'http://192.168.1.33:4000',
+  'https://mycanvas-app-seven.vercel.app',
+];
 
-//   /**
-//    * Helper to create auth headers
-//    */
-//   const createAuthHeaders = (token) => ({
-//     'Authorization': `Bearer ${token}`,
-//     'Content-Type': 'application/json',
-//   });
+let cachedApiBaseUrl = null;
 
-//   /**
-//    * Helper to handle fetch responses
-//    */
-//   const handleResponse = async (response) => {
-//     if (!response.ok) {
-//       const errorData = await response.json().catch(() => ({}));
-//       console.error('API Error Response:', errorData);
-//       throw new Error(errorData.message || 'API request failed');
-//     }
-//     return response.json();
-//   };
-
-//   export const API = {
-//     /**
-//      * Verifies a token is valid by fetching the user's data.
-//      */
-//     async verifyToken(token) {
-//       const response = await fetch(`${API_URL}/api/users/me`, {
-//         method: 'GET',
-//         headers: createAuthHeaders(token),
-//       });
-//       // This will throw an error if not 'ok', which we want.
-//       const data = await handleResponse(response);
-//       return data.user.database; // Returns the database user object
-//     },
-
-//     /**
-//      * Get all canvases (Files with no folderId)
-//      */
-//     async getAllCanvases(token) {
-//       const response = await fetch(`${API_URL}/api/canvas`, {
-//         method: 'GET',
-//         headers: createAuthHeaders(token),
-//       });
-//       const data = await handleResponse(response);
-//       return data.canvas || []; // Matches your `getAllCanvas` controller
-//     },
-
-//     /**
-//      * Get all folders
-//      */
-//     async getAllFolders(token) {
-//       const response = await fetch(`${API_URL}/api/folders`, {
-//         method: 'GET',
-//         headers: createAuthHeaders(token),
-//       });
-//       const data = await handleResponse(response);
-//       // !! IMPORTANT: Make sure your backend folder controller returns { folders: [...] }
-//       return data.folders || []; 
-//     },
-    
-//     /**
-//      * Get user details (like DB id)
-//      * This is now an alias for verifyToken
-//      */
-//     async getUser(token) {
-//       return this.verifyToken(token);
-//     },
-
-//     /**
-//      * Add a card to a canvas
-//      */
-//     async addCardToCanvas(canvasId, cardData, token) {
-//       // This now uses the correct POST method to the /items endpoint
-//       const response = await fetch(`${API_URL}/api/canvas/${canvasId}/items`, {
-//         method: 'POST',
-//         headers: createAuthHeaders(token),
-//         body: JSON.stringify(cardData),
-//       });
-//       const data = await handleResponse(response);
-//       return data.item; // Matches your `createItem` controller
-//     },
-//   };
-
-
-
-// This file will hold all our API logic
-
-// IMPORTANT: Use your backend server URL, not the Next.js app URL
-const API_URL = 'http://192.168.1.33:4000'; 
-
-/**
- * Helper to create auth headers
- */
-  const createAuthHeaders = (token) => ({
-  'Authorization': `Bearer ${token}`,
+const createAuthHeaders = (token) => ({
+  Authorization: `Bearer ${token}`,
   'Content-Type': 'application/json',
 });
 
-/**
- * Helper to handle fetch responses
- */
-const handleResponse = async (response) => {
-    if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    console.error('API Error Response:', errorData);
-    throw new Error(errorData.message || 'API request failed');
+const isReachable = async (baseUrl) => {
+  try {
+    // 200/404/401 all mean the server is reachable; fetch only fails on network/permission issues.
+    await fetch(`${baseUrl}/api/health`, { method: 'GET' });
+    return true;
+  } catch (_error) {
+    return false;
   }
+};
+
+const resolveApiBaseUrl = async () => {
+  if (cachedApiBaseUrl) {
+    return cachedApiBaseUrl;
+  }
+
+  for (const baseUrl of API_BASE_URLS) {
+    // eslint-disable-next-line no-await-in-loop
+    if (await isReachable(baseUrl)) {
+      cachedApiBaseUrl = baseUrl;
+      return baseUrl;
+    }
+  }
+
+  throw new Error('Could not reach backend API. Start backend on :4000 or update API_BASE_URLS.');
+};
+
+const apiFetch = async (path, options = {}) => {
+  const preferredBaseUrl = await resolveApiBaseUrl();
+  const candidates = [
+    preferredBaseUrl,
+    ...API_BASE_URLS.filter((baseUrl) => baseUrl !== preferredBaseUrl),
+  ];
+
+  let lastNetworkError = null;
+
+  for (const baseUrl of candidates) {
+    try {
+      const response = await fetch(`${baseUrl}${path}`, options);
+      cachedApiBaseUrl = baseUrl;
+      return response;
+    } catch (error) {
+      lastNetworkError = error;
+    }
+  }
+
+  throw lastNetworkError || new Error('Network request failed');
+};
+
+const handleResponse = async (response) => {
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const serverMessage =
+      errorData.message || errorData.error || `API request failed with status ${response.status}`;
+    throw new Error(serverMessage);
+  }
+
   return response.json();
 };
 
 export const API = {
-  /**
-   * Verifies a token is valid by fetching the user's data.
-   */
-    async verifyToken(token) {
-    const response = await fetch(`${API_URL}/api/users/me`, {
+  async verifyToken(token) {
+    const response = await apiFetch('/api/users/me', {
       method: 'GET',
       headers: createAuthHeaders(token),
     });
-    // This will throw an error if not 'ok', which we want.
     const data = await handleResponse(response);
-    return data.user.database; // Returns the database user object
+    return data.user.database;
   },
 
-  /**
-   * Get all ROOT-LEVEL canvases (Files with no folderId)
-   */
-    async getAllCanvases(token) {
-    const response = await fetch(`${API_URL}/api/canvas`, {
+  async getAllCanvases(token) {
+    const response = await apiFetch('/api/canvas', {
       method: 'GET',
       headers: createAuthHeaders(token),
     });
     const data = await handleResponse(response);
-    return data.canvas || []; // Matches your `getAllCanvas` controller
+    return data.canvas || [];
   },
 
-  /**
-   * Get all ROOT-LEVEL folders
-   */
-    async getAllFolders(token) {
-    const response = await fetch(`${API_URL}/api/folders`, {
+  async getAllFolders(token) {
+    const response = await apiFetch('/api/folders', {
       method: 'GET',
       headers: createAuthHeaders(token),
     });
     const data = await handleResponse(response);
-    // !! IMPORTANT: Make sure your backend folder controller returns { folders: [...] }
-    return data.folders || []; 
+    return data.folders || [];
   },
-  
-  /**
-   * --- NEW FUNCTION ---
-   * Get the contents of a specific folder
-   */
+
   async getFolderById(folderId, token) {
-    const response = await fetch(`${API_URL}/api/folders/${folderId}`, {
+    const response = await apiFetch(`/api/folders/${folderId}`, {
       method: 'GET',
       headers: createAuthHeaders(token),
     });
     const data = await handleResponse(response);
-    return data.folder; // Matches your `getFolderById` controller
+    return data.folder;
   },
-  
-  /**
-   * Get user details (like DB id)
-   */
-    async getUser(token) {
+
+  async getUser(token) {
     return this.verifyToken(token);
   },
 
-  /**
-   * Add a card to a canvas
-   */
-    async addCardToCanvas(canvasId, cardData, token) {
-    // This now uses the correct POST method to the /items endpoint
-    const response = await fetch(`${API_URL}/api/canvas/${canvasId}/items`, {
+  async addCardToCanvas(canvasId, cardData, token) {
+    const response = await apiFetch(`/api/canvas/${canvasId}/items`, {
       method: 'POST',
       headers: createAuthHeaders(token),
       body: JSON.stringify(cardData),
     });
     const data = await handleResponse(response);
-    return data.item; // Matches your `createItem` controller
+    return data.item;
   },
 };
