@@ -17,6 +17,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ListTree,
+  Lock,
+  Unlock,
 } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import { API_BASE_URL } from "@/services/api";
@@ -103,6 +105,7 @@ export default function CanvasEditorPage() {
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState<Position>({ x: 0, y: 0 });
+  const [isGloballyLocked, setIsGloballyLocked] = useState(false);
   const [isLinksPanelOpen, setIsLinksPanelOpen] = useState(true);
   const lastMousePos = useRef<Position>({ x: 0, y: 0 });
   const activeLoadIdRef = useRef(0);
@@ -517,7 +520,7 @@ export default function CanvasEditorPage() {
   // Handle item drag start
   const handleItemDragStart = useCallback(
     (e: React.MouseEvent, itemId: string, itemPos: Position) => {
-      if (selectedTool !== "select") return;
+      if (selectedTool !== "select" || isGloballyLocked) return;
       e.stopPropagation();
       const rect = containerRef.current?.getBoundingClientRect();
       if (rect) {
@@ -528,7 +531,7 @@ export default function CanvasEditorPage() {
         setSelectedItem(itemId);
       }
     },
-    [pan, zoom, selectedTool],
+    [pan, zoom, selectedTool, isGloballyLocked],
   );
 
   // Handle canvas click to create items
@@ -844,6 +847,51 @@ export default function CanvasEditorPage() {
     [zoom, clampPan],
   );
 
+  const handleDeleteItem = useCallback((itemId: string) => {
+    setCanvas((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        items: prev.items.filter((item) => item.id !== itemId),
+      };
+    });
+  }, []);
+
+  const handleRenameItem = useCallback((itemId: string, name: string) => {
+    setCanvas((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        items: prev.items.map((item) =>
+          item.id === itemId ? { ...item, name } : item,
+        ),
+      };
+    });
+  }, []);
+
+  const handleDuplicateItem = useCallback((itemId: string) => {
+    setCanvas((prev) => {
+      if (!prev) return prev;
+      const source = prev.items.find((item) => item.id === itemId);
+      if (!source) return prev;
+
+      const copy: CanvasItemType = {
+        ...source,
+        id: `temp-${Date.now()}`,
+        name: `${source.name} Copy`,
+        position: {
+          x: source.position.x + 24,
+          y: source.position.y + 24,
+        },
+      };
+
+      return {
+        ...prev,
+        items: [...prev.items, copy],
+      };
+    });
+  }, []);
+
   // Render canvas item
   const renderItem = (item: CanvasItemType) => {
     const isSelected = selectedItem === item.id;
@@ -861,18 +909,28 @@ export default function CanvasEditorPage() {
           height: item.size.height,
           cursor:
             selectedTool === "select"
-              ? isBeingDragged
-                ? "grabbing"
-                : "grab"
+              ? isGloballyLocked
+                ? "pointer"
+                : isBeingDragged
+                  ? "grabbing"
+                  : "grab"
               : "crosshair",
         }}
         onMouseDown={(e) => handleItemDragStart(e, item.id, item.position)}
         onClick={(e) => {
+          if (!isGloballyLocked) return;
           e.stopPropagation();
           setSelectedItem(item.id);
         }}
       >
-        <CardRenderer item={item as any} isSelected={isSelected} />
+        <CardRenderer
+          item={item as any}
+          isSelected={isSelected}
+          interactiveEnabled={isGloballyLocked}
+          onDeleteItem={handleDeleteItem}
+          onRenameItem={handleRenameItem}
+          onDuplicateItem={handleDuplicateItem}
+        />
       </div>
     );
   };
@@ -918,6 +976,28 @@ export default function CanvasEditorPage() {
           <ThemeToggle />
           <button className="p-2 hover:bg-(--hover-bg) rounded-lg transition-colors">
             <MoreHorizontal className="w-5 h-5 text-(--text-secondary)" />
+          </button>
+          <button
+            onClick={() => setIsGloballyLocked(true)}
+            className={`p-2 rounded-lg transition-colors ${
+              isGloballyLocked
+                ? "bg-(--hover-bg) text-(--text-primary)"
+                : "hover:bg-(--hover-bg) text-(--text-secondary)"
+            }`}
+            title="Lock all cards"
+          >
+            <Lock className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => setIsGloballyLocked(false)}
+            className={`p-2 rounded-lg transition-colors ${
+              !isGloballyLocked
+                ? "bg-(--hover-bg) text-(--text-primary)"
+                : "hover:bg-(--hover-bg) text-(--text-secondary)"
+            }`}
+            title="Unlock all cards"
+          >
+            <Unlock className="w-5 h-5" />
           </button>
         </div>
       </header>
@@ -1036,6 +1116,12 @@ export default function CanvasEditorPage() {
                 : `Loading items ${renderedItems.length}/${canvas?.items.length || 0}`}
             </div>
           )}
+
+          <div className="absolute top-14 left-1/2 -translate-x-1/2 z-40 rounded-full border border-(--border-color) bg-(--card-bg)/95 px-3 py-1.5 text-xs text-(--text-secondary) shadow">
+            {isGloballyLocked
+              ? "All cards locked: clickable, not draggable"
+              : "All cards unlocked: draggable, not clickable"}
+          </div>
 
           {/* Zoom controls */}
           <div className="absolute bottom-6 right-6 flex items-center gap-2 bg-(--card-bg) rounded-lg shadow-lg border border-(--border-color) p-2">

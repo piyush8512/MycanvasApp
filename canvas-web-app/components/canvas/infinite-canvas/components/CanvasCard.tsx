@@ -4,13 +4,14 @@ import {
   File,
   Lock,
   Unlock,
-  MoreHorizontal,
+  MoreVertical,
   FolderInput,
   Edit3,
   Copy,
   Trash2,
 } from "lucide-react";
 import type { Canvas } from "@/types/canvas";
+import { formatRelativeUpdatedAt } from "../utils/time";
 
 interface CanvasCardProps {
   item: Canvas;
@@ -37,7 +38,7 @@ export default function CanvasCard({
     <div
       className={`
         relative bg-white dark:bg-[#1a1a1f] rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700
-        min-w-40 overflow-visible transition-all duration-200
+        min-w-[220px] overflow-visible transition-all duration-200
         ${isLocked ? "ring-2 ring-gray-300 dark:ring-gray-600" : ""}
         ${isBeingDragged ? "shadow-xl scale-105" : "hover:shadow-md"}
       `}
@@ -77,7 +78,7 @@ export default function CanvasCard({
               onMouseDown={(e) => e.stopPropagation()}
               className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 transition-colors"
             >
-              <MoreHorizontal className="w-4 h-4" />
+              <MoreVertical className="w-4 h-4" />
             </button>
 
             {isMenuOpen && (
@@ -152,7 +153,8 @@ export default function CanvasCard({
           {item.name}
         </h3>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-          {`${item.itemCount || 0} items`}
+          {item.itemCount || 0} items •{" "}
+          {formatRelativeUpdatedAt(item.updatedAt)}
         </p>
       </div>
     </div>

@@ -11,6 +11,10 @@ import LinkPreviewCard from "./Cards/LinkPreviewCard";
 interface CardRendererProps {
   item: CanvasItem;
   isSelected?: boolean;
+  interactiveEnabled?: boolean;
+  onDeleteItem?: (itemId: string) => void;
+  onRenameItem?: (itemId: string, name: string) => void;
+  onDuplicateItem?: (itemId: string) => void;
 }
 
 /**
@@ -19,13 +23,32 @@ interface CardRendererProps {
 export default function CardRenderer({
   item,
   isSelected = false,
+  interactiveEnabled = true,
+  onDeleteItem,
+  onRenameItem,
+  onDuplicateItem,
 }: CardRendererProps) {
   switch (item.type) {
     case "youtube":
-      return <YoutubeCard item={item as any} isSelected={isSelected} />;
+      return (
+        <div className={interactiveEnabled ? "" : "pointer-events-none"}>
+          <YoutubeCard
+            item={item as any}
+            isSelected={isSelected}
+            interactiveEnabled={interactiveEnabled}
+            onDelete={() => onDeleteItem?.(item.id)}
+            onRename={(name) => onRenameItem?.(item.id, name)}
+            onDuplicate={() => onDuplicateItem?.(item.id)}
+          />
+        </div>
+      );
 
     case "link":
-      return <LinkPreviewCard item={item as any} isSelected={isSelected} />;
+      return (
+        <div className={interactiveEnabled ? "" : "pointer-events-none"}>
+          <LinkPreviewCard item={item as any} isSelected={isSelected} />
+        </div>
+      );
 
     case "sticky":
       return (

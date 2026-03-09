@@ -12,7 +12,7 @@ import { MIN_ZOOM, MAX_ZOOM } from "@/types/canvas";
 import type { Position, DashboardItem } from "@/types/canvas";
 import RenderGrid from "../dashboard/canvas/rendergrid";
 import FolderCard from "./infinite-canvas/components/FolderCard";
-import CanvasCard from "./infinite-canvas/components/CanvasCard";
+import CanvasCard from "@/components/canvas/infinite-canvas/components/CanvasCard";
 import FloatingUiLayer from "./infinite-canvas/components/FloatingUiLayer";
 
 const VIEWPORT_RENDER_BUFFER = 280;
