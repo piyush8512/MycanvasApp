@@ -19,17 +19,17 @@ A Chrome Extension (Manifest V3) that lets you save links, notes, screenshots, a
 
 ## Supported Card Types
 
-| Type | Detected from |
-|---|---|
-| `link` | Any https:// URL |
-| `youtube` | youtube.com / youtu.be |
-| `image` | URLs ending in .jpg/.png/.gif/.webp/etc. |
-| `pdf` | URLs ending in .pdf |
-| `note` | Plain text (non-URL input) |
-| `twitter` | twitter.com / x.com |
-| `instagram` | instagram.com |
-| `linkedin` | linkedin.com |
-| `tiktok` | tiktok.com |
+| Type        | Detected from                            |
+| ----------- | ---------------------------------------- |
+| `link`      | Any https:// URL                         |
+| `youtube`   | youtube.com / youtu.be                   |
+| `image`     | URLs ending in .jpg/.png/.gif/.webp/etc. |
+| `pdf`       | URLs ending in .pdf                      |
+| `note`      | Plain text (non-URL input)               |
+| `twitter`   | twitter.com / x.com                      |
+| `instagram` | instagram.com                            |
+| `linkedin`  | linkedin.com                             |
+| `tiktok`    | tiktok.com                               |
 
 ---
 
@@ -81,22 +81,26 @@ You only need to sign in **once** — the token is persisted in `chrome.storage.
 ## How to Use
 
 ### Save a link or note
+
 1. Click **Save** (floating button, bottom-right)
 2. The panel opens with the current page URL pre-filled
 3. Browse folders/canvases to pick a destination
 4. Click **Save link or note**
 
 ### Capture a screenshot
+
 1. Click **Shot** (floating button) or open the panel and click **Capture screenshot**
 2. The panel hides briefly, the visible tab is captured
 3. The image is uploaded to storage and saved as an image card in your selected canvas
 4. A toast confirms: "Screenshot saved to canvas"
 
 ### Quick-save with keyboard
+
 - Press `Ctrl+Shift+S` (or `Cmd+Shift+S` on Mac)
 - Saves the current tab URL to your **last used canvas** instantly (no panel needed)
 
 ### Right-click save
+
 - Right-click on any page, link, image, or selected text
 - Choose **Save to Last Used Canvas**
 
@@ -161,9 +165,9 @@ In `utils/api.js`, the `API_BASE_URLS` array tries the deployed backend first th
 
 ```js
 const API_BASE_URLS = [
-  'https://mycanvas-app-backend.vercel.app',
-  'http://localhost:4000',
-  'http://127.0.0.1:4000',
+  "https://mycanvas-app-backend.vercel.app",
+  "http://localhost:4000",
+  "http://127.0.0.1:4000",
 ];
 ```
 
@@ -173,24 +177,24 @@ Change the order or remove the deployed URL to develop fully offline.
 
 ## Permissions Used
 
-| Permission | Why |
-|---|---|
-| `activeTab` | Read URL/title of the current tab for saving |
-| `tabs` | Query open tabs for screenshot window resolution |
-| `storage` | Persist auth token and canvas cache locally |
-| `notifications` | Show save/error Chrome notifications |
-| `contextMenus` | Right-click "Save to Last Used Canvas" menu |
-| `scripting` | Reserved for future programmatic injection |
+| Permission       | Why                                                    |
+| ---------------- | ------------------------------------------------------ |
+| `activeTab`      | Read URL/title of the current tab for saving           |
+| `tabs`           | Query open tabs for screenshot window resolution       |
+| `storage`        | Persist auth token and canvas cache locally            |
+| `notifications`  | Show save/error Chrome notifications                   |
+| `contextMenus`   | Right-click "Save to Last Used Canvas" menu            |
+| `scripting`      | Reserved for future programmatic injection             |
 | Host permissions | Direct fetch access to the backend and web app origins |
 
 ---
 
 ## Troubleshooting
 
-| Problem | Fix |
-|---|---|
-| Sign-in screen appears every time | Reload extension + tab; check that only one copy of the extension is installed |
-| "Could not connect to extension" on login page | Extension ID mismatch — see **Changing the extension ID** above |
-| Screenshot fails | Must be on a regular `http://` or `https://` page; Chrome restricts capture on `chrome://` pages |
-| Canvases not showing | Check internet connection; cached data is shown when offline |
-| CORS errors in DevTools | All API calls now route through the background worker — these should not appear for extension calls |
+| Problem                                        | Fix                                                                                                 |
+| ---------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Sign-in screen appears every time              | Reload extension + tab; check that only one copy of the extension is installed                      |
+| "Could not connect to extension" on login page | Extension ID mismatch — see **Changing the extension ID** above                                     |
+| Screenshot fails                               | Must be on a regular `http://` or `https://` page; Chrome restricts capture on `chrome://` pages    |
+| Canvases not showing                           | Check internet connection; cached data is shown when offline                                        |
+| CORS errors in DevTools                        | All API calls now route through the background worker — these should not appear for extension calls |

@@ -6,18 +6,18 @@ Cross-platform mobile app (iOS & Android) for the Canvas App platform. Browse, c
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Framework | Expo SDK 54 + Expo Router 6 |
-| Language | TypeScript |
-| Auth | Clerk Expo |
-| Navigation | Expo Router (file-based, tab + stack) |
+| Layer        | Technology                                     |
+| ------------ | ---------------------------------------------- |
+| Framework    | Expo SDK 54 + Expo Router 6                    |
+| Language     | TypeScript                                     |
+| Auth         | Clerk Expo                                     |
+| Navigation   | Expo Router (file-based, tab + stack)          |
 | State & Data | SWR for server state, AsyncStorage for offline |
-| Offline Sync | Custom sync engine (syncService.ts) |
-| Storage | expo-secure-store, AsyncStorage |
-| Animations | React Native Reanimated 4 |
-| Media | expo-image, expo-document-picker |
-| Gestures | react-native-gesture-handler |
+| Offline Sync | Custom sync engine (syncService.ts)            |
+| Storage      | expo-secure-store, AsyncStorage                |
+| Animations   | React Native Reanimated 4                      |
+| Media        | expo-image, expo-document-picker               |
+| Gestures     | react-native-gesture-handler                   |
 
 ---
 
@@ -110,27 +110,32 @@ npm run ios
 ## Key Features
 
 ### Canvases & Folders
+
 - Create, rename, and delete folders and canvases
 - Drag-and-drop canvas positioning via pan/zoom gestures
 - Card types: **link, note, image, YouTube, PDF, Instagram, Twitter, and more**
 
 ### Offline Mode
+
 - All canvas and folder read/write operations work offline
 - Changes are queued locally and synced automatically when connectivity returns
 - Offline indicator banner shown to user during outage
 - Sync state visible via `useSync` hook
 
 ### Collaboration
+
 - Invite friends to view or edit a canvas
 - Real-time collaborator presence
 - Share canvases/folders via shareable token links
 
 ### Social / Friends
+
 - Find friends by friend code (`username#1234`)
 - Send, accept, and decline friend requests
 - View friend profiles and their shared canvases
 
 ### Auth Flow
+
 1. App opens → Clerk checks session
 2. No session → `(auth)/` sign-in / sign-up screen
 3. First-time users → `(onboarding)/` profile setup flow
@@ -196,12 +201,12 @@ Build profiles are defined in `eas.json`.
 
 ## Useful Scripts
 
-| Script | Command |
-|---|---|
-| Start dev server | `npm start` |
-| Run on Android | `npm run android` |
-| Run on iOS | `npm run ios` |
-| Run in browser | `npm run web` |
+| Script           | Command           |
+| ---------------- | ----------------- |
+| Start dev server | `npm start`       |
+| Run on Android   | `npm run android` |
+| Run on iOS       | `npm run ios`     |
+| Run in browser   | `npm run web`     |
 
 - [development build](https://docs.expo.dev/develop/development-builds/introduction/)
 - [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)

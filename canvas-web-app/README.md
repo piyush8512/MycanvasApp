@@ -6,16 +6,16 @@ The web front-end for the Canvas App platform. Provides the full canvas experien
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Framework | Next.js 16 (App Router) |
-| Language | TypeScript |
-| Auth | Clerk Next.js (`@clerk/nextjs`) |
-| Styling | Tailwind CSS 4 |
-| Animations | Framer Motion 12, GSAP 3 |
-| Server State | TanStack React Query 5 |
-| Client State | Zustand 5 |
-| Deployment | Vercel |
+| Layer        | Technology                      |
+| ------------ | ------------------------------- |
+| Framework    | Next.js 16 (App Router)         |
+| Language     | TypeScript                      |
+| Auth         | Clerk Next.js (`@clerk/nextjs`) |
+| Styling      | Tailwind CSS 4                  |
+| Animations   | Framer Motion 12, GSAP 3        |
+| Server State | TanStack React Query 5          |
+| Client State | Zustand 5                       |
+| Deployment   | Vercel                          |
 
 ---
 
@@ -100,33 +100,37 @@ App available at `http://localhost:3000`.
 ## Key Features
 
 ### Dashboard
+
 - View and manage all folders and canvases
 - Create, rename, delete, and share folders and canvases
 - Drag-and-drop layout with per-user position persistence
 
 ### Canvas Editor
+
 - Free-form infinite canvas
 - Card types: **link, note, image, YouTube, PDF, Instagram, Twitter**
 - Zoom and pan with smooth GSAP/Framer Motion animations
 - Real-time collaboration support
 
 ### Chrome Extension Auth Bridge (`/extension-login`)
+
 - Dedicated page visited when the Chrome extension needs to authenticate
 - After Clerk sign-in, posts an `AUTH_SUCCESS` message with a JWT to the extension via `chrome.runtime.sendMessage`
 - The extension ID is read from the `extensionId` query param (passed by the extension itself) so the handshake works across different machines without hardcoding
 
 ### Theme
+
 - Dark and light mode support via `ThemeToggle` and `lib/theme.tsx`
 
 ---
 
 ## State Management
 
-| Store | Responsibility |
-|---|---|
-| `canvasStore` (Zustand) | Active canvas data, selected items, drag state |
-| `uiStore` (Zustand) | Sidebar open/close, active modal, panel visibility |
-| React Query hooks | Server data fetching, caching, and mutation for canvas/folders |
+| Store                   | Responsibility                                                 |
+| ----------------------- | -------------------------------------------------------------- |
+| `canvasStore` (Zustand) | Active canvas data, selected items, drag state                 |
+| `uiStore` (Zustand)     | Sidebar open/close, active modal, panel visibility             |
+| React Query hooks       | Server data fetching, caching, and mutation for canvas/folders |
 
 ---
 
@@ -137,6 +141,7 @@ vercel --prod
 ```
 
 Required Vercel environment variables:
+
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
 - `CLERK_SECRET_KEY`
 - `NEXT_PUBLIC_API_URL`
@@ -150,12 +155,12 @@ Live app: `https://mycanvas-app-seven.vercel.app`
 
 ## Useful Scripts
 
-| Script | Command |
-|---|---|
-| Start dev server | `npm run dev` |
+| Script           | Command         |
+| ---------------- | --------------- |
+| Start dev server | `npm run dev`   |
 | Production build | `npm run build` |
-| Start production | `npm start` |
-| Lint | `npm run lint` |
+| Start production | `npm start`     |
+| Lint             | `npm run lint`  |
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
