@@ -643,7 +643,6 @@ export const createItem = async (req, res) => {
     const clerkId = req.auth.userId;
 
     // Get the card data from the request body
-    // --- FIX: Use your flat canvaitems interface ---
     const {
       type,
       name,
@@ -651,10 +650,6 @@ export const createItem = async (req, res) => {
       position,
       size,
       content,
-      url,
-      videoId,
-      note,
-      title,
     } = req.body;
 
     // 1. Get the DB user (owner)
@@ -678,18 +673,12 @@ export const createItem = async (req, res) => {
     // 3. Create the new canvas item
     const newItem = await prisma.canvasItem.create({
       data: {
-        type: type,
-        // --- FIX: Use all fields from your interface ---
-        name: name,
-        title: title,
-        content: content,
-        note: note,
-        url: url,
-        videoId: videoId,
-        color: color,
-        position: position,
-        size: size,
-        // --- End Fix ---
+        type,
+        name,
+        content,
+        color,
+        position,
+        size,
         createdBy: dbUser.id, // Link to DB user ID
         canvasId: canvasFile.id, // Link to canvas ID
       },
@@ -720,17 +709,12 @@ export const updateItem = async (req, res) => {
 
     // Get the data to update from the body
     // This could be { position: ... } or { content: ... }
-    // --- FIX: Use all fields from your interface ---
     const {
       position,
       size,
       name,
       color,
       content,
-      url,
-      videoId,
-      note,
-      title,
     } = req.body;
 
     // TODO: Verify user has permission to edit this item
@@ -740,17 +724,11 @@ export const updateItem = async (req, res) => {
         id: itemId,
       },
       data: {
-        // --- FIX: Only update fields that are sent ---
-        // (This prevents overwriting fields with 'undefined')
         ...(position !== undefined && { position }),
         ...(size !== undefined && { size }),
         ...(name !== undefined && { name }),
-        ...(title !== undefined && { title }),
         ...(color !== undefined && { color }),
         ...(content !== undefined && { content }),
-        ...(note !== undefined && { note }),
-        ...(url !== undefined && { url }),
-        ...(videoId !== undefined && { videoId }),
       },
     });
 

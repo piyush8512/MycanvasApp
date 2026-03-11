@@ -15,7 +15,7 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 
 // This is your Extension ID from your manifest.json
-const EXTENSION_ID = 'ajfafhdnmjahkkdkefjlpcclpjobmend'; 
+const EXTENSION_ID = 'ncnfkblfdjkfoooejokijaiehmibmlcj'; 
 
 const corsOptions = {
   origin: [

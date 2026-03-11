@@ -1,4 +1,3 @@
-// Import the new consolidated API and helper functions
 import { API } from './utils/api.js';
 import { detectLinkType, getCardColor, getCardDefaultSize } from './utils/helpers.js';
 
@@ -10,6 +9,20 @@ const ALLOWED_EXTERNAL_ORIGINS = new Set([
   'http://192.168.1.33:3000',
   'https://mycanvas-app-seven.vercel.app',
 ]);
+
+const INTERNAL_MESSAGE_TYPES = {
+  openExtensionLogin: 'OPEN_EXTENSION_LOGIN',
+  captureScreenshotToCanvas: 'CAPTURE_SCREENSHOT_TO_CANVAS',
+};
+
+const TAB_MESSAGE_TYPES = {
+  toggleStickyPanel: 'TOGGLE_STICKY_PANEL',
+  authUpdated: 'AUTH_UPDATED',
+};
+
+const NOTIFICATION_ICON_URL = `data:image/svg+xml,${encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="16" fill="#ff6b35"/><path d="M18 16h28a4 4 0 0 1 4 4v24a4 4 0 0 1-4 4H28l-10 8v-8h0a4 4 0 0 1-4-4V20a4 4 0 0 1 4-4Z" fill="#fff3e8"/><path d="M24 26h16M24 34h10" stroke="#ff6b35" stroke-width="4" stroke-linecap="round"/></svg>',
+)}`;
 
 function getSenderOrigin(sender) {
   if (sender?.origin) {
@@ -27,6 +40,167 @@ function getSenderOrigin(sender) {
   return '';
 }
 
+async function broadcastToCanvasTabs(message) {
+  const tabs = await chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] });
+  await Promise.all(
+    tabs.map(async (tab) => {
+      if (!tab.id) {
+        return;
+      }
+
+      try {
+        await chrome.tabs.sendMessage(tab.id, message);
+      } catch (_error) {
+        // Ignore tabs without the content script context.
+      }
+    }),
+  );
+}
+
+function extractYoutubeVideoId(url) {
+  if (!url) {
+    return null;
+  }
+
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/,
+    /youtube\.com\/embed\/([^&\n?#]+)/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match?.[1]) {
+      return match[1];
+    }
+  }
+
+  return null;
+}
+
+function createUrlCardData(url, title) {
+  const type = detectLinkType(url);
+  const baseName = title || 'Saved Link';
+
+  if (type === 'youtube') {
+    const videoId = extractYoutubeVideoId(url);
+    return {
+      type,
+      name: baseName,
+      content: {
+        url,
+        title: baseName,
+        ...(videoId
+          ? {
+              videoId,
+              thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+            }
+          : {}),
+      },
+      position: { x: 120, y: 120 },
+      size: getCardDefaultSize(type),
+      color: getCardColor(type),
+    };
+  }
+
+  if (type === 'image') {
+    return {
+      type,
+      name: baseName,
+      content: { url },
+      position: { x: 120, y: 120 },
+      size: getCardDefaultSize(type),
+      color: getCardColor(type),
+    };
+  }
+
+  let domain = 'link';
+  try {
+    domain = new URL(url).hostname;
+  } catch (_error) {
+    domain = 'link';
+  }
+
+  return {
+    type,
+    name: baseName,
+    content: {
+      url,
+      domain,
+      title: baseName,
+    },
+    position: { x: 120, y: 120 },
+    size: getCardDefaultSize(type),
+    color: getCardColor(type),
+  };
+}
+
+async function openExtensionLogin() {
+  const loginUrl = API.getFrontendLoginUrl(chrome.runtime?.id);
+  await chrome.tabs.create({ url: loginUrl });
+}
+
+async function saveCardToSelectedCanvas(cardData) {
+  const { authToken, lastCanvasId } = await chrome.storage.local.get(['authToken', 'lastCanvasId']);
+
+  if (!authToken) {
+    throw new Error('Please sign in to the extension first.');
+  }
+
+  if (!lastCanvasId) {
+    throw new Error('Select a canvas before saving.');
+  }
+
+  return API.addCardToCanvas(lastCanvasId, cardData, authToken);
+}
+
+async function saveCurrentTabToCanvas(tab) {
+  if (!tab?.url) {
+    throw new Error('No active page URL found.');
+  }
+
+  const cardData = createUrlCardData(tab.url, tab.title || 'Saved Link');
+  return saveCardToSelectedCanvas(cardData);
+}
+
+async function captureScreenshotToCanvas(canvasId, sender) {
+  const { authToken } = await chrome.storage.local.get(['authToken']);
+  if (!authToken) {
+    throw new Error('Please sign in to the extension first.');
+  }
+
+  if (!canvasId) {
+    throw new Error('Select a canvas before capturing a screenshot.');
+  }
+
+  const dataUrl = await chrome.tabs.captureVisibleTab(undefined, { format: 'png' });
+  const blob = await fetch(dataUrl).then((response) => response.blob());
+  const safeTitle = (sender?.tab?.title || 'web-screenshot')
+    .replace(/[^a-z0-9-_]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 50) || 'web-screenshot';
+  const fileName = `${safeTitle}-${Date.now()}.png`;
+  const uploadedImage = await API.uploadImageBlob(authToken, blob, fileName, 'image/png');
+  const item = await API.addCardToCanvas(
+    canvasId,
+    {
+      type: 'image',
+      name: `Screenshot: ${sender?.tab?.title || 'Current page'}`,
+      content: {
+        url: uploadedImage.publicUrl,
+        sourceUrl: sender?.tab?.url || null,
+        capturedAt: new Date().toISOString(),
+      },
+      position: { x: 140, y: 140 },
+      size: getCardDefaultSize('image'),
+      color: getCardColor('image'),
+    },
+    authToken,
+  );
+
+  await chrome.storage.local.set({ lastCanvasId: canvasId });
+  return item;
+}
+
 // --- 1. AUTHENTICATION LISTENER ---
 // Listens for the "AUTH_SUCCESS" message from your Next.js app
 chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
@@ -40,64 +214,83 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
 
   // Handle the successful login
   if (message.type === 'AUTH_SUCCESS') {
-    console.log("AUTH_SUCCESS received from website:", message.token);
-    
-    // Save the token to local storage
     chrome.storage.local.set({
       authToken: message.token,
+      authUpdatedAt: Date.now(),
     }, async () => {
-      console.log("Token saved successfully!");
       try {
-        // Now that we have a token, fetch the user's DB ID and save it too
         const user = await API.getUser(message.token);
         if (user && user.id) {
-          chrome.storage.local.set({ userId: user.id });
-          console.log("User ID saved:", user.id);
+          await chrome.storage.local.set({
+            userId: user.id,
+            authUser: user,
+          });
         }
       } catch (e) {
-        console.error("Failed to fetch user ID after login:", e);
+        console.error('Failed to fetch user after login:', e);
       }
-      sendResponse({ success: true }); // Tell the webpage we got it
+
+      await broadcastToCanvasTabs({ type: TAB_MESSAGE_TYPES.authUpdated });
+      sendResponse({ success: true });
     });
-    return true; // Keep message channel open for async response
+    return true;
   }
+});
+
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type === INTERNAL_MESSAGE_TYPES.openExtensionLogin) {
+    openExtensionLogin()
+      .then(() => sendResponse({ success: true }))
+      .catch((error) => sendResponse({ success: false, error: error.message }));
+    return true;
+  }
+
+  if (message?.type === INTERNAL_MESSAGE_TYPES.captureScreenshotToCanvas) {
+    captureScreenshotToCanvas(message.canvasId, sender)
+      .then(() => sendResponse({ success: true }))
+      .catch((error) => sendResponse({ success: false, error: error.message }));
+    return true;
+  }
+
+  return undefined;
 });
 
 
 // --- 2. CONTEXT MENU (Right-Click) SETUP ---
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.contextMenus.create({
-    id: 'save-to-last-canvas',
-    title: 'Save to Last Used Canvas',
-    contexts: ['page', 'link', 'image', 'selection'],
+  chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({
+      id: 'save-to-last-canvas',
+      title: 'Save to Last Used Canvas',
+      contexts: ['page', 'link', 'image', 'selection'],
+    });
   });
+});
+
+chrome.action.onClicked.addListener(async (tab) => {
+  if (!tab?.id) {
+    return;
+  }
+
+  try {
+    await chrome.tabs.sendMessage(tab.id, { type: TAB_MESSAGE_TYPES.toggleStickyPanel });
+  } catch (_error) {
+    // Ignore tabs where content scripts are unavailable.
+  }
 });
 
 // --- 3. CONTEXT MENU CLICK HANDLER ---
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId === 'save-to-last-canvas') {
     try {
-      const { authToken, lastCanvasId } = await chrome.storage.local.get(['authToken', 'lastCanvasId']);
-
-      if (!authToken) {
-        chrome.action.openPopup(); // User not logged in
-        return;
-      }
-      if (!lastCanvasId) {
-        chrome.action.openPopup(); // No canvas selected
-        return;
-      }
-
-      // We have a token and a canvas, now build the card
       const cardData = createCardDataFromContext(info, tab);
-      
-      // Save to backend
-      await API.addCardToCanvas(lastCanvasId, cardData, authToken);
-      showNotification('Saved!', `Content saved to your last canvas.`);
+      await saveCardToSelectedCanvas(cardData);
+      showNotification('Saved', 'Content saved to your selected canvas.');
 
     } catch (error) {
       console.error('Context menu save failed:', error);
-      showNotification('Save Failed', 'Could not save to canvas.', 'error');
+      showNotification('Save Failed', error.message || 'Could not save to canvas.', 'error');
     }
   }
 });
@@ -105,11 +298,12 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 // --- 4. KEYBOARD SHORTCUT HANDLER ---
 chrome.commands.onCommand.addListener(async (command, tab) => {
   if (command === 'save-to-canvas') {
-    // This triggers the same logic as the context menu
-    chrome.contextMenus.onClicked.dispatch(
-      { menuItemId: 'save-to-last-canvas', pageUrl: tab.url },
-      tab
-    );
+    try {
+      await saveCurrentTabToCanvas(tab);
+      showNotification('Saved', 'Page saved to your selected canvas.');
+    } catch (error) {
+      showNotification('Save Failed', error.message || 'Could not save the current page.', 'error');
+    }
   }
 });
 
@@ -117,47 +311,34 @@ chrome.commands.onCommand.addListener(async (command, tab) => {
 // --- Helper Functions for Background Script ---
 
 function createCardDataFromContext(info, tab) {
-  let type = 'link';
-  let name = tab.title;
-  let content = { url: info.pageUrl }; // Default
-
   if (info.selectionText) {
-    type = 'note';
-    name = `Note: ${info.selectionText.substring(0, 20)}...`;
-    content = info.selectionText; // Note content is a string
-  } else if (info.mediaType === 'image') {
-    type = 'image';
-    name = 'Image from ' + tab.title;
-    content = { url: info.srcUrl };
-  } else if (info.linkUrl) {
-    type = detectLinkType(info.linkUrl);
-    name = type === 'link' ? 'Web Link' : `${type.charAt(0).toUpperCase() + type.slice(1)}`;
-    content = { url: info.linkUrl };
-  } else {
-    // Page context (no specific link or image)
-    type = detectLinkType(info.pageUrl);
-    name = tab.title;
-    content = { url: info.pageUrl };
+    return {
+      type: 'note',
+      name: `Note: ${info.selectionText.substring(0, 32)}`,
+      content: { text: info.selectionText },
+      position: { x: 120, y: 120 },
+      size: getCardDefaultSize('note'),
+      color: getCardColor('note'),
+    };
   }
 
-  // Build the final object
-  return {
-    type: type,
-    name: name,
-    content: content,
-    position: { x: Math.random() * 200 + 50, y: Math.random() * 200 + 50 },
-    size: getCardDefaultSize(type),
-    color: getCardColor(type),
-  };
+  if (info.mediaType === 'image' && info.srcUrl) {
+    return createUrlCardData(info.srcUrl, `Image from ${tab?.title || 'page'}`);
+  }
+
+  if (info.linkUrl) {
+    return createUrlCardData(info.linkUrl, tab?.title || 'Saved Link');
+  }
+
+  return createUrlCardData(info.pageUrl || tab?.url, tab?.title || 'Saved Link');
 }
 
 function showNotification(title, message, type = 'success') {
-  const iconUrl = 'icons/icon48.png'; // Use a consistent icon
   chrome.notifications.create({
     type: 'basic',
-    iconUrl: iconUrl,
-    title: title,
-    message: message,
+    iconUrl: NOTIFICATION_ICON_URL,
+    title,
+    message,
     priority: 2,
   });
 }

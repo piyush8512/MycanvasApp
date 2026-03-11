@@ -138,7 +138,9 @@ export default function SmartLinkCard({ item }: SmartLinkCardProps) {
 
       <div className="flex flex-1 flex-col p-3">
         <div className="mb-2 flex items-center justify-between gap-2">
-          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${style.badgeClass}`}>
+          <span
+            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${style.badgeClass}`}
+          >
             <Icon className="h-3 w-3" />
             {style.label}
           </span>
@@ -149,10 +151,14 @@ export default function SmartLinkCard({ item }: SmartLinkCardProps) {
           )}
         </div>
 
-        <p className="line-clamp-2 text-sm font-semibold text-gray-900">{displayTitle}</p>
+        <p className="line-clamp-2 text-sm font-semibold text-gray-900">
+          {displayTitle}
+        </p>
 
         {description && (
-          <p className="mt-1 line-clamp-2 text-xs text-gray-600">{description}</p>
+          <p className="mt-1 line-clamp-2 text-xs text-gray-600">
+            {description}
+          </p>
         )}
 
         <div className="mt-auto pt-3">
@@ -161,7 +167,9 @@ export default function SmartLinkCard({ item }: SmartLinkCardProps) {
               <p className="truncate text-xs font-medium text-gray-500">
                 {classification.source}
               </p>
-              {readTime && <p className="text-[11px] text-gray-400">{readTime}</p>}
+              {readTime && (
+                <p className="text-[11px] text-gray-400">{readTime}</p>
+              )}
             </div>
             {url && (
               <a

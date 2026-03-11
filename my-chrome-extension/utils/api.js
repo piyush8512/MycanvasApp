@@ -1,56 +1,27 @@
-// Consolidated API client for the extension.
-// It auto-detects an available backend URL so login/data fetch works on localhost, LAN, or deployed env.
-
+const DEPLOYED_FRONTEND_URL = 'https://mycanvas-app-seven.vercel.app';
 const API_BASE_URLS = [
+  'https://mycanvas-app-backend.vercel.app',
   'http://localhost:4000',
   'http://127.0.0.1:4000',
   'http://192.168.1.33:4000',
-  'https://mycanvas-app-seven.vercel.app',
 ];
 
-let cachedApiBaseUrl = null;
+let cachedApiBaseUrl = API_BASE_URLS[0];
 
-const createAuthHeaders = (token) => ({
+const createAuthHeaders = (token, contentType = 'application/json') => ({
   Authorization: `Bearer ${token}`,
-  'Content-Type': 'application/json',
+  ...(contentType ? { 'Content-Type': contentType } : {}),
 });
 
-const isReachable = async (baseUrl) => {
-  try {
-    // 200/404/401 all mean the server is reachable; fetch only fails on network/permission issues.
-    await fetch(`${baseUrl}/api/health`, { method: 'GET' });
-    return true;
-  } catch (_error) {
-    return false;
-  }
-};
-
-const resolveApiBaseUrl = async () => {
-  if (cachedApiBaseUrl) {
-    return cachedApiBaseUrl;
-  }
-
-  for (const baseUrl of API_BASE_URLS) {
-    // eslint-disable-next-line no-await-in-loop
-    if (await isReachable(baseUrl)) {
-      cachedApiBaseUrl = baseUrl;
-      return baseUrl;
-    }
-  }
-
-  throw new Error('Could not reach backend API. Start backend on :4000 or update API_BASE_URLS.');
-};
+const buildCandidateBaseUrls = () => [
+  cachedApiBaseUrl,
+  ...API_BASE_URLS.filter((baseUrl) => baseUrl !== cachedApiBaseUrl),
+];
 
 const apiFetch = async (path, options = {}) => {
-  const preferredBaseUrl = await resolveApiBaseUrl();
-  const candidates = [
-    preferredBaseUrl,
-    ...API_BASE_URLS.filter((baseUrl) => baseUrl !== preferredBaseUrl),
-  ];
-
   let lastNetworkError = null;
 
-  for (const baseUrl of candidates) {
+  for (const baseUrl of buildCandidateBaseUrls()) {
     try {
       const response = await fetch(`${baseUrl}${path}`, options);
       cachedApiBaseUrl = baseUrl;
@@ -74,7 +45,30 @@ const handleResponse = async (response) => {
   return response.json();
 };
 
+const uploadBlobToSignedUrl = async (signedUrl, blob, fileType) => {
+  const response = await fetch(signedUrl, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': fileType,
+    },
+    body: blob,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Upload failed');
+    throw new Error(errorText || 'Upload failed');
+  }
+};
+
 export const API = {
+  getFrontendLoginUrl(extensionId) {
+    const loginUrl = new URL('/extension-login', DEPLOYED_FRONTEND_URL);
+    if (extensionId) {
+      loginUrl.searchParams.set('extensionId', extensionId);
+    }
+    return loginUrl.toString();
+  },
+
   async verifyToken(token) {
     const response = await apiFetch('/api/users/me', {
       method: 'GET',
@@ -102,6 +96,15 @@ export const API = {
     return data.folders || [];
   },
 
+  async listRootSpaces(token) {
+    const [folders, canvases] = await Promise.all([
+      this.getAllFolders(token),
+      this.getAllCanvases(token),
+    ]);
+
+    return { folders, canvases };
+  },
+
   async getFolderById(folderId, token) {
     const response = await apiFetch(`/api/folders/${folderId}`, {
       method: 'GET',
@@ -123,5 +126,34 @@ export const API = {
     });
     const data = await handleResponse(response);
     return data.item;
+  },
+
+  async getSignedUploadUrl(token, fileName, fileType) {
+    const response = await apiFetch('/api/storage/signed-url', {
+      method: 'POST',
+      headers: createAuthHeaders(token),
+      body: JSON.stringify({ fileName, fileType }),
+    });
+    return handleResponse(response);
+  },
+
+  async getPublicUrl(token, path) {
+    const response = await apiFetch('/api/storage/public-url', {
+      method: 'POST',
+      headers: createAuthHeaders(token),
+      body: JSON.stringify({ path }),
+    });
+    return handleResponse(response);
+  },
+
+  async uploadImageBlob(token, blob, fileName, fileType = 'image/png') {
+    const signedUpload = await this.getSignedUploadUrl(token, fileName, fileType);
+    await uploadBlobToSignedUrl(signedUpload.signedUrl, blob, fileType);
+    const publicUrlResponse = await this.getPublicUrl(token, signedUpload.path);
+
+    return {
+      path: signedUpload.path,
+      publicUrl: publicUrlResponse.publicUrl,
+    };
   },
 };

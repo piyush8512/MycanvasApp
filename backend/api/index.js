@@ -12,7 +12,7 @@ dotenv.config();
 
 const app = express();
 
-const EXTENSION_ID = 'ajfafhdnmjahkkdkefjlpcclpjobmend';
+const EXTENSION_ID = 'ncnfkblfdjkfoooejokijaiehmibmlcj';
 
 const corsOptions = {
   origin: [
