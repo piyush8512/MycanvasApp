@@ -1,99 +1,3 @@
-const API_BASE_URLS = [
-  'https://mycanvas-app-backend.vercel.app',
-  'http://localhost:4000',
-  'http://127.0.0.1:4000',
-  'http://192.168.1.33:4000',
-];
-
-let cachedApiBaseUrl = API_BASE_URLS[0];
-
-function createAuthHeaders(token) {
-  return {
-    Authorization: `Bearer ${token}`,
-    'Content-Type': 'application/json',
-  };
-}
-
-async function apiFetch(path, options = {}) {
-  const candidates = [
-    cachedApiBaseUrl,
-    ...API_BASE_URLS.filter((baseUrl) => baseUrl !== cachedApiBaseUrl),
-  ];
-
-  let lastNetworkError = null;
-
-  for (const baseUrl of candidates) {
-    try {
-      const response = await fetch(`${baseUrl}${path}`, options);
-      cachedApiBaseUrl = baseUrl;
-      return response;
-    } catch (error) {
-      lastNetworkError = error;
-    }
-  }
-
-  throw lastNetworkError || new Error('Network request failed');
-}
-
-async function handleResponse(response) {
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(
-      errorData.message || errorData.error || `API request failed with status ${response.status}`,
-    );
-  }
-
-  return response.json();
-}
-
-const API = {
-  async getAllCanvases(token) {
-    const response = await apiFetch('/api/canvas', {
-      method: 'GET',
-      headers: createAuthHeaders(token),
-    });
-    const data = await handleResponse(response);
-    return data.canvas || [];
-  },
-
-  async getAllFolders(token) {
-    const response = await apiFetch('/api/folders', {
-      method: 'GET',
-      headers: createAuthHeaders(token),
-    });
-    const data = await handleResponse(response);
-    return data.folders || [];
-  },
-
-  async listRootSpaces(token) {
-    const [folders, canvases] = await Promise.all([
-      this.getAllFolders(token),
-      this.getAllCanvases(token),
-    ]);
-
-    return { folders, canvases };
-  },
-
-  async getFolderById(folderId, token) {
-    const response = await apiFetch(`/api/folders/${folderId}`, {
-      method: 'GET',
-      headers: createAuthHeaders(token),
-    });
-    const data = await handleResponse(response);
-    return data.folder;
-  },
-
-  async addCardToCanvas(canvasId, cardData, token) {
-    const response = await apiFetch(`/api/canvas/${canvasId}/items`, {
-      method: 'POST',
-      headers: createAuthHeaders(token),
-      body: JSON.stringify(cardData),
-    });
-    const data = await handleResponse(response);
-    return data.item;
-  },
-};
-
 function detectLinkType(url) {
   if (!url) return 'link';
   const urlLower = url.toLowerCase().trim();
@@ -156,9 +60,18 @@ function getCardColor(type) {
     return;
   }
 
+  console.info('[Canvas Saver] content script loaded v1.0.2', {
+    extensionId: chrome.runtime?.id,
+    origin: window.location.origin,
+  });
+
   const INTERNAL_MESSAGE_TYPES = {
     openExtensionLogin: 'OPEN_EXTENSION_LOGIN',
     captureScreenshotToCanvas: 'CAPTURE_SCREENSHOT_TO_CANVAS',
+    listRootSpaces: 'LIST_ROOT_SPACES',
+    getFolderSpaces: 'GET_FOLDER_SPACES',
+    saveCardToCanvas: 'SAVE_CARD_TO_CANVAS',
+    prefetchRootSpaces: 'PREFETCH_ROOT_SPACES',
   };
 
   const TAB_MESSAGE_TYPES = {
@@ -176,7 +89,12 @@ function getCardColor(type) {
     currentFolderName: 'My Workspace',
     selectedCanvasId: null,
     selectedCanvasName: '',
+    rootCacheHydrated: false,
   };
+
+  const ROOT_CACHE_KEY = 'cachedRootSpaces';
+  const ROOT_CACHE_AT_KEY = 'cachedRootSpacesAt';
+  const ROOT_CACHE_TTL_MS = 5 * 60 * 1000;
 
   const root = document.createElement('div');
   root.id = 'canvas-sticky-root';
@@ -400,6 +318,50 @@ function getCardColor(type) {
       : 'No canvas selected.';
   }
 
+  function sleep(ms) {
+    return new Promise((resolve) => window.setTimeout(resolve, ms));
+  }
+
+  function isRootCacheFresh(cachedAt) {
+    return Number.isFinite(cachedAt) && Date.now() - cachedAt < ROOT_CACHE_TTL_MS;
+  }
+
+  function mapRootSpacesToItems(spaces) {
+    const folders = Array.isArray(spaces?.folders) ? spaces.folders : [];
+    const canvases = Array.isArray(spaces?.canvases) ? spaces.canvases : [];
+
+    return [
+      ...folders.map((folder) => ({ id: folder.id, name: folder.name, type: 'folder' })),
+      ...canvases.map((canvas) => ({ id: canvas.id, name: canvas.name, type: 'canvas' })),
+    ];
+  }
+
+  async function writeRootCache(spaces) {
+    await chrome.storage.local.set({
+      [ROOT_CACHE_KEY]: spaces,
+      [ROOT_CACHE_AT_KEY]: Date.now(),
+    });
+  }
+
+  async function hydrateRootSpacesFromCache() {
+    const cached = await chrome.storage.local.get([ROOT_CACHE_KEY, ROOT_CACHE_AT_KEY]);
+    if (!isRootCacheFresh(cached[ROOT_CACHE_AT_KEY])) {
+      return false;
+    }
+
+    const mappedSpaces = sortSpaces(mapRootSpacesToItems(cached[ROOT_CACHE_KEY]));
+    state.spaces = mappedSpaces;
+    state.filteredSpaces = mappedSpaces;
+    searchInputEl.value = '';
+    state.currentFolderId = null;
+    state.currentFolderName = 'My Workspace';
+    updateSelectionSummary();
+    renderSpaces();
+    showMainView();
+    state.rootCacheHydrated = true;
+    return true;
+  }
+
   function sortSpaces(spaces) {
     return [...spaces].sort((left, right) => {
       if (left.type !== right.type) {
@@ -407,6 +369,19 @@ function getCardColor(type) {
       }
       return left.name.localeCompare(right.name);
     });
+  }
+
+  async function requestBackground(message) {
+    const response = await chrome.runtime.sendMessage(message);
+    if (!response?.success) {
+      const err = new Error(response?.error || 'Extension request failed.');
+      if (response?.status) {
+        err.status = response.status;
+      }
+      throw err;
+    }
+
+    return response;
   }
 
   function renderSpaces() {
@@ -457,13 +432,23 @@ function getCardColor(type) {
     renderSpaces();
   }
 
-  async function loadSpaces(folderId = null, folderName = 'My Workspace') {
+  async function loadSpaces(folderId = null, folderName = 'My Workspace', options = {}) {
+    const { preferCache = false } = options;
+
     if (!state.authToken) {
       showAuthView();
       return;
     }
 
-    setLoading(true);
+    let usingCachedRootView = false;
+    if (preferCache && folderId === null) {
+      usingCachedRootView = await hydrateRootSpacesFromCache();
+    }
+
+    if (!usingCachedRootView) {
+      setLoading(true);
+    }
+
     state.currentFolderId = folderId;
     state.currentFolderName = folderName;
     updateSelectionSummary();
@@ -471,13 +456,15 @@ function getCardColor(type) {
     try {
       let spaces = [];
       if (folderId === null) {
-        const { folders, canvases } = await API.listRootSpaces(state.authToken);
-        spaces = [
-          ...folders.map((folder) => ({ id: folder.id, name: folder.name, type: 'folder' })),
-          ...canvases.map((canvas) => ({ id: canvas.id, name: canvas.name, type: 'canvas' })),
-        ];
+        const response = await requestBackground({ type: INTERNAL_MESSAGE_TYPES.listRootSpaces });
+        spaces = mapRootSpacesToItems(response.spaces);
+        await writeRootCache(response.spaces);
       } else {
-        const folder = await API.getFolderById(folderId, state.authToken);
+        const response = await requestBackground({
+          type: INTERNAL_MESSAGE_TYPES.getFolderSpaces,
+          folderId,
+        });
+        const folder = response.folder;
         spaces = (folder.files || []).map((canvas) => ({
           id: canvas.id,
           name: canvas.name,
@@ -493,12 +480,24 @@ function getCardColor(type) {
       showMainView();
     } catch (error) {
       console.error('Failed to load extension spaces:', error);
-      if (/unauthorized|token|auth/i.test(error.message)) {
+      // Only clear the auth token on a real HTTP 401/403 from the server.
+      // Network errors, timeouts, or CORS failures must NOT clear the token.
+      const isSessionExpired = error.status === 401 || error.status === 403;
+
+      if (isSessionExpired) {
         await chrome.storage.local.remove(['authToken', 'authUser', 'userId']);
+        await chrome.storage.local.remove([ROOT_CACHE_KEY, ROOT_CACHE_AT_KEY]);
         state.authToken = null;
-        showAuthView('Your login expired. Sign in again to keep saving.');
+        showAuthView('Your session expired. Sign in again to keep saving.');
+      } else if (usingCachedRootView) {
+        // We already rendered cached data — just show a quiet toast and keep the UI usable.
+        showToast('Could not refresh — showing saved data.');
       } else {
-        showAuthView(error.message || 'Could not load canvases right now.');
+        // Network/server error but user is still authenticated — show toast, leave main view.
+        showToast(error.message || 'Could not load canvases. Check your connection.');
+        if (state.spaces.length > 0) {
+          showMainView();
+        }
       }
     }
   }
@@ -514,7 +513,13 @@ function getCardColor(type) {
       return;
     }
 
-    await loadSpaces(state.currentFolderId, state.currentFolderName);
+    if (state.currentFolderId === null) {
+      await loadSpaces(null, 'My Workspace', { preferCache: true });
+    } else {
+      await loadSpaces(state.currentFolderId, state.currentFolderName);
+    }
+
+    chrome.runtime.sendMessage({ type: INTERNAL_MESSAGE_TYPES.prefetchRootSpaces }).catch(() => {});
   }
 
   function closePanel() {
@@ -539,7 +544,12 @@ function getCardColor(type) {
 
     try {
       const cardData = buildCardDataFromInput(contentInputEl.value);
-      await API.addCardToCanvas(state.selectedCanvasId, cardData, state.authToken);
+      await requestBackground({
+        type: INTERNAL_MESSAGE_TYPES.saveCardToCanvas,
+        canvasId: state.selectedCanvasId,
+        canvasName: state.selectedCanvasName,
+        cardData,
+      });
       showToast('Saved to canvas.');
     } catch (error) {
       console.error('Save link failed:', error);
@@ -551,6 +561,11 @@ function getCardColor(type) {
   }
 
   async function handleCaptureScreenshot() {
+    if (!state.authToken) {
+      showAuthView();
+      return;
+    }
+
     if (!state.selectedCanvasId) {
       showToast('Select a canvas first.');
       return;
@@ -561,6 +576,9 @@ function getCardColor(type) {
     saveShotBtnEl.textContent = 'Capturing...';
 
     try {
+      closePanel();
+      await sleep(140);
+
       const response = await chrome.runtime.sendMessage({
         type: INTERNAL_MESSAGE_TYPES.captureScreenshotToCanvas,
         canvasId: state.selectedCanvasId,
@@ -573,6 +591,8 @@ function getCardColor(type) {
       showToast('Screenshot saved to canvas.');
     } catch (error) {
       console.error('Screenshot save failed:', error);
+      panelEl.classList.remove('hidden');
+      state.isPanelOpen = true;
       showToast(error.message || 'Screenshot save failed.');
     } finally {
       saveShotBtnEl.disabled = false;

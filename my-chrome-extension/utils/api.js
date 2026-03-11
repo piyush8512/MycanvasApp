@@ -39,7 +39,9 @@ const handleResponse = async (response) => {
     const errorData = await response.json().catch(() => ({}));
     const serverMessage =
       errorData.message || errorData.error || `API request failed with status ${response.status}`;
-    throw new Error(serverMessage);
+    const err = new Error(serverMessage);
+    err.status = response.status;
+    throw err;
   }
 
   return response.json();

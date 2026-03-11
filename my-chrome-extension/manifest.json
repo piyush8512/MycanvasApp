@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Canvas App Saver",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Save links, text, and images directly to your Canvas.",
   "permissions": [
     "activeTab",

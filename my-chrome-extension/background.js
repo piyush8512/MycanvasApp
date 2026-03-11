@@ -13,6 +13,10 @@ const ALLOWED_EXTERNAL_ORIGINS = new Set([
 const INTERNAL_MESSAGE_TYPES = {
   openExtensionLogin: 'OPEN_EXTENSION_LOGIN',
   captureScreenshotToCanvas: 'CAPTURE_SCREENSHOT_TO_CANVAS',
+  listRootSpaces: 'LIST_ROOT_SPACES',
+  getFolderSpaces: 'GET_FOLDER_SPACES',
+  saveCardToCanvas: 'SAVE_CARD_TO_CANVAS',
+  prefetchRootSpaces: 'PREFETCH_ROOT_SPACES',
 };
 
 const TAB_MESSAGE_TYPES = {
@@ -23,6 +27,43 @@ const TAB_MESSAGE_TYPES = {
 const NOTIFICATION_ICON_URL = `data:image/svg+xml,${encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="16" fill="#ff6b35"/><path d="M18 16h28a4 4 0 0 1 4 4v24a4 4 0 0 1-4 4H28l-10 8v-8h0a4 4 0 0 1-4-4V20a4 4 0 0 1 4-4Z" fill="#fff3e8"/><path d="M24 26h16M24 34h10" stroke="#ff6b35" stroke-width="4" stroke-linecap="round"/></svg>',
 )}`;
+
+console.info('[Canvas Saver] background worker active v1.0.2', {
+  extensionId: chrome.runtime?.id,
+});
+
+const SPACE_CACHE_TTL_MS = 60 * 1000;
+const spacesCache = {
+  root: null,
+  rootFetchedAt: 0,
+  folders: new Map(),
+};
+
+function isCacheFresh(fetchedAt) {
+  return Date.now() - fetchedAt < SPACE_CACHE_TTL_MS;
+}
+
+async function getRootSpacesWithCache(authToken, { forceRefresh = false } = {}) {
+  if (!forceRefresh && spacesCache.root && isCacheFresh(spacesCache.rootFetchedAt)) {
+    return spacesCache.root;
+  }
+
+  const spaces = await API.listRootSpaces(authToken);
+  spacesCache.root = spaces;
+  spacesCache.rootFetchedAt = Date.now();
+  return spaces;
+}
+
+async function getFolderSpacesWithCache(folderId, authToken, { forceRefresh = false } = {}) {
+  const cached = spacesCache.folders.get(folderId);
+  if (!forceRefresh && cached && isCacheFresh(cached.fetchedAt)) {
+    return cached.folder;
+  }
+
+  const folder = await API.getFolderById(folderId, authToken);
+  spacesCache.folders.set(folderId, { folder, fetchedAt: Date.now() });
+  return folder;
+}
 
 function getSenderOrigin(sender) {
   if (sender?.origin) {
@@ -172,9 +213,25 @@ async function captureScreenshotToCanvas(canvasId, sender) {
     throw new Error('Select a canvas before capturing a screenshot.');
   }
 
-  const dataUrl = await chrome.tabs.captureVisibleTab(undefined, { format: 'png' });
+  const fallbackTabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  const activeTab = sender?.tab || fallbackTabs[0] || null;
+  const captureWindowId = activeTab?.windowId;
+
+  let dataUrl;
+  try {
+    dataUrl = await chrome.tabs.captureVisibleTab(captureWindowId, {
+      format: 'png',
+      quality: 95,
+    });
+  } catch (error) {
+    throw new Error(
+      error?.message ||
+        'Unable to capture this page. Try again on a regular http/https page and ensure the tab is visible.',
+    );
+  }
+
   const blob = await fetch(dataUrl).then((response) => response.blob());
-  const safeTitle = (sender?.tab?.title || 'web-screenshot')
+  const safeTitle = (activeTab?.title || 'web-screenshot')
     .replace(/[^a-z0-9-_]+/gi, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 50) || 'web-screenshot';
@@ -184,10 +241,10 @@ async function captureScreenshotToCanvas(canvasId, sender) {
     canvasId,
     {
       type: 'image',
-      name: `Screenshot: ${sender?.tab?.title || 'Current page'}`,
+      name: `Screenshot: ${activeTab?.title || 'Current page'}`,
       content: {
         url: uploadedImage.publicUrl,
-        sourceUrl: sender?.tab?.url || null,
+        sourceUrl: activeTab?.url || null,
         capturedAt: new Date().toISOString(),
       },
       position: { x: 140, y: 140 },
@@ -218,6 +275,10 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
       authToken: message.token,
       authUpdatedAt: Date.now(),
     }, async () => {
+      spacesCache.root = null;
+      spacesCache.rootFetchedAt = 0;
+      spacesCache.folders.clear();
+
       try {
         const user = await API.getUser(message.token);
         if (user && user.id) {
@@ -229,6 +290,8 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
       } catch (e) {
         console.error('Failed to fetch user after login:', e);
       }
+
+      getRootSpacesWithCache(message.token, { forceRefresh: true }).catch(() => {});
 
       await broadcastToCanvasTabs({ type: TAB_MESSAGE_TYPES.authUpdated });
       sendResponse({ success: true });
@@ -250,6 +313,74 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     captureScreenshotToCanvas(message.canvasId, sender)
       .then(() => sendResponse({ success: true }))
       .catch((error) => sendResponse({ success: false, error: error.message }));
+    return true;
+  }
+
+  if (message?.type === INTERNAL_MESSAGE_TYPES.listRootSpaces) {
+    chrome.storage.local.get(['authToken'])
+      .then(({ authToken }) => {
+        if (!authToken) {
+          throw new Error('Please sign in to the extension first.');
+        }
+
+        return getRootSpacesWithCache(authToken);
+      })
+      .then((spaces) => sendResponse({ success: true, spaces }))
+      .catch((error) => sendResponse({ success: false, error: error.message, status: error.status || null }));
+    return true;
+  }
+
+  if (message?.type === INTERNAL_MESSAGE_TYPES.getFolderSpaces) {
+    chrome.storage.local.get(['authToken'])
+      .then(({ authToken }) => {
+        if (!authToken) {
+          throw new Error('Please sign in to the extension first.');
+        }
+
+        return getFolderSpacesWithCache(message.folderId, authToken);
+      })
+      .then((folder) => sendResponse({ success: true, folder }))
+      .catch((error) => sendResponse({ success: false, error: error.message, status: error.status || null }));
+    return true;
+  }
+
+  if (message?.type === INTERNAL_MESSAGE_TYPES.prefetchRootSpaces) {
+    chrome.storage.local.get(['authToken'])
+      .then(({ authToken }) => {
+        if (!authToken) {
+          return null;
+        }
+
+        return getRootSpacesWithCache(authToken, { forceRefresh: true });
+      })
+      .then(() => sendResponse({ success: true }))
+      .catch((error) => sendResponse({ success: false, error: error.message, status: error.status || null }));
+    return true;
+  }
+
+  if (message?.type === INTERNAL_MESSAGE_TYPES.saveCardToCanvas) {
+    chrome.storage.local.get(['authToken'])
+      .then(({ authToken }) => {
+        if (!authToken) {
+          throw new Error('Please sign in to the extension first.');
+        }
+
+        if (!message.canvasId) {
+          throw new Error('Select a canvas first.');
+        }
+
+        return API.addCardToCanvas(message.canvasId, message.cardData, authToken);
+      })
+      .then((item) => {
+        return chrome.storage.local
+          .set({
+            lastCanvasId: message.canvasId,
+            ...(message.canvasName ? { lastCanvasName: message.canvasName } : {}),
+          })
+          .then(() => item);
+      })
+      .then((item) => sendResponse({ success: true, item }))
+      .catch((error) => sendResponse({ success: false, error: error.message, status: error.status || null }));
     return true;
   }
 
@@ -299,7 +430,13 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 chrome.commands.onCommand.addListener(async (command, tab) => {
   if (command === 'save-to-canvas') {
     try {
-      await saveCurrentTabToCanvas(tab);
+      let targetTab = tab;
+      if (!targetTab?.url) {
+        const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        targetTab = activeTab;
+      }
+
+      await saveCurrentTabToCanvas(targetTab);
       showNotification('Saved', 'Page saved to your selected canvas.');
     } catch (error) {
       showNotification('Save Failed', error.message || 'Could not save the current page.', 'error');
