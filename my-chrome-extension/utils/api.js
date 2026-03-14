@@ -1,10 +1,4 @@
-const DEPLOYED_FRONTEND_URL = 'https://mycanvas-app-seven.vercel.app';
-const API_BASE_URLS = [
-  'https://mycanvas-app-backend.vercel.app',
-  'http://localhost:4000',
-  'http://127.0.0.1:4000',
-  'http://192.168.1.33:4000',
-];
+import { API_BASE_URLS, DEPLOYED_FRONTEND_URL } from './config.js';
 
 let cachedApiBaseUrl = API_BASE_URLS[0];
 
@@ -107,6 +101,8 @@ export const API = {
     return { folders, canvases };
   },
 
+
+  //get folders by id 
   async getFolderById(folderId, token) {
     const response = await apiFetch(`/api/folders/${folderId}`, {
       method: 'GET',

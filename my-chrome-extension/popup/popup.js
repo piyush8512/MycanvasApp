@@ -1,65 +1,70 @@
-import { API } from '../utils/api.js';
-import { detectLinkType, getCardColor, getCardDefaultSize } from '../utils/helpers.js';
+import { INTERNAL_MESSAGE_TYPES, STORAGE_KEYS } from '../utils/constants.js';
+import { createCardDataFromInput } from '../utils/cardFactory.js';
 
 class LinkSaverPopup {
   constructor() {
     this.currentTab = null;
-    this.allSpaces = []; // Will store folders AND canvases
+    this.allSpaces = [];
     this.filteredSpaces = [];
-    this.authToken = null;
-    this.selectedSpaceId = null; // This is the ID of the CANVAS we want to save to
+    this.selectedSpaceId = null;
+    this.selectedSpaceName = '';
+    this.currentFolderId = null;
+    this.currentFolderName = 'Save to Canvas';
 
-    // --- NEW STATE FOR NAVIGATION ---
-    this.currentFolderId = null; // null means we are at the root
-    this.currentFolderName = "Save to Canvas";
-    // --- END NEW STATE ---
-    
-    // Get all DOM elements
     this.urlInputEl = document.getElementById('url-input');
     this.spaceListEl = document.getElementById('space-list');
     this.searchInputEl = document.getElementById('search-input');
     this.saveButtonEl = document.getElementById('save-button');
     this.recentListEl = document.getElementById('recent-list');
-    // --- NEW DOM ELEMENTS ---
     this.backBtnEl = document.getElementById('back-btn');
     this.headerTitleEl = document.getElementById('header-title');
     this.searchLabelEl = document.getElementById('search-label');
-    // --- END NEW ---
-    
+
+    this.saveButtonDefaultLabel = this.saveButtonEl.textContent;
+
     this.init();
   }
 
   async init() {
     this.setupEventListeners();
+    await this.autofillCurrentTab();
     await this.checkAuth();
+    await this.loadRecentSaves();
+  }
+
+  async requestBackground(message) {
+    const response = await chrome.runtime.sendMessage(message);
+    if (!response?.success) {
+      const error = new Error(response?.error || 'Extension request failed.');
+      if (response?.status) {
+        error.status = response.status;
+      }
+      throw error;
+    }
+    return response;
   }
 
   async checkAuth() {
     this.showSection('loading-section');
     try {
-      const { authToken } = await chrome.storage.local.get(['authToken']);
-      
+      const stored = await chrome.storage.local.get([
+        STORAGE_KEYS.authToken,
+        STORAGE_KEYS.lastCanvasId,
+        STORAGE_KEYS.lastCanvasName,
+      ]);
+      const authToken = stored[STORAGE_KEYS.authToken];
+
       if (!authToken || typeof authToken !== 'string' || authToken.length < 10) {
-        throw new Error("No valid token found.");
+        throw new Error('No valid token found.');
       }
 
-      // Token exists, now VERIFY it
-      const user = await API.verifyToken(authToken);
-      console.log("Token verified. User:", user);
-      
-      this.authToken = authToken;
-      chrome.storage.local.set({ userId: user.id });
-      
-      // Load the main UI
-      await this.loadSpaces(null, "Save to Canvas"); // Load root items
-      this.showSection('main-section');
-      
-      // Pre-fill the URL input
-      this.autofillCurrentTab();
+      this.selectedSpaceId = stored[STORAGE_KEYS.lastCanvasId] || null;
+      this.selectedSpaceName = stored[STORAGE_KEYS.lastCanvasName] || '';
+      await this.loadSpaces(null, 'Save to Canvas');
 
     } catch (error) {
-      console.warn("Auth check failed:", error.message);
-      this.showSection('auth-section'); // Show login button
+      console.warn('Auth check failed:', error.message);
+      this.showSection('auth-section');
     }
   }
 
@@ -69,68 +74,83 @@ class LinkSaverPopup {
       this.currentTab = tab;
       this.urlInputEl.value = tab.url;
     } catch (e) {
-      console.warn("Could not get tab info, probably on a restricted page.");
-      this.urlInputEl.placeholder = "Could not get current URL";
+      console.warn('Could not get tab info, probably on a restricted page.');
+      this.urlInputEl.placeholder = 'Could not get current URL';
     }
   }
 
-  /**
-   * --- NEW NAVIGATION LOGIC ---
-   * Fetches and displays spaces (folders/canvases) for a given folder ID.
-   * If folderId is null, it fetches the root.
-   */
-  async loadSpaces(folderId = null, folderName = "Save to Canvas") {
+  mapRootSpaces(response) {
+    const folders = Array.isArray(response?.spaces?.folders) ? response.spaces.folders : [];
+    const canvases = Array.isArray(response?.spaces?.canvases) ? response.spaces.canvases : [];
+    return [
+      ...folders.map((folder) => ({ ...folder, type: 'folder' })),
+      ...canvases.map((canvas) => ({ ...canvas, type: 'file' })),
+    ];
+  }
+
+  mapFolderSpaces(response) {
+    const folder = response?.folder || {};
+    const folders = Array.isArray(folder.folders) ? folder.folders : [];
+    const files = Array.isArray(folder.files)
+      ? folder.files
+      : Array.isArray(folder.canvases)
+        ? folder.canvases
+        : [];
+
+    return [
+      ...folders.map((childFolder) => ({ ...childFolder, type: 'folder' })),
+      ...files.map((canvas) => ({ ...canvas, type: 'file' })),
+    ];
+  }
+
+  sortSpaces(spaces) {
+    return [...spaces].sort((left, right) => {
+      if (left.type !== right.type) {
+        return left.type === 'folder' ? -1 : 1;
+      }
+      return left.name.localeCompare(right.name);
+    });
+  }
+
+  async loadSpaces(folderId = null, folderName = 'Save to Canvas') {
     this.showSection('loading-section');
     this.currentFolderId = folderId;
     this.currentFolderName = folderName;
-    this.searchInputEl.value = ''; // Clear search
-    
-    // Update UI
+    this.searchInputEl.value = '';
+
     this.headerTitleEl.textContent = folderName;
     this.searchLabelEl.textContent = `Save to "${folderName}"`;
     this.backBtnEl.classList.toggle('hidden', folderId === null);
-    
+
     try {
-      let spaces = [];
+      let spaces;
       if (folderId === null) {
-        // We are at the root. Fetch root folders and canvases.
-        const [folders, canvases] = await Promise.all([
-          API.getAllFolders(this.authToken),
-          API.getAllCanvases(this.authToken)
-        ]);
-        const mappedFolders = folders.map(f => ({ ...f, type: 'folder' }));
-        const mappedCanvases = canvases.map(c => ({ ...c, type: 'file' }));
-        spaces = [...mappedFolders, ...mappedCanvases];
+        const response = await this.requestBackground({ type: INTERNAL_MESSAGE_TYPES.listRootSpaces });
+        spaces = this.mapRootSpaces(response);
       } else {
-        // We are inside a folder. Fetch its contents.
-        const folder = await API.getFolderById(folderId, this.authToken);
-        // The API returns the folder, which contains a 'files' array
-        // We map these to 'type: file' for our UI
-        spaces = folder.files.map(c => ({ ...c, type: 'file' }));
-        // Note: This simple version doesn't support nested folders
+        const response = await this.requestBackground({
+          type: INTERNAL_MESSAGE_TYPES.getFolderSpaces,
+          folderId,
+        });
+        spaces = this.mapFolderSpaces(response);
       }
 
-      // Sort: folders first, then by name
-      this.allSpaces = spaces.sort((a, b) => {
-        if (a.type === 'folder' && b.type !== 'file') return -1;
-        if (a.type === 'file' && b.type === 'folder') return 1;
-        return a.name.localeCompare(b.name);
-      });
-      
+      this.allSpaces = this.sortSpaces(spaces);
       this.filteredSpaces = this.allSpaces;
       this.populateSpaceList();
-      this.loadRecentSaves(); // This could also be updated
       this.showSection('main-section');
-
     } catch (e) {
-      console.error("Failed to load spaces:", e);
-      this.showError("Could not load your spaces. Please try refreshing.");
+      console.error('Failed to load spaces:', e);
+      if (e.status === 401 || e.status === 403) {
+        this.showSection('auth-section');
+        return;
+      }
+      this.showError('Could not load your spaces. Please try refreshing.');
     }
   }
-  // --- END NEW LOGIC ---
 
   populateSpaceList() {
-    this.spaceListEl.innerHTML = ''; // Clear list
+    this.spaceListEl.innerHTML = '';
 
     if (this.filteredSpaces.length === 0) {
       const message = this.searchInputEl.value ? 'No matches' : 'This folder is empty';
@@ -138,57 +158,47 @@ class LinkSaverPopup {
       return;
     }
 
-    // Load last selected
-    chrome.storage.local.get(['lastCanvasId'], (result) => {
-      this.selectedSpaceId = result.lastCanvasId;
+    this.filteredSpaces.forEach((space) => {
+      const itemEl = document.createElement('li');
+      itemEl.className = 'canvas-list-item';
+      itemEl.dataset.id = space.id;
 
-      this.filteredSpaces.forEach(space => {
-        const itemEl = document.createElement('li');
-        itemEl.className = 'canvas-list-item';
-        itemEl.dataset.id = space.id;
-        
-        const icon = space.type === 'folder' ? '📁' : '📄'; // 'file' is a canvas
-        itemEl.innerHTML = `<span class="icon">${icon}</span> ${space.name}`;
-        
-        // Only mark canvases (files) as selected
-        if (space.type === 'file' && space.id === this.selectedSpaceId) {
-          itemEl.classList.add('selected');
-        }
-        
-        // --- UPDATED: Click handler now navigates ---
-        itemEl.addEventListener('click', () => this.handleSpaceClick(space));
-        this.spaceListEl.appendChild(itemEl);
-      });
+      const icon = space.type === 'folder' ? '📁' : '📄';
+      itemEl.innerHTML = `<span class="icon">${icon}</span> ${space.name}`;
+
+      if (space.type === 'file' && space.id === this.selectedSpaceId) {
+        itemEl.classList.add('selected');
+      }
+
+      itemEl.addEventListener('click', () => this.handleSpaceClick(space));
+      this.spaceListEl.appendChild(itemEl);
     });
   }
-  
-  /**
-   * --- RENAMED & UPDATED ---
-   * Called when a user clicks ANY item in the list.
-   */
+
   handleSpaceClick(space) {
     if (space.type === 'folder') {
-      // It's a folder, navigate INTO it
       this.loadSpaces(space.id, space.name);
     } else {
-      // It's a canvas (file), so SELECT it
       this.selectedSpaceId = space.id;
-      chrome.storage.local.set({ lastCanvasId: this.selectedSpaceId });
-      
-      // Update visual selection
-      this.spaceListEl.querySelectorAll('.canvas-list-item').forEach(el => {
+      this.selectedSpaceName = space.name;
+      chrome.storage.local.set({
+        [STORAGE_KEYS.lastCanvasId]: this.selectedSpaceId,
+        [STORAGE_KEYS.lastCanvasName]: this.selectedSpaceName,
+      });
+
+      this.spaceListEl.querySelectorAll('.canvas-list-item').forEach((el) => {
         el.classList.toggle('selected', el.dataset.id === space.id);
       });
     }
   }
-  
+
   handleFilter() {
     const query = this.searchInputEl.value.toLowerCase();
     if (!query) {
       this.filteredSpaces = this.allSpaces;
     } else {
-      this.filteredSpaces = this.allSpaces.filter(space => 
-        space.name.toLowerCase().includes(query)
+      this.filteredSpaces = this.allSpaces.filter((space) =>
+        space.name.toLowerCase().includes(query),
       );
     }
     this.populateSpaceList();
@@ -203,9 +213,8 @@ class LinkSaverPopup {
       this.handleLogout();
     });
 
-    // --- NEW: Back button listener ---
     this.backBtnEl.addEventListener('click', () => {
-      this.loadSpaces(null, "Save to Canvas"); // Go back to root
+      this.loadSpaces(null, 'Save to Canvas');
     });
 
     this.searchInputEl.addEventListener('input', () => this.handleFilter());
@@ -215,19 +224,14 @@ class LinkSaverPopup {
     });
 
     document.getElementById('refresh-btn').addEventListener('click', () => {
-      // Re-load the current view
       this.loadSpaces(this.currentFolderId, this.currentFolderName);
     });
   }
 
-  handleLogin() {
+  async handleLogin() {
     try {
-      const authUrl = new URL('http://localhost:3000/extension-login');
-      if (chrome.runtime?.id) {
-        authUrl.searchParams.set('extensionId', chrome.runtime.id);
-      }
-      chrome.tabs.create({ url: authUrl.toString() });
-      window.close(); // Close the popup
+      await this.requestBackground({ type: INTERNAL_MESSAGE_TYPES.openExtensionLogin });
+      window.close();
     } catch (error) {
       console.error('Login failed:', error);
       this.showError('Login failed to open');
@@ -235,9 +239,13 @@ class LinkSaverPopup {
   }
 
   async handleLogout() {
-    await chrome.storage.local.clear();
-    this.authToken = null;
+    await chrome.storage.local.remove([
+      STORAGE_KEYS.authToken,
+      STORAGE_KEYS.authUser,
+      STORAGE_KEYS.userId,
+    ]);
     this.selectedSpaceId = null;
+    this.selectedSpaceName = '';
     this.allSpaces = [];
     this.filteredSpaces = [];
     this.showSection('auth-section');
@@ -258,57 +266,44 @@ class LinkSaverPopup {
     this.saveButtonEl.textContent = 'Saving...';
 
     try {
-      const linkType = detectLinkType(urlToSave);
-      
-      let cardData;
-      
-      if (linkType === 'note') {
-        // Handle as a text note
-        cardData = {
-          type: 'note',
-          name: `Note: ${urlToSave.substring(0, 20)}...`,
-          content: urlToSave, // Note content is the text itself
-          position: { x: 100, y: 100 },
-          size: getCardDefaultSize('note'),
-          color: getCardColor('note'),
-        };
-      } else {
-        // Handle as a link
-        cardData = {
-          type: linkType,
-          name: this.currentTab?.title || 'Pasted Link',
-          content: { url: urlToSave },
-          position: { x: 100, y: 100 },
-          size: getCardDefaultSize(linkType),
-          color: getCardColor(linkType),
-        };
-      }
+      const cardData = createCardDataFromInput(
+        urlToSave,
+        this.currentTab?.title || 'Pasted Link',
+        { x: 100, y: 100 },
+      );
 
-      await API.addCardToCanvas(this.selectedSpaceId, cardData, this.authToken);
-      
+      await this.requestBackground({
+        type: INTERNAL_MESSAGE_TYPES.saveCardToCanvas,
+        canvasId: this.selectedSpaceId,
+        canvasName: this.selectedSpaceName,
+        cardData,
+      });
+
+      await this.addToRecentSaves(cardData);
       this.showSuccess('Saved to canvas!');
-      this.addToRecentSaves(cardData);
     } catch (error) {
       console.error('Save failed:', error);
       this.showError('Failed to save link.');
+    } finally {
       this.saveButtonEl.disabled = false;
-      this.saveButtonEl.textContent = 'Save to Canvas';
+      this.saveButtonEl.textContent = this.saveButtonDefaultLabel;
     }
   }
 
   async loadRecentSaves() {
-    const { recentSaves = [] } = await chrome.storage.local.get(['recentSaves']);
-    this.recentListEl.innerHTML = ''; // Clear list
-    
+    const stored = await chrome.storage.local.get([STORAGE_KEYS.recentSaves]);
+    const recentSaves = stored[STORAGE_KEYS.recentSaves] || [];
+    this.recentListEl.innerHTML = '';
+
     if (recentSaves.length === 0) {
       this.recentListEl.innerHTML = '<p class="empty-state">No recent saves</p>';
       return;
     }
 
-    recentSaves.slice(0, 3).forEach(save => {
+    recentSaves.slice(0, 3).forEach((save) => {
       const item = document.createElement('div');
       item.className = 'recent-item';
-      const name = save.name || (typeof save.content === 'string' ? save.content.substring(0, 30) : 'Saved item');
+      const name = save.name || save.content?.text || save.content?.url || 'Saved item';
       item.innerHTML = `
         <span class="recent-item-icon">${this.getIconForType(save.type)}</span>
         <span class="recent-item-name">${name}</span>
@@ -318,16 +313,17 @@ class LinkSaverPopup {
   }
 
   async addToRecentSaves(item) {
-    const { recentSaves = [] } = await chrome.storage.local.get(['recentSaves']);
-    
+    const stored = await chrome.storage.local.get([STORAGE_KEYS.recentSaves]);
+    const recentSaves = stored[STORAGE_KEYS.recentSaves] || [];
+
     recentSaves.unshift({
       ...item,
       timestamp: Date.now(),
     });
 
     const trimmedSaves = recentSaves.slice(0, 10);
-    
-    await chrome.storage.local.set({ recentSaves: trimmedSaves });
+
+    await chrome.storage.local.set({ [STORAGE_KEYS.recentSaves]: trimmedSaves });
     this.loadRecentSaves();
   }
 

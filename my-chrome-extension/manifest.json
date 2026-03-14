@@ -1,6 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "Canvas App Saver",
+  "minimum_chrome_version": "114",
+  "name": "Canvas",
   "version": "1.0.2",
   "description": "Save links, text, and images directly to your Canvas.",
   "permissions": [
@@ -8,8 +9,7 @@
     "tabs",
     "storage",
     "notifications",
-    "contextMenus",
-    "scripting"
+    "contextMenus"
   ],
   "host_permissions": [
     "https://mycanvas-app-backend.vercel.app/*",
@@ -19,7 +19,7 @@
     "https://mycanvas-app-seven.vercel.app/*"
   ],
   "action": {
-    "default_title": "Canvas App Saver"
+    "default_title": "Canvas"
   },
   "background": {
     "service_worker": "background.js",

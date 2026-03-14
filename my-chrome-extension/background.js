@@ -1,28 +1,10 @@
 import { API } from './utils/api.js';
-import { detectLinkType, getCardColor, getCardDefaultSize } from './utils/helpers.js';
+import { getCardColor, getCardDefaultSize } from './utils/helpers.js';
+import { INTERNAL_MESSAGE_TYPES, TAB_MESSAGE_TYPES, STORAGE_KEYS } from './utils/constants.js';
+import { FRONTEND_ORIGINS } from './utils/config.js';
+import { createUrlCardData } from './utils/cardFactory.js';
 
-const ALLOWED_EXTERNAL_ORIGINS = new Set([
-  'http://localhost:3000',
-  'http://localhost:3001',
-  'http://127.0.0.1:3000',
-  'http://127.0.0.1:3001',
-  'http://192.168.1.33:3000',
-  'https://mycanvas-app-seven.vercel.app',
-]);
-
-const INTERNAL_MESSAGE_TYPES = {
-  openExtensionLogin: 'OPEN_EXTENSION_LOGIN',
-  captureScreenshotToCanvas: 'CAPTURE_SCREENSHOT_TO_CANVAS',
-  listRootSpaces: 'LIST_ROOT_SPACES',
-  getFolderSpaces: 'GET_FOLDER_SPACES',
-  saveCardToCanvas: 'SAVE_CARD_TO_CANVAS',
-  prefetchRootSpaces: 'PREFETCH_ROOT_SPACES',
-};
-
-const TAB_MESSAGE_TYPES = {
-  toggleStickyPanel: 'TOGGLE_STICKY_PANEL',
-  authUpdated: 'AUTH_UPDATED',
-};
+const ALLOWED_EXTERNAL_ORIGINS = new Set(FRONTEND_ORIGINS);
 
 const NOTIFICATION_ICON_URL = `data:image/svg+xml,${encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="16" fill="#ff6b35"/><path d="M18 16h28a4 4 0 0 1 4 4v24a4 4 0 0 1-4 4H28l-10 8v-8h0a4 4 0 0 1-4-4V20a4 4 0 0 1 4-4Z" fill="#fff3e8"/><path d="M24 26h16M24 34h10" stroke="#ff6b35" stroke-width="4" stroke-linecap="round"/></svg>',
@@ -33,6 +15,7 @@ console.info('[Canvas Saver] background worker active v1.0.2', {
 });
 
 const SPACE_CACHE_TTL_MS = 60 * 1000;
+
 const spacesCache = {
   root: null,
   rootFetchedAt: 0,
@@ -88,7 +71,6 @@ async function broadcastToCanvasTabs(message) {
       if (!tab.id) {
         return;
       }
-
       try {
         await chrome.tabs.sendMessage(tab.id, message);
       } catch (_error) {
@@ -98,90 +80,16 @@ async function broadcastToCanvasTabs(message) {
   );
 }
 
-function extractYoutubeVideoId(url) {
-  if (!url) {
-    return null;
-  }
-
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/,
-    /youtube\.com\/embed\/([^&\n?#]+)/,
-  ];
-
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match?.[1]) {
-      return match[1];
-    }
-  }
-
-  return null;
-}
-
-function createUrlCardData(url, title) {
-  const type = detectLinkType(url);
-  const baseName = title || 'Saved Link';
-
-  if (type === 'youtube') {
-    const videoId = extractYoutubeVideoId(url);
-    return {
-      type,
-      name: baseName,
-      content: {
-        url,
-        title: baseName,
-        ...(videoId
-          ? {
-              videoId,
-              thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
-            }
-          : {}),
-      },
-      position: { x: 120, y: 120 },
-      size: getCardDefaultSize(type),
-      color: getCardColor(type),
-    };
-  }
-
-  if (type === 'image') {
-    return {
-      type,
-      name: baseName,
-      content: { url },
-      position: { x: 120, y: 120 },
-      size: getCardDefaultSize(type),
-      color: getCardColor(type),
-    };
-  }
-
-  let domain = 'link';
-  try {
-    domain = new URL(url).hostname;
-  } catch (_error) {
-    domain = 'link';
-  }
-
-  return {
-    type,
-    name: baseName,
-    content: {
-      url,
-      domain,
-      title: baseName,
-    },
-    position: { x: 120, y: 120 },
-    size: getCardDefaultSize(type),
-    color: getCardColor(type),
-  };
-}
-
 async function openExtensionLogin() {
   const loginUrl = API.getFrontendLoginUrl(chrome.runtime?.id);
   await chrome.tabs.create({ url: loginUrl });
 }
 
 async function saveCardToSelectedCanvas(cardData) {
-  const { authToken, lastCanvasId } = await chrome.storage.local.get(['authToken', 'lastCanvasId']);
+  const { authToken, lastCanvasId } = await chrome.storage.local.get([
+    STORAGE_KEYS.authToken,
+    STORAGE_KEYS.lastCanvasId,
+  ]);
 
   if (!authToken) {
     throw new Error('Please sign in to the extension first.');
@@ -204,7 +112,7 @@ async function saveCurrentTabToCanvas(tab) {
 }
 
 async function captureScreenshotToCanvas(canvasId, sender) {
-  const { authToken } = await chrome.storage.local.get(['authToken']);
+  const { authToken } = await chrome.storage.local.get([STORAGE_KEYS.authToken]);
   if (!authToken) {
     throw new Error('Please sign in to the extension first.');
   }
@@ -254,7 +162,7 @@ async function captureScreenshotToCanvas(canvasId, sender) {
     authToken,
   );
 
-  await chrome.storage.local.set({ lastCanvasId: canvasId });
+  await chrome.storage.local.set({ [STORAGE_KEYS.lastCanvasId]: canvasId });
   return item;
 }
 
@@ -272,7 +180,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
   // Handle the successful login
   if (message.type === 'AUTH_SUCCESS') {
     chrome.storage.local.set({
-      authToken: message.token,
+      [STORAGE_KEYS.authToken]: message.token,
       authUpdatedAt: Date.now(),
     }, async () => {
       spacesCache.root = null;
@@ -283,8 +191,8 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         const user = await API.getUser(message.token);
         if (user && user.id) {
           await chrome.storage.local.set({
-            userId: user.id,
-            authUser: user,
+            [STORAGE_KEYS.userId]: user.id,
+            [STORAGE_KEYS.authUser]: user,
           });
         }
       } catch (e) {
@@ -317,7 +225,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message?.type === INTERNAL_MESSAGE_TYPES.listRootSpaces) {
-    chrome.storage.local.get(['authToken'])
+    chrome.storage.local.get([STORAGE_KEYS.authToken])
       .then(({ authToken }) => {
         if (!authToken) {
           throw new Error('Please sign in to the extension first.');
@@ -331,7 +239,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message?.type === INTERNAL_MESSAGE_TYPES.getFolderSpaces) {
-    chrome.storage.local.get(['authToken'])
+    chrome.storage.local.get([STORAGE_KEYS.authToken])
       .then(({ authToken }) => {
         if (!authToken) {
           throw new Error('Please sign in to the extension first.');
@@ -345,7 +253,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message?.type === INTERNAL_MESSAGE_TYPES.prefetchRootSpaces) {
-    chrome.storage.local.get(['authToken'])
+    chrome.storage.local.get([STORAGE_KEYS.authToken])
       .then(({ authToken }) => {
         if (!authToken) {
           return null;
@@ -359,7 +267,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message?.type === INTERNAL_MESSAGE_TYPES.saveCardToCanvas) {
-    chrome.storage.local.get(['authToken'])
+    chrome.storage.local.get([STORAGE_KEYS.authToken])
       .then(({ authToken }) => {
         if (!authToken) {
           throw new Error('Please sign in to the extension first.');
@@ -374,8 +282,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       .then((item) => {
         return chrome.storage.local
           .set({
-            lastCanvasId: message.canvasId,
-            ...(message.canvasName ? { lastCanvasName: message.canvasName } : {}),
+            [STORAGE_KEYS.lastCanvasId]: message.canvasId,
+            ...(message.canvasName ? { [STORAGE_KEYS.lastCanvasName]: message.canvasName } : {}),
           })
           .then(() => item);
       })

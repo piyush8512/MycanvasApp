@@ -83,14 +83,14 @@ function getCardColor(type) {
     authToken: null,
     isPanelOpen: false,
     isLoading: false,
-    spaces: [],
-    filteredSpaces: [],
-    currentFolderId: null,
-    currentFolderName: 'My Workspace',
+    spacesTree: [],
+    filteredTree: [],
     selectedCanvasId: null,
     selectedCanvasName: '',
     rootCacheHydrated: false,
   };
+
+  const expandedFolderIds = new Set();
 
   const ROOT_CACHE_KEY = 'cachedRootSpaces';
   const ROOT_CACHE_AT_KEY = 'cachedRootSpacesAt';
@@ -99,10 +99,6 @@ function getCardColor(type) {
   const root = document.createElement('div');
   root.id = 'canvas-sticky-root';
   root.innerHTML = `
-    <div class="canvas-launcher">
-      <button id="canvas-link-trigger" class="canvas-launcher-btn" type="button">Save</button>
-      <button id="canvas-shot-trigger" class="canvas-launcher-btn canvas-launcher-btn-secondary" type="button">Shot</button>
-    </div>
     <section id="canvas-sticky-panel" class="hidden" aria-live="polite">
       <div class="canvas-panel-header">
         <div>
@@ -121,13 +117,9 @@ function getCardColor(type) {
         <label class="canvas-label" for="canvas-content-input">Content to save</label>
         <textarea class="canvas-textarea" id="canvas-content-input" rows="4"></textarea>
 
-        <div class="canvas-toolbar-row">
-          <button id="canvas-back-btn" class="canvas-btn-secondary hidden" type="button">Back</button>
-          <div id="canvas-folder-label" class="canvas-current-folder">My Workspace</div>
-        </div>
-
         <label class="canvas-label" for="canvas-search-input">Choose destination canvas</label>
         <input class="canvas-input" id="canvas-search-input" type="text" placeholder="Search folders and canvases" />
+        <div class="canvas-tree-hint">Expand folders inline and select a canvas.</div>
         <div id="canvas-space-list" class="canvas-space-list"></div>
 
         <div id="canvas-selection-summary" class="canvas-selection-summary">No canvas selected.</div>
@@ -143,10 +135,15 @@ function getCardColor(type) {
         <p class="canvas-helper-text">Loading your canvases...</p>
       </div>
     </section>
-    <div id="canvas-toast" role="status" aria-live="polite"></div>
   `;
 
   document.documentElement.appendChild(root);
+
+  const toastEl = document.createElement('div');
+  toastEl.id = 'canvas-toast';
+  toastEl.setAttribute('role', 'status');
+  toastEl.setAttribute('aria-live', 'polite');
+  document.documentElement.appendChild(toastEl);
 
   const panelEl = root.querySelector('#canvas-sticky-panel');
   const authViewEl = root.querySelector('#canvas-auth-view');
@@ -156,12 +153,12 @@ function getCardColor(type) {
   const searchInputEl = root.querySelector('#canvas-search-input');
   const spaceListEl = root.querySelector('#canvas-space-list');
   const statusTextEl = root.querySelector('#canvas-status-text');
-  const folderLabelEl = root.querySelector('#canvas-folder-label');
   const selectionSummaryEl = root.querySelector('#canvas-selection-summary');
-  const backBtnEl = root.querySelector('#canvas-back-btn');
-  const toastEl = root.querySelector('#canvas-toast');
   const saveLinkBtnEl = root.querySelector('#canvas-save-link-btn');
   const saveShotBtnEl = root.querySelector('#canvas-save-shot-btn');
+
+  saveLinkBtnEl.dataset.defaultLabel = saveLinkBtnEl.textContent;
+  saveShotBtnEl.dataset.defaultLabel = saveShotBtnEl.textContent;
 
   function showToast(message) {
     toastEl.textContent = message;
@@ -311,8 +308,6 @@ function getCardColor(type) {
   }
 
   function updateSelectionSummary() {
-    folderLabelEl.textContent = state.currentFolderName;
-    backBtnEl.classList.toggle('hidden', state.currentFolderId === null);
     selectionSummaryEl.textContent = state.selectedCanvasName
       ? `Selected canvas: ${state.selectedCanvasName}`
       : 'No canvas selected.';
@@ -326,14 +321,49 @@ function getCardColor(type) {
     return Number.isFinite(cachedAt) && Date.now() - cachedAt < ROOT_CACHE_TTL_MS;
   }
 
+  function sortSpaces(spaces) {
+    return [...spaces].sort((left, right) => {
+      if (left.type !== right.type) {
+        return left.type === 'folder' ? -1 : 1;
+      }
+      return left.name.localeCompare(right.name);
+    });
+  }
+
+  function toFolderNode(folder) {
+    return {
+      id: folder.id,
+      name: folder.name,
+      type: 'folder',
+      children: null,
+      isLoadingChildren: false,
+    };
+  }
+
+  function toCanvasNode(canvas) {
+    return {
+      id: canvas.id,
+      name: canvas.name,
+      type: 'canvas',
+    };
+  }
+
   function mapRootSpacesToItems(spaces) {
     const folders = Array.isArray(spaces?.folders) ? spaces.folders : [];
     const canvases = Array.isArray(spaces?.canvases) ? spaces.canvases : [];
 
-    return [
-      ...folders.map((folder) => ({ id: folder.id, name: folder.name, type: 'folder' })),
-      ...canvases.map((canvas) => ({ id: canvas.id, name: canvas.name, type: 'canvas' })),
-    ];
+    return sortSpaces([...folders.map(toFolderNode), ...canvases.map(toCanvasNode)]);
+  }
+
+  function mapFolderToItems(folder) {
+    const folders = Array.isArray(folder?.folders) ? folder.folders : [];
+    const files = Array.isArray(folder?.files)
+      ? folder.files
+      : Array.isArray(folder?.canvases)
+        ? folder.canvases
+        : [];
+
+    return sortSpaces([...folders.map(toFolderNode), ...files.map(toCanvasNode)]);
   }
 
   async function writeRootCache(spaces) {
@@ -349,26 +379,13 @@ function getCardColor(type) {
       return false;
     }
 
-    const mappedSpaces = sortSpaces(mapRootSpacesToItems(cached[ROOT_CACHE_KEY]));
-    state.spaces = mappedSpaces;
-    state.filteredSpaces = mappedSpaces;
-    searchInputEl.value = '';
-    state.currentFolderId = null;
-    state.currentFolderName = 'My Workspace';
+    state.spacesTree = mapRootSpacesToItems(cached[ROOT_CACHE_KEY]);
+    applyFilter();
     updateSelectionSummary();
     renderSpaces();
     showMainView();
     state.rootCacheHydrated = true;
     return true;
-  }
-
-  function sortSpaces(spaces) {
-    return [...spaces].sort((left, right) => {
-      if (left.type !== right.type) {
-        return left.type === 'folder' ? -1 : 1;
-      }
-      return left.name.localeCompare(right.name);
-    });
   }
 
   async function requestBackground(message) {
@@ -384,10 +401,96 @@ function getCardColor(type) {
     return response;
   }
 
+  function findFolderNodeById(nodes, folderId) {
+    for (const node of nodes) {
+      if (node.type === 'folder' && node.id === folderId) {
+        return node;
+      }
+
+      if (node.type === 'folder' && Array.isArray(node.children)) {
+        const nested = findFolderNodeById(node.children, folderId);
+        if (nested) {
+          return nested;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  function filterTree(nodes, query) {
+    const filtered = [];
+
+    nodes.forEach((node) => {
+      if (node.type === 'canvas') {
+        if (node.name.toLowerCase().includes(query)) {
+          filtered.push(node);
+        }
+        return;
+      }
+
+      const isFolderMatch = node.name.toLowerCase().includes(query);
+      const children = Array.isArray(node.children) ? filterTree(node.children, query) : [];
+      if (isFolderMatch || children.length > 0) {
+        filtered.push({
+          ...node,
+          children: isFolderMatch && Array.isArray(node.children) ? node.children : children,
+        });
+      }
+    });
+
+    return filtered;
+  }
+
+  function applyFilter() {
+    const query = searchInputEl.value.trim().toLowerCase();
+    state.filteredTree = query ? filterTree(state.spacesTree, query) : state.spacesTree;
+  }
+
+  async function ensureFolderChildrenLoaded(folderId) {
+    const folderNode = findFolderNodeById(state.spacesTree, folderId);
+    if (!folderNode || folderNode.children !== null) {
+      return;
+    }
+
+    folderNode.isLoadingChildren = true;
+    renderSpaces();
+
+    try {
+      const response = await requestBackground({
+        type: INTERNAL_MESSAGE_TYPES.getFolderSpaces,
+        folderId,
+      });
+      folderNode.children = mapFolderToItems(response.folder);
+    } finally {
+      folderNode.isLoadingChildren = false;
+      applyFilter();
+      renderSpaces();
+    }
+  }
+
+  async function toggleFolder(folderId) {
+    if (expandedFolderIds.has(folderId)) {
+      expandedFolderIds.delete(folderId);
+      renderSpaces();
+      return;
+    }
+
+    expandedFolderIds.add(folderId);
+    renderSpaces();
+    try {
+      await ensureFolderChildrenLoaded(folderId);
+    } catch (error) {
+      console.error('Failed loading folder:', error);
+      showToast(error.message || 'Could not load folder contents.');
+    }
+  }
+
   function renderSpaces() {
     spaceListEl.innerHTML = '';
+    const isSearching = searchInputEl.value.trim().length > 0;
 
-    if (state.filteredSpaces.length === 0) {
+    if (state.filteredTree.length === 0) {
       const emptyEl = document.createElement('div');
       emptyEl.className = 'canvas-space-empty';
       emptyEl.textContent = searchInputEl.value.trim() ? 'No matches found.' : 'No folders or canvases here yet.';
@@ -395,24 +498,59 @@ function getCardColor(type) {
       return;
     }
 
-    state.filteredSpaces.forEach((space) => {
+    const renderNode = (node, level = 0) => {
       const button = document.createElement('button');
       button.type = 'button';
-      button.className = `canvas-space-item${
-        space.type === 'canvas' && space.id === state.selectedCanvasId ? ' selected' : ''
+      button.className = `canvas-space-item canvas-space-item-${node.type}${
+        node.type === 'canvas' && node.id === state.selectedCanvasId ? ' selected' : ''
       }`;
+      button.style.setProperty('--canvas-level', `${level}`);
+
+      if (node.type === 'folder') {
+        const isExpanded = isSearching || expandedFolderIds.has(node.id);
+        button.innerHTML = `
+          <span class="canvas-space-caret${isExpanded ? ' expanded' : ''}">▸</span>
+          <span class="canvas-space-name">${node.name}</span>
+          <span class="canvas-space-pill">Folder</span>
+        `;
+        button.addEventListener('click', () => {
+          toggleFolder(node.id);
+        });
+
+        spaceListEl.appendChild(button);
+
+        if (isExpanded) {
+          if (node.isLoadingChildren || node.children === null) {
+            const loadingRow = document.createElement('div');
+            loadingRow.className = 'canvas-space-loading';
+            loadingRow.style.setProperty('--canvas-level', `${level + 1}`);
+            loadingRow.innerHTML = '<span class="canvas-inline-spinner" aria-hidden="true"></span>Loading...';
+            spaceListEl.appendChild(loadingRow);
+            return;
+          }
+
+          const children = node.children;
+          if (children.length === 0) {
+            const emptyRow = document.createElement('div');
+            emptyRow.className = 'canvas-space-empty canvas-space-nested-empty';
+            emptyRow.style.paddingLeft = `${10 + (level + 1) * 16}px`;
+            emptyRow.textContent = 'Empty folder';
+            spaceListEl.appendChild(emptyRow);
+            return;
+          }
+          children.forEach((child) => renderNode(child, level + 1));
+        }
+        return;
+      }
+
       button.innerHTML = `
-        <span class="canvas-space-type">${space.type === 'folder' ? 'Folder' : 'Canvas'}</span>
-        <span class="canvas-space-name">${space.name}</span>
+        <span class="canvas-space-dot" aria-hidden="true"></span>
+        <span class="canvas-space-name">${node.name}</span>
+        <span class="canvas-space-pill">Canvas</span>
       `;
       button.addEventListener('click', async () => {
-        if (space.type === 'folder') {
-          await loadSpaces(space.id, space.name);
-          return;
-        }
-
-        state.selectedCanvasId = space.id;
-        state.selectedCanvasName = space.name;
+        state.selectedCanvasId = node.id;
+        state.selectedCanvasName = node.name;
         await chrome.storage.local.set({
           lastCanvasId: state.selectedCanvasId,
           lastCanvasName: state.selectedCanvasName,
@@ -421,18 +559,39 @@ function getCardColor(type) {
         renderSpaces();
       });
       spaceListEl.appendChild(button);
-    });
+    };
+
+    state.filteredTree.forEach((space) => renderNode(space));
   }
 
   function filterSpaces() {
-    const query = searchInputEl.value.trim().toLowerCase();
-    state.filteredSpaces = query
-      ? state.spaces.filter((space) => space.name.toLowerCase().includes(query))
-      : state.spaces;
+    applyFilter();
     renderSpaces();
   }
 
-  async function loadSpaces(folderId = null, folderName = 'My Workspace', options = {}) {
+  function setButtonLoading(button, isLoading, loadingText) {
+    if (isLoading) {
+      button.disabled = true;
+      button.classList.add('is-loading');
+      button.innerHTML = `<span class="canvas-btn-spinner" aria-hidden="true"></span><span>${loadingText}</span>`;
+      return;
+    }
+
+    button.disabled = false;
+    button.classList.remove('is-loading');
+    button.textContent = button.dataset.defaultLabel || '';
+  }
+
+  async function flashButtonSaved(button) {
+    const originalLabel = button.dataset.defaultLabel || '';
+    button.classList.add('canvas-btn-success');
+    button.textContent = 'Saved';
+    await sleep(850);
+    button.classList.remove('canvas-btn-success');
+    button.textContent = originalLabel;
+  }
+
+  async function loadSpaces(options = {}) {
     const { preferCache = false } = options;
 
     if (!state.authToken) {
@@ -441,7 +600,7 @@ function getCardColor(type) {
     }
 
     let usingCachedRootView = false;
-    if (preferCache && folderId === null) {
+    if (preferCache) {
       usingCachedRootView = await hydrateRootSpacesFromCache();
     }
 
@@ -449,32 +608,14 @@ function getCardColor(type) {
       setLoading(true);
     }
 
-    state.currentFolderId = folderId;
-    state.currentFolderName = folderName;
-    updateSelectionSummary();
-
     try {
-      let spaces = [];
-      if (folderId === null) {
-        const response = await requestBackground({ type: INTERNAL_MESSAGE_TYPES.listRootSpaces });
-        spaces = mapRootSpacesToItems(response.spaces);
-        await writeRootCache(response.spaces);
-      } else {
-        const response = await requestBackground({
-          type: INTERNAL_MESSAGE_TYPES.getFolderSpaces,
-          folderId,
-        });
-        const folder = response.folder;
-        spaces = (folder.files || []).map((canvas) => ({
-          id: canvas.id,
-          name: canvas.name,
-          type: 'canvas',
-        }));
-      }
-
-      state.spaces = sortSpaces(spaces);
-      state.filteredSpaces = state.spaces;
+      const response = await requestBackground({ type: INTERNAL_MESSAGE_TYPES.listRootSpaces });
+      state.spacesTree = mapRootSpacesToItems(response.spaces);
+      state.filteredTree = state.spacesTree;
+      expandedFolderIds.clear();
       searchInputEl.value = '';
+      await writeRootCache(response.spaces);
+
       updateSelectionSummary();
       renderSpaces();
       showMainView();
@@ -495,7 +636,7 @@ function getCardColor(type) {
       } else {
         // Network/server error but user is still authenticated — show toast, leave main view.
         showToast(error.message || 'Could not load canvases. Check your connection.');
-        if (state.spaces.length > 0) {
+        if (state.spacesTree.length > 0) {
           showMainView();
         }
       }
@@ -513,11 +654,7 @@ function getCardColor(type) {
       return;
     }
 
-    if (state.currentFolderId === null) {
-      await loadSpaces(null, 'My Workspace', { preferCache: true });
-    } else {
-      await loadSpaces(state.currentFolderId, state.currentFolderName);
-    }
+    await loadSpaces({ preferCache: true });
 
     chrome.runtime.sendMessage({ type: INTERNAL_MESSAGE_TYPES.prefetchRootSpaces }).catch(() => {});
   }
@@ -538,9 +675,7 @@ function getCardColor(type) {
       return;
     }
 
-    const originalLabel = saveLinkBtnEl.textContent;
-    saveLinkBtnEl.disabled = true;
-    saveLinkBtnEl.textContent = 'Saving...';
+    setButtonLoading(saveLinkBtnEl, true, 'Saving...');
 
     try {
       const cardData = buildCardDataFromInput(contentInputEl.value);
@@ -551,12 +686,13 @@ function getCardColor(type) {
         cardData,
       });
       showToast('Saved to canvas.');
+      setButtonLoading(saveLinkBtnEl, false);
+      await flashButtonSaved(saveLinkBtnEl);
     } catch (error) {
       console.error('Save link failed:', error);
       showToast(error.message || 'Failed to save to canvas.');
     } finally {
-      saveLinkBtnEl.disabled = false;
-      saveLinkBtnEl.textContent = originalLabel;
+      setButtonLoading(saveLinkBtnEl, false);
     }
   }
 
@@ -571,9 +707,7 @@ function getCardColor(type) {
       return;
     }
 
-    const originalLabel = saveShotBtnEl.textContent;
-    saveShotBtnEl.disabled = true;
-    saveShotBtnEl.textContent = 'Capturing...';
+    setButtonLoading(saveShotBtnEl, true, 'Capturing...');
 
     try {
       closePanel();
@@ -595,27 +729,9 @@ function getCardColor(type) {
       state.isPanelOpen = true;
       showToast(error.message || 'Screenshot save failed.');
     } finally {
-      saveShotBtnEl.disabled = false;
-      saveShotBtnEl.textContent = originalLabel;
+      setButtonLoading(saveShotBtnEl, false);
     }
   }
-
-  root.querySelector('#canvas-link-trigger').addEventListener('click', async () => {
-    if (state.isPanelOpen) {
-      closePanel();
-      return;
-    }
-    await openPanel();
-  });
-
-  root.querySelector('#canvas-shot-trigger').addEventListener('click', async () => {
-    if (!state.isPanelOpen) {
-      await openPanel();
-    }
-    if (state.authToken && state.selectedCanvasId) {
-      await handleCaptureScreenshot();
-    }
-  });
 
   root.querySelector('#canvas-close-btn').addEventListener('click', closePanel);
   root.querySelector('#canvas-login-btn').addEventListener('click', async () => {
@@ -627,21 +743,27 @@ function getCardColor(type) {
   saveLinkBtnEl.addEventListener('click', handleSaveLink);
   saveShotBtnEl.addEventListener('click', handleCaptureScreenshot);
   searchInputEl.addEventListener('input', filterSpaces);
-  backBtnEl.addEventListener('click', async () => {
-    await loadSpaces(null, 'My Workspace');
-  });
 
   chrome.runtime.onMessage.addListener((message) => {
     if (message?.type === TAB_MESSAGE_TYPES.toggleStickyPanel) {
       if (state.isPanelOpen) {
         closePanel();
       } else {
-        openPanel();
+        openPanel().catch((error) => {
+          console.error('Failed to open panel:', error);
+          showToast('Could not open Canvas Saver.');
+        });
       }
     }
 
     if (message?.type === TAB_MESSAGE_TYPES.authUpdated && state.isPanelOpen) {
-      hydrateAuthState().then(() => loadSpaces(null, 'My Workspace'));
+      hydrateAuthState().then(() => {
+        if (!state.authToken) {
+          showAuthView();
+          return;
+        }
+        return loadSpaces({ preferCache: true });
+      });
     }
   });
 
