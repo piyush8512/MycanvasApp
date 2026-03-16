@@ -5,6 +5,34 @@ import { useAuth, SignIn } from "@clerk/nextjs";
 
 // Read the Extension ID from your environment variables
 const EXTENSION_ID = process.env.NEXT_PUBLIC_EXTENSION_ID;
+const EXTENSION_TOKEN_TEMPLATE =
+  process.env.NEXT_PUBLIC_CLERK_EXTENSION_TOKEN_TEMPLATE?.trim() || null;
+
+async function getExtensionBridgeToken(
+  getToken: ReturnType<typeof useAuth>["getToken"],
+) {
+  if (!EXTENSION_TOKEN_TEMPLATE) {
+    return getToken();
+  }
+
+  try {
+    const templateToken = await getToken({
+      template: EXTENSION_TOKEN_TEMPLATE,
+      skipCache: true,
+    });
+
+    if (templateToken) {
+      return templateToken;
+    }
+  } catch (error) {
+    console.warn(
+      "Extension template token fetch failed; using default token",
+      error,
+    );
+  }
+
+  return getToken({ skipCache: true });
+}
 
 export default function ExtensionLogin() {
   const { isSignedIn, getToken } = useAuth();
@@ -36,8 +64,13 @@ export default function ExtensionLogin() {
 
       const sendToken = async () => {
         try {
-          // 1. Get auth token from Clerk
-          const token = await getToken();
+          // 1. Get auth token from Clerk (extension template preferred)
+          const token = await getExtensionBridgeToken(getToken);
+
+          if (!token) {
+            setStatus("Error: Could not get auth token. Please sign in again.");
+            return;
+          }
 
           // 2. Send the token to the extension
           // We check if 'chrome.runtime' exists to prevent errors

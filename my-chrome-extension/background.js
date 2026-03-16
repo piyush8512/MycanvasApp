@@ -15,6 +15,9 @@ console.info('[Canvas Saver] background worker active v1.0.2', {
 });
 
 const SPACE_CACHE_TTL_MS = 60 * 1000;
+const AUTH_ERROR_STATUSES = new Set([401, 403]);
+
+let isAuthInvalidationInProgress = false;
 
 const spacesCache = {
   root: null,
@@ -24,6 +27,79 @@ const spacesCache = {
 
 function isCacheFresh(fetchedAt) {
   return Date.now() - fetchedAt < SPACE_CACHE_TTL_MS;
+}
+
+function isSessionExpiredError(error) {
+  return AUTH_ERROR_STATUSES.has(error?.status);
+}
+
+function createSignInRequiredError(message = 'Please sign in to the extension first.') {
+  const error = new Error(message);
+  error.status = 401;
+  return error;
+}
+
+async function invalidateAuthSession(reason = 'Session expired') {
+  if (isAuthInvalidationInProgress) {
+    return;
+  }
+
+  isAuthInvalidationInProgress = true;
+  try {
+    await chrome.storage.local.remove([
+      STORAGE_KEYS.authToken,
+      STORAGE_KEYS.authUser,
+      STORAGE_KEYS.userId,
+      'authUpdatedAt',
+    ]);
+
+    spacesCache.root = null;
+    spacesCache.rootFetchedAt = 0;
+    spacesCache.folders.clear();
+
+    await broadcastToCanvasTabs({
+      type: TAB_MESSAGE_TYPES.authUpdated,
+      reason,
+    });
+  } finally {
+    isAuthInvalidationInProgress = false;
+  }
+}
+
+async function withAuthToken(task, { retryOnAuthError = false } = {}) {
+  const stored = await chrome.storage.local.get([STORAGE_KEYS.authToken]);
+  const authToken = stored[STORAGE_KEYS.authToken];
+
+  if (!authToken) {
+    throw createSignInRequiredError();
+  }
+
+  try {
+    return await task(authToken);
+  } catch (error) {
+    if (!isSessionExpiredError(error)) {
+      throw error;
+    }
+
+    if (retryOnAuthError) {
+      const latestStored = await chrome.storage.local.get([STORAGE_KEYS.authToken]);
+      const latestToken = latestStored[STORAGE_KEYS.authToken];
+      if (latestToken) {
+        try {
+          return await task(latestToken);
+        } catch (retryError) {
+          if (!isSessionExpiredError(retryError)) {
+            throw retryError;
+          }
+          await invalidateAuthSession('Your session expired. Sign in again to continue.');
+          throw retryError;
+        }
+      }
+    }
+
+    await invalidateAuthSession('Your session expired. Sign in again to continue.');
+    throw error;
+  }
 }
 
 async function getRootSpacesWithCache(authToken, { forceRefresh = false } = {}) {
@@ -86,20 +162,14 @@ async function openExtensionLogin() {
 }
 
 async function saveCardToSelectedCanvas(cardData) {
-  const { authToken, lastCanvasId } = await chrome.storage.local.get([
-    STORAGE_KEYS.authToken,
-    STORAGE_KEYS.lastCanvasId,
-  ]);
-
-  if (!authToken) {
-    throw new Error('Please sign in to the extension first.');
-  }
+  const stored = await chrome.storage.local.get([STORAGE_KEYS.lastCanvasId]);
+  const lastCanvasId = stored[STORAGE_KEYS.lastCanvasId];
 
   if (!lastCanvasId) {
     throw new Error('Select a canvas before saving.');
   }
 
-  return API.addCardToCanvas(lastCanvasId, cardData, authToken);
+  return withAuthToken((authToken) => API.addCardToCanvas(lastCanvasId, cardData, authToken));
 }
 
 async function saveCurrentTabToCanvas(tab) {
@@ -112,11 +182,6 @@ async function saveCurrentTabToCanvas(tab) {
 }
 
 async function captureScreenshotToCanvas(canvasId, sender) {
-  const { authToken } = await chrome.storage.local.get([STORAGE_KEYS.authToken]);
-  if (!authToken) {
-    throw new Error('Please sign in to the extension first.');
-  }
-
   if (!canvasId) {
     throw new Error('Select a canvas before capturing a screenshot.');
   }
@@ -144,23 +209,25 @@ async function captureScreenshotToCanvas(canvasId, sender) {
     .replace(/^-+|-+$/g, '')
     .slice(0, 50) || 'web-screenshot';
   const fileName = `${safeTitle}-${Date.now()}.png`;
-  const uploadedImage = await API.uploadImageBlob(authToken, blob, fileName, 'image/png');
-  const item = await API.addCardToCanvas(
-    canvasId,
-    {
-      type: 'image',
-      name: `Screenshot: ${activeTab?.title || 'Current page'}`,
-      content: {
-        url: uploadedImage.publicUrl,
-        sourceUrl: activeTab?.url || null,
-        capturedAt: new Date().toISOString(),
+  const item = await withAuthToken(async (authToken) => {
+    const uploadedImage = await API.uploadImageBlob(authToken, blob, fileName, 'image/png');
+    return API.addCardToCanvas(
+      canvasId,
+      {
+        type: 'image',
+        name: `Screenshot: ${activeTab?.title || 'Current page'}`,
+        content: {
+          url: uploadedImage.publicUrl,
+          sourceUrl: activeTab?.url || null,
+          capturedAt: new Date().toISOString(),
+        },
+        position: { x: 140, y: 140 },
+        size: getCardDefaultSize('image'),
+        color: getCardColor('image'),
       },
-      position: { x: 140, y: 140 },
-      size: getCardDefaultSize('image'),
-      color: getCardColor('image'),
-    },
-    authToken,
-  );
+      authToken,
+    );
+  });
 
   await chrome.storage.local.set({ [STORAGE_KEYS.lastCanvasId]: canvasId });
   return item;
@@ -225,28 +292,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message?.type === INTERNAL_MESSAGE_TYPES.listRootSpaces) {
-    chrome.storage.local.get([STORAGE_KEYS.authToken])
-      .then(({ authToken }) => {
-        if (!authToken) {
-          throw new Error('Please sign in to the extension first.');
-        }
-
-        return getRootSpacesWithCache(authToken);
-      })
+    withAuthToken((authToken) => getRootSpacesWithCache(authToken), { retryOnAuthError: true })
       .then((spaces) => sendResponse({ success: true, spaces }))
       .catch((error) => sendResponse({ success: false, error: error.message, status: error.status || null }));
     return true;
   }
 
   if (message?.type === INTERNAL_MESSAGE_TYPES.getFolderSpaces) {
-    chrome.storage.local.get([STORAGE_KEYS.authToken])
-      .then(({ authToken }) => {
-        if (!authToken) {
-          throw new Error('Please sign in to the extension first.');
-        }
-
-        return getFolderSpacesWithCache(message.folderId, authToken);
-      })
+    withAuthToken(
+      (authToken) => getFolderSpacesWithCache(message.folderId, authToken),
+      { retryOnAuthError: true },
+    )
       .then((folder) => sendResponse({ success: true, folder }))
       .catch((error) => sendResponse({ success: false, error: error.message, status: error.status || null }));
     return true;
@@ -259,7 +315,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           return null;
         }
 
-        return getRootSpacesWithCache(authToken, { forceRefresh: true });
+        return withAuthToken(
+          (currentToken) => getRootSpacesWithCache(currentToken, { forceRefresh: true }),
+          { retryOnAuthError: true },
+        );
       })
       .then(() => sendResponse({ success: true }))
       .catch((error) => sendResponse({ success: false, error: error.message, status: error.status || null }));
@@ -267,12 +326,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message?.type === INTERNAL_MESSAGE_TYPES.saveCardToCanvas) {
-    chrome.storage.local.get([STORAGE_KEYS.authToken])
-      .then(({ authToken }) => {
-        if (!authToken) {
-          throw new Error('Please sign in to the extension first.');
-        }
-
+    withAuthToken((authToken) => {
         if (!message.canvasId) {
           throw new Error('Select a canvas first.');
         }
@@ -315,7 +369,8 @@ chrome.action.onClicked.addListener(async (tab) => {
   try {
     await chrome.tabs.sendMessage(tab.id, { type: TAB_MESSAGE_TYPES.toggleStickyPanel });
   } catch (_error) {
-    // Ignore tabs where content scripts are unavailable.
+    // Ignore tabs where content scripts are unavailable
+    console.warn('Failed to toggle sticky panel:', _error);
   }
 });
 

@@ -299,6 +299,8 @@ function getCardColor(type) {
     };
   }
 
+
+
   async function hydrateAuthState() {
     const stored = await chrome.storage.local.get(['authToken', 'lastCanvasId', 'lastCanvasName']);
     state.authToken = stored.authToken || null;
@@ -591,6 +593,7 @@ function getCardColor(type) {
     button.textContent = originalLabel;
   }
 
+  
   async function loadSpaces(options = {}) {
     const { preferCache = false } = options;
 
@@ -626,8 +629,7 @@ function getCardColor(type) {
       const isSessionExpired = error.status === 401 || error.status === 403;
 
       if (isSessionExpired) {
-        await chrome.storage.local.remove(['authToken', 'authUser', 'userId']);
-        await chrome.storage.local.remove([ROOT_CACHE_KEY, ROOT_CACHE_AT_KEY]);
+        // Background owns token invalidation. Content only reflects session state in UI.
         state.authToken = null;
         showAuthView('Your session expired. Sign in again to keep saving.');
       } else if (usingCachedRootView) {

@@ -85,6 +85,10 @@ NEXT_PUBLIC_API_URL="https://mycanvas-app-backend.vercel.app"
 
 # Chrome extension ID (for the extension-login bridge)
 NEXT_PUBLIC_EXTENSION_ID="ncnfkblfdjkfoooejokijaiehmibmlcj"
+
+# Optional: dedicated Clerk JWT template name for extension auth bridge
+# Example value: "canvas_extension"
+NEXT_PUBLIC_CLERK_EXTENSION_TOKEN_TEMPLATE="canvas_extension"
 ```
 
 ### 3. Run the dev server
@@ -117,6 +121,7 @@ App available at `http://localhost:3000`.
 - Dedicated page visited when the Chrome extension needs to authenticate
 - After Clerk sign-in, posts an `AUTH_SUCCESS` message with a JWT to the extension via `chrome.runtime.sendMessage`
 - The extension ID is read from the `extensionId` query param (passed by the extension itself) so the handshake works across different machines without hardcoding
+- If `NEXT_PUBLIC_CLERK_EXTENSION_TOKEN_TEMPLATE` is set, this page requests a template token first (recommended for longer extension token lifetime) and safely falls back to the default Clerk token
 
 ### Theme
 

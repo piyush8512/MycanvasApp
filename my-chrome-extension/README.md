@@ -48,7 +48,10 @@ my-chrome-extension/
 │   └── popup.css
 └── utils/
     ├── api.js            # Backend API client (fetch with auth headers)
-    └── helpers.js        # Card type detection, color, default size helpers
+    ├── cardFactory.js    # Canonical card payload creation for popup/background
+    ├── config.js         # Shared environments and origin/base URL config
+    ├── constants.js      # Shared message types and storage keys
+    └── helpers.js        # Shared visual/type helpers
 ```
 
 ---
@@ -124,6 +127,8 @@ Backend API (https://mycanvas-app-backend.vercel.app)
 
 All API calls are made from the **background service worker**, not the content script, to avoid CORS issues on third-party pages.
 
+The popup and content panel are treated as UI clients. They use runtime messages to delegate API/auth actions to the background worker, which keeps network/auth logic centralized and maintainable.
+
 ---
 
 ## Auth Flow
@@ -161,7 +166,7 @@ If you reinstall or the extension ID changes:
 
 ### Pointing to a local backend
 
-In `utils/api.js`, the `API_BASE_URLS` array tries the deployed backend first then falls back to local:
+In `utils/config.js`, the `API_BASE_URLS` array tries the deployed backend first then falls back to local (used by `utils/api.js`):
 
 ```js
 const API_BASE_URLS = [
@@ -172,6 +177,16 @@ const API_BASE_URLS = [
 ```
 
 Change the order or remove the deployed URL to develop fully offline.
+
+### Reducing frequent re-login prompts
+
+If your extension asks users to sign in too often, configure a dedicated Clerk JWT template for extension auth:
+
+1. Create a Clerk JWT template (for example: `canvas_extension`) with a suitable token lifetime.
+2. Set `NEXT_PUBLIC_CLERK_EXTENSION_TOKEN_TEMPLATE` in `canvas-web-app/.env.local` (and Vercel env for production) to the template name.
+3. Redeploy `canvas-web-app` so `/extension-login` uses that template.
+
+This affects only the extension login bridge and does not change normal web app sign-in pages.
 
 ---
 
@@ -184,7 +199,6 @@ Change the order or remove the deployed URL to develop fully offline.
 | `storage`        | Persist auth token and canvas cache locally            |
 | `notifications`  | Show save/error Chrome notifications                   |
 | `contextMenus`   | Right-click "Save to Last Used Canvas" menu            |
-| `scripting`      | Reserved for future programmatic injection             |
 | Host permissions | Direct fetch access to the backend and web app origins |
 
 ---
