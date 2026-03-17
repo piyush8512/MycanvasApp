@@ -7,8 +7,10 @@ import { createUrlCardData } from './utils/cardFactory.js';
 const ALLOWED_EXTERNAL_ORIGINS = new Set(FRONTEND_ORIGINS);
 
 const NOTIFICATION_ICON_URL = `data:image/svg+xml,${encodeURIComponent(
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="16" fill="#ff6b35"/><path d="M18 16h28a4 4 0 0 1 4 4v24a4 4 0 0 1-4 4H28l-10 8v-8h0a4 4 0 0 1-4-4V20a4 4 0 0 1 4-4Z" fill="#fff3e8"/><path d="M24 26h16M24 34h10" stroke="#ff6b35" stroke-width="4" stroke-linecap="round"/></svg>',
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="16" fill="#ff6b35"/></svg>',
 )}`;
+const NOTIFICATION_ICON_FALLBACK =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+nmX8AAAAASUVORK5CYII=';
 
 console.info('[Canvas Saver] background worker active v1.0.2', {
   extensionId: chrome.runtime?.id,
@@ -193,6 +195,31 @@ async function broadcastToCanvasTabs(message) {
   );
 }
 
+async function showToastInActiveTab(text) {
+  const [activeTab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  if (!activeTab?.id) {
+    return;
+  }
+
+  try {
+    await chrome.tabs.sendMessage(activeTab.id, {
+      type: TAB_MESSAGE_TYPES.showToast,
+      text,
+    });
+  } catch (_error) {
+    // Ignore pages where content script is unavailable.
+  }
+}
+
+async function setLoginRequiredBadge() {
+  await chrome.action.setBadgeBackgroundColor({ color: '#dc2626' }).catch(() => {});
+  await chrome.action.setBadgeText({ text: '•' }).catch(() => {});
+}
+
+async function clearExtensionBadge() {
+  await chrome.action.setBadgeText({ text: '' }).catch(() => {});
+}
+
 async function openExtensionLogin() {
   const loginUrl = API.getFrontendLoginUrl(chrome.runtime?.id);
   await chrome.tabs.create({ url: loginUrl });
@@ -210,14 +237,16 @@ async function logoutExtensionSession() {
 }
 
 async function saveCardToSelectedCanvas(cardData) {
-  const stored = await chrome.storage.local.get([STORAGE_KEYS.lastCanvasId]);
-  const lastCanvasId = stored[STORAGE_KEYS.lastCanvasId];
+  return withAuthToken(async (authToken) => {
+    const stored = await chrome.storage.local.get([STORAGE_KEYS.lastCanvasId]);
+    const lastCanvasId = stored[STORAGE_KEYS.lastCanvasId];
 
-  if (!lastCanvasId) {
-    throw new Error('Select a canvas before saving.');
-  }
+    if (!lastCanvasId) {
+      throw new Error('Select a canvas in the extension first.');
+    }
 
-  return withAuthToken((authToken) => API.addCardToCanvas(lastCanvasId, cardData, authToken));
+    return API.addCardToCanvas(lastCanvasId, cardData, authToken);
+  });
 }
 
 async function saveCurrentTabToCanvas(tab) {
@@ -354,6 +383,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
       getRootSpacesWithCache(message.token, { forceRefresh: true }).catch(() => {});
 
       await broadcastToCanvasTabs({ type: TAB_MESSAGE_TYPES.authUpdated });
+      await clearExtensionBadge();
       sendResponse({ success: true });
     });
     return true;
@@ -489,11 +519,22 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     try {
       const cardData = createCardDataFromContext(info, tab);
       await saveCardToSelectedCanvas(cardData);
+      await clearExtensionBadge();
       showNotification('Saved', 'Content saved to your selected canvas.');
 
     } catch (error) {
       console.error('Context menu save failed:', error);
-      showNotification('Save Failed', error.message || 'Could not save to canvas.', 'error');
+      const message =
+        error?.status === 401
+          ? 'Please sign in to the extension before saving.'
+          : error?.message || 'Could not save to canvas.';
+
+      if (error?.status === 401) {
+        await setLoginRequiredBadge();
+        await showToastInActiveTab('Please sign in to Canvas extension first.');
+      }
+
+      showNotification('Save Failed', message, 'error');
     }
   }
 });
@@ -509,8 +550,13 @@ chrome.commands.onCommand.addListener(async (command, tab) => {
       }
 
       await saveCurrentTabToCanvas(targetTab);
+      await clearExtensionBadge();
       showNotification('Saved', 'Page saved to your selected canvas.');
     } catch (error) {
+      if (error?.status === 401) {
+        await setLoginRequiredBadge();
+        await showToastInActiveTab('Please sign in to Canvas extension first.');
+      }
       showNotification('Save Failed', error.message || 'Could not save the current page.', 'error');
     }
   }
@@ -549,5 +595,25 @@ function showNotification(title, message, type = 'success') {
     title,
     message,
     priority: 2,
+  }).catch(async (error) => {
+    console.warn('Primary notification failed, using fallback icon:', error);
+    try {
+      await chrome.notifications.create({
+        type: 'basic',
+        iconUrl: NOTIFICATION_ICON_FALLBACK,
+        title,
+        message,
+        priority: 2,
+      });
+    } catch (fallbackError) {
+      console.warn('Fallback notification failed:', fallbackError);
+      const badgeText = type === 'error' ? '!' : 'OK';
+      const badgeColor = type === 'error' ? '#dc2626' : '#16a34a';
+      await chrome.action.setBadgeBackgroundColor({ color: badgeColor }).catch(() => {});
+      await chrome.action.setBadgeText({ text: badgeText }).catch(() => {});
+      setTimeout(() => {
+        chrome.action.setBadgeText({ text: '' }).catch(() => {});
+      }, 2500);
+    }
   });
 }

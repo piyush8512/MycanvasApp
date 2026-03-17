@@ -80,6 +80,7 @@ function getCardColor(type) {
   const TAB_MESSAGE_TYPES = {
     toggleStickyPanel: 'TOGGLE_STICKY_PANEL',
     authUpdated: 'AUTH_UPDATED',
+    showToast: 'SHOW_TOAST',
   };
 
   const state = {
@@ -161,11 +162,11 @@ function getCardColor(type) {
 
   document.documentElement.appendChild(root);
 
-  const toastEl = document.createElement('div');
-  toastEl.id = 'canvas-toast';
-  toastEl.setAttribute('role', 'status');
-  toastEl.setAttribute('aria-live', 'polite');
-  document.documentElement.appendChild(toastEl);
+  const toastHostEl = document.createElement('div');
+  toastHostEl.id = 'canvas-toast-host';
+  toastHostEl.setAttribute('aria-live', 'polite');
+  toastHostEl.setAttribute('aria-atomic', 'false');
+  document.documentElement.appendChild(toastHostEl);
 
   const panelEl = root.querySelector('#canvas-sticky-panel');
   const authViewEl = root.querySelector('#canvas-auth-view');
@@ -191,13 +192,106 @@ function getCardColor(type) {
   saveShotBtnEl.dataset.defaultLabel = saveShotBtnEl.textContent;
   saveShotToCanvasBtnEl.dataset.defaultLabel = saveShotToCanvasBtnEl.textContent;
 
-  function showToast(message) {
-    toastEl.textContent = message;
-    toastEl.classList.add('visible');
-    window.clearTimeout(showToast.timeoutId);
-    showToast.timeoutId = window.setTimeout(() => {
-      toastEl.classList.remove('visible');
-    }, 1800);
+  function resolveToastMeta(message, options = {}) {
+    const normalized = String(message || '').toLowerCase();
+    if (options.variant) {
+      const variantTitle = {
+        success: 'Saved Successfully',
+        warning: 'Action Required',
+        error: 'Error Occurred',
+        info: 'Notice',
+      };
+      return {
+        variant: options.variant,
+        title: options.title || variantTitle[options.variant] || 'Notice',
+      };
+    }
+
+    if (/(saved|success|captured|logged out)/.test(normalized)) {
+      return { variant: 'success', title: 'Saved Successfully' };
+    }
+
+    if (/(failed|error|could not|unable|expired)/.test(normalized)) {
+      return { variant: 'error', title: 'Error Occurred' };
+    }
+
+    if (/(select|sign in|canceled|capture a screenshot first|required)/.test(normalized)) {
+      return { variant: 'warning', title: 'Action Required' };
+    }
+
+    return { variant: 'info', title: 'Notice' };
+  }
+
+  function showToast(message, options = {}) {
+    const text = String(message || '').trim();
+    if (!text) {
+      return;
+    }
+
+    const { variant, title } = resolveToastMeta(text, options);
+    const duration = Number.isFinite(options.duration) ? Math.max(1200, options.duration) : 3200;
+
+    const toastEl = document.createElement('div');
+    toastEl.className = `canvas-toast canvas-toast-${variant}`;
+    toastEl.style.setProperty('--canvas-toast-duration', `${duration}ms`);
+    toastEl.setAttribute('role', 'status');
+
+    const iconEl = document.createElement('div');
+    iconEl.className = 'canvas-toast-icon';
+    iconEl.textContent =
+      variant === 'success' ? '✓' : variant === 'warning' ? '!' : variant === 'error' ? '✕' : 'i';
+
+    const bodyEl = document.createElement('div');
+    bodyEl.className = 'canvas-toast-body';
+
+    const titleEl = document.createElement('div');
+    titleEl.className = 'canvas-toast-title';
+    titleEl.textContent = title;
+
+    const textEl = document.createElement('div');
+    textEl.className = 'canvas-toast-text';
+    textEl.textContent = text;
+
+    const closeBtnEl = document.createElement('button');
+    closeBtnEl.type = 'button';
+    closeBtnEl.className = 'canvas-toast-close';
+    closeBtnEl.setAttribute('aria-label', 'Close notification');
+    closeBtnEl.textContent = '×';
+
+    const progressEl = document.createElement('div');
+    progressEl.className = 'canvas-toast-progress';
+
+    bodyEl.appendChild(titleEl);
+    bodyEl.appendChild(textEl);
+    toastEl.appendChild(iconEl);
+    toastEl.appendChild(bodyEl);
+    toastEl.appendChild(closeBtnEl);
+    toastEl.appendChild(progressEl);
+
+    let timeoutId = 0;
+    const removeToast = () => {
+      if (!toastEl.isConnected) {
+        return;
+      }
+      window.clearTimeout(timeoutId);
+      toastEl.classList.add('leaving');
+      window.setTimeout(() => {
+        toastEl.remove();
+      }, 220);
+    };
+
+    closeBtnEl.addEventListener('click', removeToast);
+    timeoutId = window.setTimeout(removeToast, duration);
+
+    toastHostEl.appendChild(toastEl);
+
+    // Keep at most 3 visible toasts to avoid clutter.
+    while (toastHostEl.childElementCount > 3) {
+      const first = toastHostEl.firstElementChild;
+      if (first) {
+        first.remove();
+      }
+    }
   }
 
   function setLoading(isLoading) {
@@ -1049,6 +1143,10 @@ function getCardColor(type) {
   searchInputEl.addEventListener('input', filterSpaces);
 
   chrome.runtime.onMessage.addListener((message) => {
+    if (message?.type === TAB_MESSAGE_TYPES.showToast && message?.text) {
+      showToast(message.text);
+    }
+
     if (message?.type === TAB_MESSAGE_TYPES.toggleStickyPanel) {
       if (state.isPanelOpen) {
         closePanel();

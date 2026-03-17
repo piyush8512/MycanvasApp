@@ -13,6 +13,7 @@ export const INTERNAL_MESSAGE_TYPES = {
 export const TAB_MESSAGE_TYPES = {
   toggleStickyPanel: 'TOGGLE_STICKY_PANEL',
   authUpdated: 'AUTH_UPDATED',
+  showToast: 'SHOW_TOAST',
 };
 
 export const STORAGE_KEYS = {
