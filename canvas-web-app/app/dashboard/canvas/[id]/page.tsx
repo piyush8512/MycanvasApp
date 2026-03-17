@@ -19,15 +19,19 @@ import {
   ListTree,
   Lock,
   Unlock,
+  FileText,
 } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import { API_BASE_URL } from "@/services/api";
 import CardRenderer from "@/components/canvas/CardRenderer";
 import {
+  createImageItem,
   createLinkItem,
   createYoutubeItem,
+  updateCanvasItem,
   updateCanvasItemPosition,
 } from "@/services/canvasItemService";
+import { storageService } from "@/services/storageService";
 
 // Types
 interface Position {
@@ -45,12 +49,15 @@ interface CanvasItemType {
   name: string;
   type:
     | "sticky"
+    | "note"
     | "text"
     | "shape"
     | "image"
     | "youtube"
+    | "note"
     | "link"
     | "instagram";
+
   content: any;
   color?: string;
   position: Position;
@@ -93,6 +100,7 @@ export default function CanvasEditorPage() {
   const { isLoaded, getToken } = useAuth();
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const [canvas, setCanvas] = useState<CanvasData | null>(null);
   const [isCanvasMetaLoading, setIsCanvasMetaLoading] = useState(true);
   const [isItemsLoading, setIsItemsLoading] = useState(true);
@@ -106,9 +114,11 @@ export default function CanvasEditorPage() {
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState<Position>({ x: 0, y: 0 });
   const [isGloballyLocked, setIsGloballyLocked] = useState(false);
-  const [isLinksPanelOpen, setIsLinksPanelOpen] = useState(true);
+  const [isLinksPanelOpen, setIsLinksPanelOpen] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const lastMousePos = useRef<Position>({ x: 0, y: 0 });
   const activeLoadIdRef = useRef(0);
+  const adjustedImageItemsRef = useRef<Set<string>>(new Set());
 
   const API_URL = API_BASE_URL;
   const canvasId = Array.isArray(id) ? id[0] : id;
@@ -201,6 +211,7 @@ export default function CanvasEditorPage() {
       }
 
       const itemsData = await itemsRes.json();
+      console.log("Fetched items page:", { itemsData });
       const items = (itemsData.items || []).map(normalizeCanvasItem);
 
       return {
@@ -741,9 +752,271 @@ export default function CanvasEditorPage() {
     createLocalLinkItem,
   ]);
 
+  const handleAddNote = useCallback(async () => {
+    if (!canvasId) return;
+
+    const position = getViewportCenterPosition();
+    const payload: Partial<CanvasItemType> = {
+      type: "sticky",
+      name: "New Note",
+      content: { text: "" },
+      color: "#fef08a",
+      position,
+      size: { width: 240, height: 180 },
+    };
+
+    try {
+      const token = await getToken();
+      if (!token) return;
+
+      const res = await fetch(`${API_URL}/canvas/${canvasId}/items`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        const responsePayload = (await res.json()) as CreateCanvasItemResponse;
+        if (responsePayload.item) {
+          appendCanvasItem(normalizeCanvasItem(responsePayload.item));
+        }
+      } else {
+        const tempId = `temp-${Date.now()}`;
+        appendCanvasItem({ ...payload, id: tempId } as CanvasItemType);
+      }
+    } catch (error) {
+      const tempId = `temp-${Date.now()}`;
+      appendCanvasItem({ ...payload, id: tempId } as CanvasItemType);
+    }
+  }, [
+    canvasId,
+    getViewportCenterPosition,
+    getToken,
+    API_URL,
+    appendCanvasItem,
+    normalizeCanvasItem,
+  ]);
+
+  const handleAddImage = useCallback(() => {
+    if (isUploadingImage) return;
+    imageInputRef.current?.click();
+  }, [isUploadingImage]);
+
+  const getImageDisplaySize = useCallback((file: File): Promise<Size> => {
+    return new Promise((resolve) => {
+      const objectUrl = URL.createObjectURL(file);
+      const image = new window.Image();
+
+      image.onload = () => {
+        const naturalWidth = image.naturalWidth || 1;
+        const naturalHeight = image.naturalHeight || 1;
+        const aspect = naturalWidth / naturalHeight;
+        const longSide = 360;
+        const minShortSide = 160;
+
+        let width = longSide;
+        let height = longSide;
+
+        if (aspect >= 1) {
+          width = longSide;
+          height = Math.max(minShortSide, Math.round(longSide / aspect));
+        } else {
+          height = longSide;
+          width = Math.max(minShortSide, Math.round(longSide * aspect));
+        }
+
+        URL.revokeObjectURL(objectUrl);
+        resolve({ width, height });
+      };
+
+      image.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve({ width: 320, height: 240 });
+      };
+
+      image.src = objectUrl;
+    });
+  }, []);
+
+  const getImageDisplaySizeFromUrl = useCallback(
+    (url: string): Promise<Size> => {
+      return new Promise((resolve) => {
+        const image = new window.Image();
+
+        image.onload = () => {
+          const naturalWidth = image.naturalWidth || 1;
+          const naturalHeight = image.naturalHeight || 1;
+          const aspect = naturalWidth / naturalHeight;
+          const longSide = 360;
+          const minShortSide = 160;
+
+          let width = longSide;
+          let height = longSide;
+
+          if (aspect >= 1) {
+            width = longSide;
+            height = Math.max(minShortSide, Math.round(longSide / aspect));
+          } else {
+            height = longSide;
+            width = Math.max(minShortSide, Math.round(longSide * aspect));
+          }
+
+          resolve({ width, height });
+        };
+
+        image.onerror = () => {
+          resolve({ width: 320, height: 240 });
+        };
+
+        image.src = url;
+      });
+    },
+    [],
+  );
+
+  const handleImageFileSelected = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file || !canvas) {
+        event.target.value = "";
+        return;
+      }
+
+      if (!file.type.startsWith("image/")) {
+        window.alert("Please select an image file.");
+        event.target.value = "";
+        return;
+      }
+
+      try {
+        setIsUploadingImage(true);
+        const token = await getToken();
+        if (!token) {
+          throw new Error("You must be signed in to upload images.");
+        }
+
+        const position = getViewportCenterPosition();
+        const fileType = file.type || "application/octet-stream";
+        const imageSize = await getImageDisplaySize(file);
+
+        const upload = await storageService.getSignedUploadUrl(
+          token,
+          file.name,
+          fileType,
+        );
+        await storageService.uploadFileToSupabase(
+          upload.signedUrl,
+          file,
+          fileType,
+        );
+        const { publicUrl } = await storageService.getPublicUrl(
+          token,
+          upload.path,
+        );
+
+        const created = await createImageItem(
+          canvas.id,
+          publicUrl,
+          token,
+          position,
+          file.name,
+          imageSize,
+        );
+        appendCanvasItem(normalizeCanvasItem(created));
+      } catch (error) {
+        console.error("Failed to upload image:", error);
+        window.alert(
+          error instanceof Error
+            ? `Image upload failed: ${error.message}`
+            : "Image upload failed.",
+        );
+      } finally {
+        setIsUploadingImage(false);
+        event.target.value = "";
+      }
+    },
+    [
+      canvas,
+      getToken,
+      getViewportCenterPosition,
+      getImageDisplaySize,
+      appendCanvasItem,
+      normalizeCanvasItem,
+    ],
+  );
+
   useEffect(() => {
     setPan((prev) => clampPan(prev));
   }, [zoom, clampPan]);
+
+  useEffect(() => {
+    const imageItems = (canvas?.items || []).filter(
+      (item) => item.type === "image" && typeof item.content?.url === "string",
+    );
+
+    if (!canvas || imageItems.length === 0) return;
+
+    let cancelled = false;
+
+    const syncImageSizes = async () => {
+      const token = await getToken();
+      if (!token || cancelled) return;
+
+      for (const item of imageItems) {
+        if (cancelled) return;
+        if (adjustedImageItemsRef.current.has(item.id)) continue;
+
+        try {
+          const targetSize = await getImageDisplaySizeFromUrl(item.content.url);
+          if (cancelled) return;
+
+          const widthDiff = Math.abs(
+            (item.size?.width || 0) - targetSize.width,
+          );
+          const heightDiff = Math.abs(
+            (item.size?.height || 0) - targetSize.height,
+          );
+          const needsResize = widthDiff > 4 || heightDiff > 4;
+
+          adjustedImageItemsRef.current.add(item.id);
+
+          if (!needsResize) continue;
+
+          setCanvas((prev) => {
+            if (!prev || prev.id !== canvas.id) return prev;
+            return {
+              ...prev,
+              items: prev.items.map((existing) =>
+                existing.id === item.id
+                  ? { ...existing, size: targetSize }
+                  : existing,
+              ),
+            };
+          });
+
+          await fetch(`${API_URL}/canvas/${canvas.id}/items/${item.id}`, {
+            method: "PATCH",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ size: targetSize }),
+          });
+        } catch (error) {
+          console.warn("Failed to adjust image size:", error);
+        }
+      }
+    };
+
+    syncImageSizes();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [canvas, getToken, getImageDisplaySizeFromUrl, API_URL]);
 
   const miniMapSize = { width: 160, height: 110 };
   const miniMapViewport = (() => {
@@ -857,17 +1130,77 @@ export default function CanvasEditorPage() {
     });
   }, []);
 
-  const handleRenameItem = useCallback((itemId: string, name: string) => {
-    setCanvas((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        items: prev.items.map((item) =>
-          item.id === itemId ? { ...item, name } : item,
-        ),
-      };
-    });
-  }, []);
+  const handleRenameItem = useCallback(
+    async (itemId: string, name: string) => {
+      setCanvas((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          items: prev.items.map((item) =>
+            item.id === itemId ? { ...item, name } : item,
+          ),
+        };
+      });
+
+      if (!canvasId) return;
+      try {
+        const token = await getToken();
+        if (!token) return;
+
+        const updated = await updateCanvasItem(canvasId, itemId, token, {
+          name,
+        });
+        setCanvas((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            items: prev.items.map((item) =>
+              item.id === itemId ? normalizeCanvasItem(updated) : item,
+            ),
+          };
+        });
+      } catch (error) {
+        console.error("Failed to rename item:", error);
+      }
+    },
+    [canvasId, getToken, normalizeCanvasItem],
+  );
+
+  const handleUpdateItemContent = useCallback(
+    async (itemId: string, content: any) => {
+      setCanvas((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          items: prev.items.map((item) =>
+            item.id === itemId ? { ...item, content } : item,
+          ),
+        };
+      });
+
+      if (!canvasId) return;
+      try {
+        const token = await getToken();
+        if (!token) return;
+
+        const updated = await updateCanvasItem(canvasId, itemId, token, {
+          content,
+        });
+        setCanvas((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            items: prev.items.map((item) =>
+              item.id === itemId ? normalizeCanvasItem(updated) : item,
+            ),
+          };
+        });
+      } catch (error) {
+        console.error("Failed to update item content:", error);
+      }
+    },
+    [canvasId, getToken, normalizeCanvasItem],
+  );
 
   const handleDuplicateItem = useCallback((itemId: string) => {
     setCanvas((prev) => {
@@ -930,6 +1263,7 @@ export default function CanvasEditorPage() {
           onDeleteItem={handleDeleteItem}
           onRenameItem={handleRenameItem}
           onDuplicateItem={handleDuplicateItem}
+          onUpdateItemContent={handleUpdateItemContent}
         />
       </div>
     );
@@ -1177,8 +1511,10 @@ export default function CanvasEditorPage() {
           {/* Bottom action tray */}
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-(--card-bg)/90 backdrop-blur-md rounded-2xl shadow-lg border border-(--border-color) px-3 py-2">
             <button
+              onClick={handleAddImage}
+              disabled={isUploadingImage}
               className="p-2 rounded-xl hover:bg-(--hover-bg) transition-colors"
-              title="Add image"
+              title={isUploadingImage ? "Uploading image..." : "Add image"}
             >
               <Image className="w-5 h-5 text-(--text-secondary)" />
             </button>
@@ -1188,6 +1524,13 @@ export default function CanvasEditorPage() {
               title="Add link"
             >
               <Link2 className="w-5 h-5 text-(--text-secondary)" />
+            </button>
+            <button
+              onClick={handleAddNote}
+              className="p-2 rounded-xl hover:bg-(--hover-bg) transition-colors"
+              title="Add note"
+            >
+              <FileText className="w-5 h-5 text-(--text-secondary)" />
             </button>
             <button
               className="p-2 rounded-xl hover:bg-(--hover-bg) transition-colors"
@@ -1203,6 +1546,14 @@ export default function CanvasEditorPage() {
               <Plus className="w-5 h-5" />
             </button>
           </div>
+
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleImageFileSelected}
+          />
         </main>
       </div>
     </div>
