@@ -67,6 +67,7 @@ function getCardColor(type) {
 
   const INTERNAL_MESSAGE_TYPES = {
     openExtensionLogin: 'OPEN_EXTENSION_LOGIN',
+    logoutExtensionSession: 'LOGOUT_EXTENSION_SESSION',
     captureScreenshotToCanvas: 'CAPTURE_SCREENSHOT_TO_CANVAS',
     captureVisibleTabDataUrl: 'CAPTURE_VISIBLE_TAB_DATA_URL',
     saveScreenshotDataUrlToCanvas: 'SAVE_SCREENSHOT_DATA_URL_TO_CANVAS',
@@ -110,7 +111,10 @@ function getCardColor(type) {
           <div class="canvas-panel-title">Canvas Saver</div>
           <div id="canvas-status-text" class="canvas-subtitle">Select a canvas and save from this page.</div>
         </div>
-        <button class="canvas-close-btn" id="canvas-close-btn" aria-label="Close">x</button>
+        <div class="canvas-header-actions">
+          <button class="canvas-logout-btn" id="canvas-logout-btn" type="button" aria-label="Logout extension">Logout</button>
+          <button class="canvas-close-btn" id="canvas-close-btn" aria-label="Close">x</button>
+        </div>
       </div>
 
       <div id="canvas-auth-view" class="canvas-panel-view hidden">
@@ -181,6 +185,7 @@ function getCardColor(type) {
   const shotPreviewImageEl = root.querySelector('#canvas-shot-preview-image');
   const actionRowEl = root.querySelector('.canvas-action-row');
   const saveShotToCanvasBtnEl = root.querySelector('#canvas-save-shot-to-canvas-btn');
+  const logoutBtnEl = root.querySelector('#canvas-logout-btn');
 
   saveLinkBtnEl.dataset.defaultLabel = saveLinkBtnEl.textContent;
   saveShotBtnEl.dataset.defaultLabel = saveShotBtnEl.textContent;
@@ -207,6 +212,7 @@ function getCardColor(type) {
     authViewEl.classList.remove('hidden');
     mainViewEl.classList.add('hidden');
     loadingViewEl.classList.add('hidden');
+    logoutBtnEl.classList.add('hidden');
   }
 
   function showMainView() {
@@ -216,6 +222,7 @@ function getCardColor(type) {
     authViewEl.classList.add('hidden');
     mainViewEl.classList.remove('hidden');
     loadingViewEl.classList.add('hidden');
+    logoutBtnEl.classList.remove('hidden');
     renderCaptureDraftState();
   }
 
@@ -1007,6 +1014,21 @@ function getCardColor(type) {
   }
 
   root.querySelector('#canvas-close-btn').addEventListener('click', closePanel);
+  root.querySelector('#canvas-logout-btn').addEventListener('click', async () => {
+    const response = await chrome.runtime.sendMessage({ type: INTERNAL_MESSAGE_TYPES.logoutExtensionSession });
+    if (!response?.success) {
+      showToast(response?.error || 'Could not log out from extension.');
+      return;
+    }
+
+    state.authToken = null;
+    state.selectedCanvasId = null;
+    state.selectedCanvasName = '';
+    clearCaptureDraft();
+    updateSelectionSummary();
+    showAuthView('You have logged out from the extension.');
+    showToast('Logged out and cleared extension session.');
+  });
   root.querySelector('#canvas-login-btn').addEventListener('click', async () => {
     const response = await chrome.runtime.sendMessage({ type: INTERNAL_MESSAGE_TYPES.openExtensionLogin });
     if (!response?.success) {

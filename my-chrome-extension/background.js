@@ -198,6 +198,17 @@ async function openExtensionLogin() {
   await chrome.tabs.create({ url: loginUrl });
 }
 
+async function logoutExtensionSession() {
+  spacesCache.root = null;
+  spacesCache.rootFetchedAt = 0;
+  spacesCache.folders.clear();
+  await chrome.storage.local.clear();
+  await broadcastToCanvasTabs({
+    type: TAB_MESSAGE_TYPES.authUpdated,
+    reason: 'Signed out from extension',
+  });
+}
+
 async function saveCardToSelectedCanvas(cardData) {
   const stored = await chrome.storage.local.get([STORAGE_KEYS.lastCanvasId]);
   const lastCanvasId = stored[STORAGE_KEYS.lastCanvasId];
@@ -353,6 +364,13 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === INTERNAL_MESSAGE_TYPES.openExtensionLogin) {
     openExtensionLogin()
+      .then(() => sendResponse({ success: true }))
+      .catch((error) => sendResponse({ success: false, error: error.message }));
+    return true;
+  }
+
+  if (message?.type === INTERNAL_MESSAGE_TYPES.logoutExtensionSession) {
+    logoutExtensionSession()
       .then(() => sendResponse({ success: true }))
       .catch((error) => sendResponse({ success: false, error: error.message }));
     return true;

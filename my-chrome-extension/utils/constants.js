@@ -1,5 +1,6 @@
 export const INTERNAL_MESSAGE_TYPES = {
   openExtensionLogin: 'OPEN_EXTENSION_LOGIN',
+  logoutExtensionSession: 'LOGOUT_EXTENSION_SESSION',
   captureScreenshotToCanvas: 'CAPTURE_SCREENSHOT_TO_CANVAS',
   captureVisibleTabDataUrl: 'CAPTURE_VISIBLE_TAB_DATA_URL',
   saveScreenshotDataUrlToCanvas: 'SAVE_SCREENSHOT_DATA_URL_TO_CANVAS',
