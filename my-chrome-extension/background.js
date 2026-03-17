@@ -181,18 +181,13 @@ async function saveCurrentTabToCanvas(tab) {
   return saveCardToSelectedCanvas(cardData);
 }
 
-async function captureScreenshotToCanvas(canvasId, sender) {
-  if (!canvasId) {
-    throw new Error('Select a canvas before capturing a screenshot.');
-  }
-
-  const fallbackTabs = await chrome.tabs.query({ active: true, currentWindow: true });
+async function captureVisibleTabDataUrl(sender) {
+  const fallbackTabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
   const activeTab = sender?.tab || fallbackTabs[0] || null;
   const captureWindowId = activeTab?.windowId;
 
-  let dataUrl;
   try {
-    dataUrl = await chrome.tabs.captureVisibleTab(captureWindowId, {
+    return await chrome.tabs.captureVisibleTab(captureWindowId, {
       format: 'png',
       quality: 95,
     });
@@ -202,15 +197,32 @@ async function captureScreenshotToCanvas(canvasId, sender) {
         'Unable to capture this page. Try again on a regular http/https page and ensure the tab is visible.',
     );
   }
+}
 
-  const blob = await fetch(dataUrl).then((response) => response.blob());
+function getSafeScreenshotFileName(activeTab) {
   const safeTitle = (activeTab?.title || 'web-screenshot')
     .replace(/[^a-z0-9-_]+/gi, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 50) || 'web-screenshot';
-  const fileName = `${safeTitle}-${Date.now()}.png`;
+  return `${safeTitle}-${Date.now()}.png`;
+}
+
+async function saveScreenshotDataUrlToCanvas(canvasId, dataUrl, sender, { mode = 'window', sourceUrl } = {}) {
+  if (!canvasId) {
+    throw new Error('Select a canvas before capturing a screenshot.');
+  }
+
+  if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/')) {
+    throw new Error('Screenshot data is invalid. Please try again.');
+  }
+
+  const fallbackTabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  const activeTab = sender?.tab || fallbackTabs[0] || null;
+  const blob = await fetch(dataUrl).then((response) => response.blob());
+  const fileName = getSafeScreenshotFileName(activeTab);
+
   const item = await withAuthToken(async (authToken) => {
-    const uploadedImage = await API.uploadImageBlob(authToken, blob, fileName, 'image/png');
+    const uploadedImage = await API.uploadImageBlob(authToken, blob, fileName, blob.type || 'image/png');
     return API.addCardToCanvas(
       canvasId,
       {
@@ -218,8 +230,9 @@ async function captureScreenshotToCanvas(canvasId, sender) {
         name: `Screenshot: ${activeTab?.title || 'Current page'}`,
         content: {
           url: uploadedImage.publicUrl,
-          sourceUrl: activeTab?.url || null,
+          sourceUrl: sourceUrl || activeTab?.url || null,
           capturedAt: new Date().toISOString(),
+          captureMode: mode,
         },
         position: { x: 140, y: 140 },
         size: getCardDefaultSize('image'),
@@ -231,6 +244,15 @@ async function captureScreenshotToCanvas(canvasId, sender) {
 
   await chrome.storage.local.set({ [STORAGE_KEYS.lastCanvasId]: canvasId });
   return item;
+}
+
+async function captureScreenshotToCanvas(canvasId, sender) {
+  if (!canvasId) {
+    throw new Error('Select a canvas before capturing a screenshot.');
+  }
+
+  const dataUrl = await captureVisibleTabDataUrl(sender);
+  return saveScreenshotDataUrlToCanvas(canvasId, dataUrl, sender, { mode: 'window' });
 }
 
 // --- 1. AUTHENTICATION LISTENER ---
@@ -286,8 +308,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message?.type === INTERNAL_MESSAGE_TYPES.captureScreenshotToCanvas) {
     captureScreenshotToCanvas(message.canvasId, sender)
-      .then(() => sendResponse({ success: true }))
+      .then((item) => sendResponse({ success: true, item }))
       .catch((error) => sendResponse({ success: false, error: error.message }));
+    return true;
+  }
+
+  if (message?.type === INTERNAL_MESSAGE_TYPES.captureVisibleTabDataUrl) {
+    captureVisibleTabDataUrl(sender)
+      .then((dataUrl) => sendResponse({ success: true, dataUrl }))
+      .catch((error) => sendResponse({ success: false, error: error.message }));
+    return true;
+  }
+
+  if (message?.type === INTERNAL_MESSAGE_TYPES.saveScreenshotDataUrlToCanvas) {
+    saveScreenshotDataUrlToCanvas(message.canvasId, message.dataUrl, sender, {
+      mode: message.mode || 'area',
+      sourceUrl: message.sourceUrl,
+    })
+      .then((item) => sendResponse({ success: true, item }))
+      .catch((error) => sendResponse({ success: false, error: error.message, status: error.status || null }));
     return true;
   }
 

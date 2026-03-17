@@ -68,6 +68,8 @@ function getCardColor(type) {
   const INTERNAL_MESSAGE_TYPES = {
     openExtensionLogin: 'OPEN_EXTENSION_LOGIN',
     captureScreenshotToCanvas: 'CAPTURE_SCREENSHOT_TO_CANVAS',
+    captureVisibleTabDataUrl: 'CAPTURE_VISIBLE_TAB_DATA_URL',
+    saveScreenshotDataUrlToCanvas: 'SAVE_SCREENSHOT_DATA_URL_TO_CANVAS',
     listRootSpaces: 'LIST_ROOT_SPACES',
     getFolderSpaces: 'GET_FOLDER_SPACES',
     saveCardToCanvas: 'SAVE_CARD_TO_CANVAS',
@@ -87,6 +89,9 @@ function getCardColor(type) {
     filteredTree: [],
     selectedCanvasId: null,
     selectedCanvasName: '',
+    captureDraftDataUrl: null,
+    captureDraftMode: null,
+    captureDraftSourceUrl: null,
     rootCacheHydrated: false,
   };
 
@@ -115,7 +120,13 @@ function getCardColor(type) {
 
       <div id="canvas-main-view" class="canvas-panel-view hidden">
         <label class="canvas-label" for="canvas-content-input">Content to save</label>
-        <textarea class="canvas-textarea" id="canvas-content-input" rows="4"></textarea>
+        <div id="canvas-content-text-wrap">
+          <textarea class="canvas-textarea" id="canvas-content-input" rows="4"></textarea>
+        </div>
+        <div id="canvas-shot-preview" class="canvas-shot-preview hidden">
+          <div class="canvas-shot-preview-title">Captured screenshot (not saved yet)</div>
+          <img id="canvas-shot-preview-image" class="canvas-shot-preview-image" alt="Captured screenshot preview" />
+        </div>
 
         <label class="canvas-label" for="canvas-search-input">Choose destination canvas</label>
         <input class="canvas-input" id="canvas-search-input" type="text" placeholder="Search folders and canvases" />
@@ -126,8 +137,15 @@ function getCardColor(type) {
 
         <div class="canvas-action-row">
           <button id="canvas-save-link-btn" class="canvas-btn-primary" type="button">Save link or note</button>
-          <button id="canvas-save-shot-btn" class="canvas-btn-secondary canvas-shot-btn" type="button">Capture screenshot</button>
+          <div class="canvas-shot-wrap">
+            <button id="canvas-save-shot-btn" class="canvas-btn-secondary canvas-shot-btn" type="button">Capture screenshot</button>
+            <div id="canvas-shot-menu" class="canvas-shot-menu hidden" role="menu" aria-label="Capture mode">
+              <button id="canvas-shot-mode-window" class="canvas-shot-option" type="button" role="menuitem">Window capture (visible viewport)</button>
+              <button id="canvas-shot-mode-area" class="canvas-shot-option" type="button" role="menuitem">Selected area (rectangle)</button>
+            </div>
+          </div>
         </div>
+        <button id="canvas-save-shot-to-canvas-btn" class="canvas-btn-primary canvas-save-shot-to-canvas-btn hidden" type="button">Save to canvas</button>
       </div>
 
       <div id="canvas-loading-view" class="canvas-panel-view hidden">
@@ -156,9 +174,17 @@ function getCardColor(type) {
   const selectionSummaryEl = root.querySelector('#canvas-selection-summary');
   const saveLinkBtnEl = root.querySelector('#canvas-save-link-btn');
   const saveShotBtnEl = root.querySelector('#canvas-save-shot-btn');
+  const shotMenuEl = root.querySelector('#canvas-shot-menu');
+  const shotModeWindowEl = root.querySelector('#canvas-shot-mode-window');
+  const shotModeAreaEl = root.querySelector('#canvas-shot-mode-area');
+  const shotPreviewEl = root.querySelector('#canvas-shot-preview');
+  const shotPreviewImageEl = root.querySelector('#canvas-shot-preview-image');
+  const actionRowEl = root.querySelector('.canvas-action-row');
+  const saveShotToCanvasBtnEl = root.querySelector('#canvas-save-shot-to-canvas-btn');
 
   saveLinkBtnEl.dataset.defaultLabel = saveLinkBtnEl.textContent;
   saveShotBtnEl.dataset.defaultLabel = saveShotBtnEl.textContent;
+  saveShotToCanvasBtnEl.dataset.defaultLabel = saveShotToCanvasBtnEl.textContent;
 
   function showToast(message) {
     toastEl.textContent = message;
@@ -190,6 +216,7 @@ function getCardColor(type) {
     authViewEl.classList.add('hidden');
     mainViewEl.classList.remove('hidden');
     loadingViewEl.classList.add('hidden');
+    renderCaptureDraftState();
   }
 
   function isValidUrl(text) {
@@ -307,12 +334,50 @@ function getCardColor(type) {
     state.selectedCanvasId = stored.lastCanvasId || null;
     state.selectedCanvasName = stored.lastCanvasName || '';
     updateSelectionSummary();
+    renderCaptureDraftState();
+  }
+
+  function clearCaptureDraft() {
+    state.captureDraftDataUrl = null;
+    state.captureDraftMode = null;
+    state.captureDraftSourceUrl = null;
+    renderCaptureDraftState();
+  }
+
+  function setCaptureDraft(dataUrl, mode, sourceUrl) {
+    state.captureDraftDataUrl = dataUrl;
+    state.captureDraftMode = mode;
+    state.captureDraftSourceUrl = sourceUrl;
+    renderCaptureDraftState();
+  }
+
+  function renderCaptureDraftState() {
+    const hasDraft = Boolean(state.captureDraftDataUrl);
+
+    if (hasDraft) {
+      shotPreviewImageEl.src = state.captureDraftDataUrl;
+      shotPreviewEl.classList.remove('hidden');
+      actionRowEl.classList.add('hidden');
+      saveShotToCanvasBtnEl.classList.remove('hidden');
+      statusTextEl.textContent = state.selectedCanvasName
+        ? `Screenshot ready. Save into ${state.selectedCanvasName}.`
+        : 'Screenshot ready. Select a canvas, then save.';
+      return;
+    }
+
+    shotPreviewImageEl.removeAttribute('src');
+    shotPreviewEl.classList.add('hidden');
+    actionRowEl.classList.remove('hidden');
+    saveShotToCanvasBtnEl.classList.add('hidden');
   }
 
   function updateSelectionSummary() {
     selectionSummaryEl.textContent = state.selectedCanvasName
       ? `Selected canvas: ${state.selectedCanvasName}`
       : 'No canvas selected.';
+    if (state.captureDraftDataUrl) {
+      renderCaptureDraftState();
+    }
   }
 
   function sleep(ms) {
@@ -648,7 +713,9 @@ function getCardColor(type) {
   async function openPanel() {
     state.isPanelOpen = true;
     panelEl.classList.remove('hidden');
-    contentInputEl.value = getSuggestedContent();
+    if (!state.captureDraftDataUrl) {
+      contentInputEl.value = getSuggestedContent();
+    }
     await hydrateAuthState();
 
     if (!state.authToken) {
@@ -704,11 +771,14 @@ function getCardColor(type) {
       return;
     }
 
-    if (!state.selectedCanvasId) {
-      showToast('Select a canvas first.');
-      return;
-    }
+    shotMenuEl.classList.toggle('hidden');
+  }
 
+  function hideShotMenu() {
+    shotMenuEl.classList.add('hidden');
+  }
+
+  async function captureWindowMode() {
     setButtonLoading(saveShotBtnEl, true, 'Capturing...');
 
     try {
@@ -716,22 +786,223 @@ function getCardColor(type) {
       await sleep(140);
 
       const response = await chrome.runtime.sendMessage({
-        type: INTERNAL_MESSAGE_TYPES.captureScreenshotToCanvas,
-        canvasId: state.selectedCanvasId,
+        type: INTERNAL_MESSAGE_TYPES.captureVisibleTabDataUrl,
       });
 
-      if (!response?.success) {
+      if (!response?.success || !response.dataUrl) {
         throw new Error(response?.error || 'Could not capture screenshot.');
       }
 
-      showToast('Screenshot saved to canvas.');
-    } catch (error) {
-      console.error('Screenshot save failed:', error);
+      setCaptureDraft(response.dataUrl, 'window', window.location.href);
       panelEl.classList.remove('hidden');
       state.isPanelOpen = true;
-      showToast(error.message || 'Screenshot save failed.');
+      showMainView();
+      showToast('Screenshot captured. Select a canvas and save.');
+    } catch (error) {
+      console.error('Screenshot capture failed:', error);
+      panelEl.classList.remove('hidden');
+      state.isPanelOpen = true;
+      showToast(error.message || 'Screenshot capture failed.');
     } finally {
       setButtonLoading(saveShotBtnEl, false);
+    }
+  }
+
+  function cropDataUrl(dataUrl, selection) {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => {
+        const scaleX = image.naturalWidth / window.innerWidth;
+        const scaleY = image.naturalHeight / window.innerHeight;
+
+        const sx = Math.max(0, Math.floor(selection.left * scaleX));
+        const sy = Math.max(0, Math.floor(selection.top * scaleY));
+        const sw = Math.max(1, Math.floor(selection.width * scaleX));
+        const sh = Math.max(1, Math.floor(selection.height * scaleY));
+
+        const canvas = document.createElement('canvas');
+        canvas.width = sw;
+        canvas.height = sh;
+        const context = canvas.getContext('2d');
+        if (!context) {
+          reject(new Error('Could not prepare screenshot crop.'));
+          return;
+        }
+
+        context.drawImage(image, sx, sy, sw, sh, 0, 0, sw, sh);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      image.onerror = () => reject(new Error('Failed to process screenshot image.'));
+      image.src = dataUrl;
+    });
+  }
+
+  function pickAreaSelection() {
+    return new Promise((resolve) => {
+      const overlay = document.createElement('div');
+      overlay.id = 'canvas-shot-overlay';
+
+      const help = document.createElement('div');
+      help.className = 'canvas-shot-help';
+      help.textContent = 'Drag to select area. Press Esc to cancel.';
+
+      const box = document.createElement('div');
+      box.className = 'canvas-shot-selection';
+
+      overlay.appendChild(help);
+      overlay.appendChild(box);
+      document.documentElement.appendChild(overlay);
+
+      let isDragging = false;
+      let startX = 0;
+      let startY = 0;
+
+      const cleanup = () => {
+        overlay.removeEventListener('mousedown', onMouseDown);
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', onMouseUp);
+        window.removeEventListener('keydown', onKeyDown);
+        overlay.remove();
+      };
+
+      const updateBox = (x, y) => {
+        const left = Math.min(startX, x);
+        const top = Math.min(startY, y);
+        const width = Math.abs(x - startX);
+        const height = Math.abs(y - startY);
+        box.style.left = `${left}px`;
+        box.style.top = `${top}px`;
+        box.style.width = `${width}px`;
+        box.style.height = `${height}px`;
+      };
+
+      const onMouseDown = (event) => {
+        isDragging = true;
+        startX = event.clientX;
+        startY = event.clientY;
+        updateBox(startX, startY);
+      };
+
+      const onMouseMove = (event) => {
+        if (!isDragging) {
+          return;
+        }
+        updateBox(event.clientX, event.clientY);
+      };
+
+      const onMouseUp = (event) => {
+        if (!isDragging) {
+          return;
+        }
+        isDragging = false;
+        const left = Math.min(startX, event.clientX);
+        const top = Math.min(startY, event.clientY);
+        const width = Math.abs(event.clientX - startX);
+        const height = Math.abs(event.clientY - startY);
+        cleanup();
+
+        if (width < 8 || height < 8) {
+          resolve(null);
+          return;
+        }
+
+        resolve({ left, top, width, height });
+      };
+
+      const onKeyDown = (event) => {
+        if (event.key === 'Escape') {
+          cleanup();
+          resolve(null);
+        }
+      };
+
+      overlay.addEventListener('mousedown', onMouseDown);
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
+      window.addEventListener('keydown', onKeyDown);
+    });
+  }
+
+  async function captureSelectedAreaMode() {
+    setButtonLoading(saveShotBtnEl, true, 'Capturing...');
+
+    try {
+      closePanel();
+      await sleep(140);
+
+      const captureResponse = await chrome.runtime.sendMessage({
+        type: INTERNAL_MESSAGE_TYPES.captureVisibleTabDataUrl,
+      });
+      if (!captureResponse?.success || !captureResponse.dataUrl) {
+        throw new Error(captureResponse?.error || 'Could not capture screenshot.');
+      }
+
+      const selection = await pickAreaSelection();
+      if (!selection) {
+        panelEl.classList.remove('hidden');
+        state.isPanelOpen = true;
+        showMainView();
+        showToast('Area selection canceled.');
+        return;
+      }
+
+      const croppedDataUrl = await cropDataUrl(captureResponse.dataUrl, selection);
+      setCaptureDraft(croppedDataUrl, 'area', window.location.href);
+      panelEl.classList.remove('hidden');
+      state.isPanelOpen = true;
+      showMainView();
+      showToast('Area captured. Select a canvas and save.');
+    } catch (error) {
+      console.error('Area screenshot capture failed:', error);
+      panelEl.classList.remove('hidden');
+      state.isPanelOpen = true;
+      showToast(error.message || 'Selected area screenshot failed.');
+    } finally {
+      setButtonLoading(saveShotBtnEl, false);
+    }
+  }
+
+  async function handleSaveCapturedScreenshot() {
+    if (!state.authToken) {
+      showAuthView();
+      return;
+    }
+
+    if (!state.captureDraftDataUrl) {
+      showToast('Capture a screenshot first.');
+      return;
+    }
+
+    if (!state.selectedCanvasId) {
+      showToast('Select a canvas first.');
+      return;
+    }
+
+    setButtonLoading(saveShotToCanvasBtnEl, true, 'Saving...');
+
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: INTERNAL_MESSAGE_TYPES.saveScreenshotDataUrlToCanvas,
+        canvasId: state.selectedCanvasId,
+        dataUrl: state.captureDraftDataUrl,
+        mode: state.captureDraftMode || 'window',
+        sourceUrl: state.captureDraftSourceUrl || window.location.href,
+      });
+
+      if (!response?.success) {
+        throw new Error(response?.error || 'Could not save screenshot.');
+      }
+
+      clearCaptureDraft();
+      showToast('Screenshot saved to canvas.');
+      setButtonLoading(saveShotToCanvasBtnEl, false);
+      await flashButtonSaved(saveShotToCanvasBtnEl);
+      contentInputEl.value = getSuggestedContent();
+    } catch (error) {
+      console.error('Save captured screenshot failed:', error);
+      showToast(error.message || 'Screenshot save failed.');
+    } finally {
+      setButtonLoading(saveShotToCanvasBtnEl, false);
     }
   }
 
@@ -744,6 +1015,15 @@ function getCardColor(type) {
   });
   saveLinkBtnEl.addEventListener('click', handleSaveLink);
   saveShotBtnEl.addEventListener('click', handleCaptureScreenshot);
+  saveShotToCanvasBtnEl.addEventListener('click', handleSaveCapturedScreenshot);
+  shotModeWindowEl.addEventListener('click', () => {
+    hideShotMenu();
+    captureWindowMode();
+  });
+  shotModeAreaEl.addEventListener('click', () => {
+    hideShotMenu();
+    captureSelectedAreaMode();
+  });
   searchInputEl.addEventListener('input', filterSpaces);
 
   chrome.runtime.onMessage.addListener((message) => {
@@ -771,6 +1051,22 @@ function getCardColor(type) {
 
   document.addEventListener('click', (event) => {
     if (!state.isPanelOpen) {
+      return;
+    }
+
+    if (shotMenuEl && !shotMenuEl.classList.contains('hidden')) {
+      const path = typeof event.composedPath === 'function' ? event.composedPath() : [];
+      if (!path.includes(saveShotBtnEl) && !path.includes(shotMenuEl)) {
+        hideShotMenu();
+      }
+    }
+
+    const path = typeof event.composedPath === 'function' ? event.composedPath() : [];
+    if (path.includes(root)) {
+      return;
+    }
+
+    if (event.target instanceof Node && !document.documentElement.contains(event.target)) {
       return;
     }
 
