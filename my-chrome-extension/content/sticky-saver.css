@@ -541,7 +541,8 @@
   height: 5px;
   border-radius: 0 0 16px 16px;
   transform-origin: left center;
-  animation: canvas-toast-progress var(--canvas-toast-duration, 3200ms) linear forwards;
+  animation: canvas-toast-progress var(--canvas-toast-duration, 3200ms) linear
+    forwards;
 }
 
 .canvas-toast-success .canvas-toast-icon {
