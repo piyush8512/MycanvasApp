@@ -5,16 +5,14 @@ import { useAuth, SignIn } from "@clerk/nextjs";
 
 // Read the Extension ID from your environment variables
 const EXTENSION_ID = process.env.NEXT_PUBLIC_EXTENSION_ID;
+const DEFAULT_EXTENSION_TOKEN_TEMPLATE = "canvas_extension";
 const EXTENSION_TOKEN_TEMPLATE =
-  process.env.NEXT_PUBLIC_CLERK_EXTENSION_TOKEN_TEMPLATE?.trim() || null;
+  process.env.NEXT_PUBLIC_CLERK_EXTENSION_TOKEN_TEMPLATE?.trim() ||
+  DEFAULT_EXTENSION_TOKEN_TEMPLATE;
 
 async function getExtensionBridgeToken(
   getToken: ReturnType<typeof useAuth>["getToken"],
 ) {
-  if (!EXTENSION_TOKEN_TEMPLATE) {
-    return getToken();
-  }
-
   try {
     const templateToken = await getToken({
       template: EXTENSION_TOKEN_TEMPLATE,
@@ -24,14 +22,14 @@ async function getExtensionBridgeToken(
     if (templateToken) {
       return templateToken;
     }
+
+    throw new Error("Template token was empty");
   } catch (error) {
-    console.warn(
-      "Extension template token fetch failed; using default token",
-      error,
+    console.error("Extension template token fetch failed", error);
+    throw new Error(
+      `Could not fetch template token \"${EXTENSION_TOKEN_TEMPLATE}\". Verify Clerk template and NEXT_PUBLIC_CLERK_EXTENSION_TOKEN_TEMPLATE.`,
     );
   }
-
-  return getToken({ skipCache: true });
 }
 
 export default function ExtensionLogin() {

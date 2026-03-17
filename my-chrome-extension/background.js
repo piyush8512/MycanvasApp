@@ -16,6 +16,8 @@ console.info('[Canvas Saver] background worker active v1.0.2', {
 
 const SPACE_CACHE_TTL_MS = 60 * 1000;
 const AUTH_ERROR_STATUSES = new Set([401, 403]);
+const AUTH_CLOCK_SKEW_MS = 5 * 1000;
+const MIN_TOKEN_TTL_TO_ACCEPT_MS = 60 * 1000;
 
 let isAuthInvalidationInProgress = false;
 
@@ -31,6 +33,34 @@ function isCacheFresh(fetchedAt) {
 
 function isSessionExpiredError(error) {
   return AUTH_ERROR_STATUSES.has(error?.status);
+}
+
+function parseJwtPayload(token) {
+  if (!token || typeof token !== 'string') {
+    return null;
+  }
+
+  const parts = token.split('.');
+  if (parts.length < 2) {
+    return null;
+  }
+
+  try {
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
+    return JSON.parse(atob(padded));
+  } catch (_error) {
+    return null;
+  }
+}
+
+function getTokenExpiryMs(token) {
+  const payload = parseJwtPayload(token);
+  if (!payload || typeof payload.exp !== 'number') {
+    return null;
+  }
+
+  return payload.exp * 1000;
 }
 
 function createSignInRequiredError(message = 'Please sign in to the extension first.') {
@@ -50,6 +80,7 @@ async function invalidateAuthSession(reason = 'Session expired') {
       STORAGE_KEYS.authToken,
       STORAGE_KEYS.authUser,
       STORAGE_KEYS.userId,
+      'authExpiresAt',
       'authUpdatedAt',
     ]);
 
@@ -72,6 +103,12 @@ async function withAuthToken(task, { retryOnAuthError = false } = {}) {
 
   if (!authToken) {
     throw createSignInRequiredError();
+  }
+
+  const authTokenExpiresAt = getTokenExpiryMs(authToken);
+  if (authTokenExpiresAt && authTokenExpiresAt <= Date.now() + AUTH_CLOCK_SKEW_MS) {
+    await invalidateAuthSession('Your session expired. Sign in again to continue.');
+    throw createSignInRequiredError('Your session expired. Sign in again to continue.');
   }
 
   try {
@@ -268,9 +305,24 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
 
   // Handle the successful login
   if (message.type === 'AUTH_SUCCESS') {
+    if (!message.token || typeof message.token !== 'string') {
+      sendResponse({ success: false, error: 'Invalid auth token payload.' });
+      return;
+    }
+
+    const tokenExpiryMs = getTokenExpiryMs(message.token);
+    if (tokenExpiryMs && tokenExpiryMs <= Date.now() + MIN_TOKEN_TTL_TO_ACCEPT_MS) {
+      sendResponse({
+        success: false,
+        error: 'Received a near-expiry token. Ensure Clerk extension template is configured and try signing in again.',
+      });
+      return;
+    }
+
     chrome.storage.local.set({
       [STORAGE_KEYS.authToken]: message.token,
       authUpdatedAt: Date.now(),
+      ...(tokenExpiryMs ? { authExpiresAt: tokenExpiryMs } : {}),
     }, async () => {
       spacesCache.root = null;
       spacesCache.rootFetchedAt = 0;

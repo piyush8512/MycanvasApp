@@ -121,7 +121,7 @@ App available at `http://localhost:3000`.
 - Dedicated page visited when the Chrome extension needs to authenticate
 - After Clerk sign-in, posts an `AUTH_SUCCESS` message with a JWT to the extension via `chrome.runtime.sendMessage`
 - The extension ID is read from the `extensionId` query param (passed by the extension itself) so the handshake works across different machines without hardcoding
-- If `NEXT_PUBLIC_CLERK_EXTENSION_TOKEN_TEMPLATE` is set, this page requests a template token first (recommended for longer extension token lifetime) and safely falls back to the default Clerk token
+- This page requests a Clerk JWT template token (default template name: `canvas_extension`) and does not fall back to the default Clerk token, preventing short token lifetime issues in the extension
 
 ### Theme
 
