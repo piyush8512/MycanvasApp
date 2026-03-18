@@ -113,7 +113,7 @@ export default function CanvasEditorPage() {
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState<Position>({ x: 0, y: 0 });
-  const [isGloballyLocked, setIsGloballyLocked] = useState(false);
+  const [isGloballyLocked, setIsGloballyLocked] = useState(true);
   const [isLinksPanelOpen, setIsLinksPanelOpen] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const lastMousePos = useRef<Position>({ x: 0, y: 0 });
@@ -441,7 +441,7 @@ export default function CanvasEditorPage() {
         e.preventDefault();
         const delta = e.deltaY > 0 ? 0.9 : 1.1;
         setZoom((prev) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev * delta)));
-      } else {
+      } else if (!isGloballyLocked) {
         setPan((prev) =>
           clampPan({
             x: prev.x - e.deltaX,
@@ -450,12 +450,13 @@ export default function CanvasEditorPage() {
         );
       }
     },
-    [clampPan],
+    [clampPan, isGloballyLocked],
   );
 
   // Handle mouse down
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
+      if (isGloballyLocked) return;
       if (
         e.button === 1 ||
         (e.button === 0 && selectedTool === "select" && !draggedItem)
@@ -467,7 +468,7 @@ export default function CanvasEditorPage() {
         lastMousePos.current = { x: e.clientX, y: e.clientY };
       }
     },
-    [selectedTool, draggedItem],
+    [selectedTool, draggedItem, isGloballyLocked],
   );
 
   // Handle mouse move
@@ -1225,6 +1226,16 @@ export default function CanvasEditorPage() {
     });
   }, []);
 
+  const handleGlobalLockToggle = useCallback(() => {
+    setIsGloballyLocked((prev) => {
+      const nextLocked = !prev;
+      if (nextLocked) {
+        setIsPanning(false);
+      }
+      return nextLocked;
+    });
+  }, []);
+
   // Render canvas item
   const renderItem = (item: CanvasItemType) => {
     const isSelected = selectedItem === item.id;
@@ -1312,26 +1323,23 @@ export default function CanvasEditorPage() {
             <MoreHorizontal className="w-5 h-5 text-(--text-secondary)" />
           </button>
           <button
-            onClick={() => setIsGloballyLocked(true)}
+            onClick={handleGlobalLockToggle}
             className={`p-2 rounded-lg transition-colors ${
               isGloballyLocked
                 ? "bg-(--hover-bg) text-(--text-primary)"
                 : "hover:bg-(--hover-bg) text-(--text-secondary)"
             }`}
-            title="Lock all cards"
+            title={
+              isGloballyLocked
+                ? "Canvas drag is locked. Click to unlock"
+                : "Canvas drag is unlocked. Click to lock"
+            }
           >
-            <Lock className="w-5 h-5" />
-          </button>
-          <button
-            onClick={() => setIsGloballyLocked(false)}
-            className={`p-2 rounded-lg transition-colors ${
-              !isGloballyLocked
-                ? "bg-(--hover-bg) text-(--text-primary)"
-                : "hover:bg-(--hover-bg) text-(--text-secondary)"
-            }`}
-            title="Unlock all cards"
-          >
-            <Unlock className="w-5 h-5" />
+            {isGloballyLocked ? (
+              <Lock className="w-5 h-5" />
+            ) : (
+              <Unlock className="w-5 h-5" />
+            )}
           </button>
         </div>
       </header>
@@ -1453,8 +1461,8 @@ export default function CanvasEditorPage() {
 
           <div className="absolute top-14 left-1/2 -translate-x-1/2 z-40 rounded-full border border-(--border-color) bg-(--card-bg)/95 px-3 py-1.5 text-xs text-(--text-secondary) shadow">
             {isGloballyLocked
-              ? "All cards locked: clickable, not draggable"
-              : "All cards unlocked: draggable, not clickable"}
+              ? "Canvas drag locked: click lock icon to unlock"
+              : "Canvas drag unlocked: click unlock icon to lock"}
           </div>
 
           {/* Zoom controls */}
