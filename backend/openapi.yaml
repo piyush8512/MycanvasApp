@@ -1,0 +1,1875 @@
+openapi: 3.0.3
+info:
+  title: Canvas App Backend API
+  version: 1.1.0
+  description: |
+    OpenAPI contract for Canvas App backend.
+    This version includes all currently implemented routes: users, folders,
+    canvas, storage, friends, sharing, and layouts.
+servers:
+  - url: http://localhost:4000
+    description: Local development
+  - url: https://mycanvas-app-backend.vercel.app
+    description: Production (Vercel)
+
+tags:
+  - name: Health
+    description: Service availability checks
+  - name: Users
+    description: User profile and utility endpoints
+  - name: Folders
+    description: Folder CRUD operations
+  - name: Canvas
+    description: Canvas and canvas item operations
+  - name: Storage
+    description: Upload URL and file management endpoints
+  - name: Friends
+    description: Friend search, requests, and list management
+  - name: Sharing
+    description: Public/private sharing and collaborator management
+  - name: Layouts
+    description: Canvas/folder position layout APIs
+
+paths:
+  /:
+    get:
+      tags: [Health]
+      summary: Root health check
+      description: Returns service metadata and timestamp.
+      responses:
+        "200":
+          description: Service is running
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RootHealthResponse"
+
+  /api/health:
+    get:
+      tags: [Health]
+      summary: Lightweight health check
+      description: Minimal endpoint used for network checks.
+      responses:
+        "200":
+          description: API healthy
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: OK
+
+  /api/users/health:
+    get:
+      tags: [Users]
+      summary: User service health
+      responses:
+        "200":
+          description: User service healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessageResponse"
+
+  /api/users/test-connection:
+    get:
+      tags: [Users]
+      summary: Test DB/service connection
+      responses:
+        "200":
+          description: Connection test success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessageResponse"
+        "500":
+          description: Connection test failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/users/me:
+    get:
+      tags: [Users]
+      summary: Get or create current user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: User returned/created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfileResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/users/update-profile:
+    get:
+      tags: [Users]
+      summary: Update profile (legacy GET route in current implementation)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfileResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/users/test-create-user:
+    post:
+      tags: [Users]
+      summary: Test-only user creation endpoint
+      responses:
+        "200":
+          description: Test user created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfileResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/folders:
+    get:
+      tags: [Folders]
+      summary: List user folders
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Folders fetched
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FolderListResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    post:
+      tags: [Folders]
+      summary: Create folder
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFolderRequest"
+      responses:
+        "201":
+          description: Folder created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FolderSingleResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/folders/{id}:
+    get:
+      tags: [Folders]
+      summary: Get folder by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FolderId"
+      responses:
+        "200":
+          description: Folder fetched
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FolderSingleResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Folder not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    put:
+      tags: [Folders]
+      summary: Update folder (name/position)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FolderId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateFolderRequest"
+      responses:
+        "200":
+          description: Folder updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FolderSingleResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Folder not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      tags: [Folders]
+      summary: Delete folder
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FolderId"
+      responses:
+        "200":
+          description: Folder deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessageResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Folder not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/canvas:
+    get:
+      tags: [Canvas]
+      summary: List root-level canvases
+      description: Returns current user's canvases where folderId is null.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Canvas list fetched
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CanvasListResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    post:
+      tags: [Canvas]
+      summary: Create canvas
+      description: Creates a new canvas in root or inside a folder.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCanvasRequest"
+      responses:
+        "201":
+          description: Canvas created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CanvasSingleResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: User or folder not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/canvas/{id}:
+    get:
+      tags: [Canvas]
+      summary: Get canvas details
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanvasId"
+      responses:
+        "200":
+          description: Canvas details fetched
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CanvasSingleResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Canvas not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    patch:
+      tags: [Canvas]
+      summary: Update canvas
+      description: Updates canvas name and/or current user's layout position.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanvasId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCanvasRequest"
+      responses:
+        "200":
+          description: Canvas updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CanvasSingleResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: No permission
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: User or canvas not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      tags: [Canvas]
+      summary: Delete canvas
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanvasId"
+      responses:
+        "200":
+          description: Canvas deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CanvasSingleResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/canvas/{canvasId}/items:
+    get:
+      tags: [Canvas]
+      summary: List canvas items
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanvasIdInItemsRoute"
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 200
+          description: Number of items to fetch.
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Pagination offset.
+      responses:
+        "200":
+          description: Items fetched
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CanvasItemsResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    post:
+      tags: [Canvas]
+      summary: Create canvas item
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanvasIdInItemsRoute"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCanvasItemRequest"
+      responses:
+        "201":
+          description: Item created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CanvasItemSingleResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: User or canvas not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/canvas/{canvasId}/items/{itemId}:
+    patch:
+      tags: [Canvas]
+      summary: Update canvas item
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CanvasIdInItemsRoute"
+        - $ref: "#/components/parameters/ItemId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCanvasItemRequest"
+      responses:
+        "200":
+          description: Item updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CanvasItemSingleResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/storage/signed-url:
+    post:
+      tags: [Storage]
+      summary: Get signed upload URL
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignedUrlRequest"
+      responses:
+        "200":
+          description: Signed URL generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericDataResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/storage/public-url:
+    post:
+      tags: [Storage]
+      summary: Get public URL for uploaded file
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublicUrlRequest"
+      responses:
+        "200":
+          description: Public URL returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericDataResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/storage/delete:
+    post:
+      tags: [Storage]
+      summary: Delete uploaded file by storage path
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteFileRequest"
+      responses:
+        "200":
+          description: File deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessageResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/friends/search:
+    get:
+      tags: [Friends]
+      summary: Search user by friend code
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: code
+          required: true
+          schema:
+            type: string
+          description: Friend code such as @john#1234
+      responses:
+        "200":
+          description: Search completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericDataResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/friends/regenerate-code:
+    post:
+      tags: [Friends]
+      summary: Regenerate current user's friend code
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Friend code regenerated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessageResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/friends/request:
+    post:
+      tags: [Friends]
+      summary: Send friend request
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendFriendRequestBody"
+      responses:
+        "200":
+          description: Request sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessageResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/friends/request/{id}/accept:
+    post:
+      tags: [Friends]
+      summary: Accept friend request
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FriendRequestId"
+      responses:
+        "200":
+          description: Request accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessageResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/friends/request/{id}/reject:
+    post:
+      tags: [Friends]
+      summary: Reject friend request
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FriendRequestId"
+      responses:
+        "200":
+          description: Request rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessageResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/friends/request/{id}:
+    delete:
+      tags: [Friends]
+      summary: Cancel sent friend request
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FriendRequestId"
+      responses:
+        "200":
+          description: Request canceled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessageResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/friends/requests/pending:
+    get:
+      tags: [Friends]
+      summary: List pending friend requests
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Pending requests fetched
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericDataResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/friends/requests/sent:
+    get:
+      tags: [Friends]
+      summary: List sent friend requests
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Sent requests fetched
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericDataResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/friends:
+    get:
+      tags: [Friends]
+      summary: List friends
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Friends fetched
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericDataResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/friends/{friendId}:
+    delete:
+      tags: [Friends]
+      summary: Remove friend
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FriendId"
+      responses:
+        "200":
+          description: Friend removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessageResponse"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/sharing/folder/{folderId}/generate-link:
+    post:
+      tags: [Sharing]
+      summary: Generate folder share link
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FolderId"
+      responses:
+        "200":
+          description: Share link generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericDataResponse"
+
+  /api/sharing/folder/{folderId}/toggle-public:
+    patch:
+      tags: [Sharing]
+      summary: Toggle folder public sharing
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FolderId"
+      responses:
+        "200":
+          description: Public sharing state updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessageResponse"
+
+  /api/sharing/folder/{folderId}/public-role:
+    patch:
+      tags: [Sharing]
+      summary: Update folder public role
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FolderId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePublicRoleRequest"
+      responses:
+        "200":
+          description: Public role updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessageResponse"
+
+  /api/sharing/folder/{folderId}/collaborators:
+    get:
+      tags: [Sharing]
+      summary: List folder collaborators
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FolderId"
+      responses:
+        "200":
+          description: Collaborators fetched
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericDataResponse"
+
+    post:
+      tags: [Sharing]
+      summary: Add folder collaborators
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FolderId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddCollaboratorsRequest"
+      responses:
+        "200":
+          description: Collaborators added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessageResponse"
+
+  /api/sharing/folder/{folderId}/collaborators/{collaboratorId}:
+    patch:
+      tags: [Sharing]
+      summary: Update folder collaborator role
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FolderId"
+        - $ref: "#/components/parameters/CollaboratorId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCollaboratorRoleRequest"
+      responses:
+        "200":
+          description: Collaborator role updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessageResponse"
+
+    delete:
+      tags: [Sharing]
+      summary: Remove folder collaborator
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FolderId"
+        - $ref: "#/components/parameters/CollaboratorId"
+      responses:
+        "200":
+          description: Collaborator removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessageResponse"
+
+  /api/sharing/folder/link/{shareToken}:
+    get:
+      tags: [Sharing]
+      summary: Access shared folder via token
+      parameters:
+        - $ref: "#/components/parameters/ShareToken"
+      responses:
+        "200":
+          description: Shared folder fetched
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericDataResponse"
+        "404":
+          description: Shared folder not found/expired
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/sharing/file/{fileId}/generate-link:
+    post:
+      tags: [Sharing]
+      summary: Generate file/canvas share link
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FileId"
+      responses:
+        "200":
+          description: Share link generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericDataResponse"
+
+  /api/sharing/file/{fileId}/toggle-public:
+    patch:
+      tags: [Sharing]
+      summary: Toggle file/canvas public sharing
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FileId"
+      responses:
+        "200":
+          description: Public sharing state updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessageResponse"
+
+  /api/sharing/file/{fileId}/public-role:
+    patch:
+      tags: [Sharing]
+      summary: Update file/canvas public role
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FileId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePublicRoleRequest"
+      responses:
+        "200":
+          description: Public role updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessageResponse"
+
+  /api/sharing/file/{fileId}/collaborators:
+    get:
+      tags: [Sharing]
+      summary: List file/canvas collaborators
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FileId"
+      responses:
+        "200":
+          description: Collaborators fetched
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericDataResponse"
+
+    post:
+      tags: [Sharing]
+      summary: Add file/canvas collaborators
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FileId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddCollaboratorsRequest"
+      responses:
+        "200":
+          description: Collaborators added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessageResponse"
+
+  /api/sharing/file/{fileId}/collaborators/{collaboratorId}:
+    patch:
+      tags: [Sharing]
+      summary: Update file/canvas collaborator role
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FileId"
+        - $ref: "#/components/parameters/CollaboratorId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCollaboratorRoleRequest"
+      responses:
+        "200":
+          description: Collaborator role updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessageResponse"
+
+    delete:
+      tags: [Sharing]
+      summary: Remove file/canvas collaborator
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FileId"
+        - $ref: "#/components/parameters/CollaboratorId"
+      responses:
+        "200":
+          description: Collaborator removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessageResponse"
+
+  /api/sharing/file/link/{shareToken}:
+    get:
+      tags: [Sharing]
+      summary: Access shared file/canvas via token
+      parameters:
+        - $ref: "#/components/parameters/ShareToken"
+      responses:
+        "200":
+          description: Shared file fetched
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericDataResponse"
+        "404":
+          description: Shared file not found/expired
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/sharing/shared-with-me:
+    get:
+      tags: [Sharing]
+      summary: List items shared with current user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Shared items fetched
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericDataResponse"
+
+  /api/sharing/revoke/{itemType}/{itemId}/link:
+    delete:
+      tags: [Sharing]
+      summary: Revoke share link
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ItemType"
+        - $ref: "#/components/parameters/ItemIdGeneric"
+      responses:
+        "200":
+          description: Share link revoked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessageResponse"
+
+  /api/layouts/canvas:
+    get:
+      tags: [Layouts]
+      summary: Get all canvas layouts for current user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Canvas layouts fetched
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericDataResponse"
+
+  /api/layouts/canvas/bulk:
+    put:
+      tags: [Layouts]
+      summary: Bulk update canvas layouts
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkLayoutUpdateRequest"
+      responses:
+        "200":
+          description: Canvas layouts updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessageResponse"
+
+  /api/layouts/canvas/{fileId}:
+    put:
+      tags: [Layouts]
+      summary: Update single canvas layout
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FileId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SingleLayoutUpdateRequest"
+      responses:
+        "200":
+          description: Canvas layout updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessageResponse"
+
+    delete:
+      tags: [Layouts]
+      summary: Delete/reset single canvas layout
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FileId"
+      responses:
+        "200":
+          description: Canvas layout deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessageResponse"
+
+  /api/layouts/folder:
+    get:
+      tags: [Layouts]
+      summary: Get all folder layouts for current user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Folder layouts fetched
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericDataResponse"
+
+  /api/layouts/folder/bulk:
+    put:
+      tags: [Layouts]
+      summary: Bulk update folder layouts
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkLayoutUpdateRequest"
+      responses:
+        "200":
+          description: Folder layouts updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessageResponse"
+
+  /api/layouts/folder/{folderId}:
+    put:
+      tags: [Layouts]
+      summary: Update single folder layout
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FolderId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SingleLayoutUpdateRequest"
+      responses:
+        "200":
+          description: Folder layout updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessageResponse"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    CanvasId:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: string
+      description: Canvas ID
+    CanvasIdInItemsRoute:
+      in: path
+      name: canvasId
+      required: true
+      schema:
+        type: string
+      description: Canvas ID
+    FolderId:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: string
+      description: Folder ID
+    FileId:
+      in: path
+      name: fileId
+      required: true
+      schema:
+        type: string
+      description: File/Canvas ID
+    FriendId:
+      in: path
+      name: friendId
+      required: true
+      schema:
+        type: string
+      description: Friend user ID
+    FriendRequestId:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: string
+      description: Friend request ID
+    ItemId:
+      in: path
+      name: itemId
+      required: true
+      schema:
+        type: string
+      description: Canvas item ID
+    ItemIdGeneric:
+      in: path
+      name: itemId
+      required: true
+      schema:
+        type: string
+      description: Shared item ID
+    ItemType:
+      in: path
+      name: itemType
+      required: true
+      schema:
+        type: string
+        enum: [folder, file]
+      description: Shared item type
+    CollaboratorId:
+      in: path
+      name: collaboratorId
+      required: true
+      schema:
+        type: string
+      description: Collaborator user ID
+    ShareToken:
+      in: path
+      name: shareToken
+      required: true
+      schema:
+        type: string
+      description: Public share token
+
+  schemas:
+    RootHealthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Canvas API is running on Vercel!
+        timestamp:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: Request failed
+        error:
+          type: string
+          nullable: true
+          example: Internal Server Error
+
+    SuccessMessageResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Operation completed successfully
+
+    GenericDataResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          nullable: true
+          example: Data fetched successfully
+        data:
+          type: object
+          additionalProperties: true
+          nullable: true
+
+    UserProfileResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: User fetched successfully
+        user:
+          type: object
+          additionalProperties: true
+
+    Folder:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        ownerId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        positionX:
+          type: number
+          nullable: true
+        positionY:
+          type: number
+          nullable: true
+
+    FolderListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Folders fetched successfully
+        folders:
+          type: array
+          items:
+            $ref: "#/components/schemas/Folder"
+
+    FolderSingleResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Folder fetched successfully
+        folder:
+          $ref: "#/components/schemas/Folder"
+
+    Canvas:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        size:
+          type: integer
+          example: 0
+        url:
+          type: string
+          example: /canvas/abc123
+        folderId:
+          type: string
+          nullable: true
+        ownerId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        positionX:
+          type: number
+          nullable: true
+          example: 120
+        positionY:
+          type: number
+          nullable: true
+          example: 80
+
+    CanvasItem:
+      type: object
+      properties:
+        id:
+          type: string
+        canvasId:
+          type: string
+        createdBy:
+          type: string
+        type:
+          type: string
+          example: note
+        name:
+          type: string
+          nullable: true
+          example: Quick note
+        color:
+          type: string
+          nullable: true
+          example: "#FECACA"
+        position:
+          $ref: "#/components/schemas/XYPosition"
+        size:
+          $ref: "#/components/schemas/Size"
+        content:
+          type: object
+          additionalProperties: true
+          nullable: true
+          example:
+            text: hello world
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    XYPosition:
+      type: object
+      required: [x, y]
+      properties:
+        x:
+          type: number
+          example: 120
+        y:
+          type: number
+          example: 80
+
+    Size:
+      type: object
+      required: [width, height]
+      properties:
+        width:
+          type: number
+          example: 320
+        height:
+          type: number
+          example: 220
+
+    CreateFolderRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          example: Product Docs
+        position:
+          $ref: "#/components/schemas/XYPosition"
+
+    UpdateFolderRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          example: Updated Folder Name
+        position:
+          $ref: "#/components/schemas/XYPosition"
+
+    CreateCanvasRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          example: Feature Board
+        folderId:
+          type: string
+          nullable: true
+          example: folder_123
+
+    UpdateCanvasRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          example: Renamed Canvas
+        position:
+          $ref: "#/components/schemas/XYPosition"
+
+    CreateCanvasItemRequest:
+      type: object
+      required: [type, position, size]
+      properties:
+        type:
+          type: string
+          example: youtube
+        name:
+          type: string
+          nullable: true
+          example: Demo video
+        color:
+          type: string
+          nullable: true
+          example: "#DBEAFE"
+        position:
+          $ref: "#/components/schemas/XYPosition"
+        size:
+          $ref: "#/components/schemas/Size"
+        content:
+          type: object
+          additionalProperties: true
+          nullable: true
+          example:
+            url: https://youtu.be/dQw4w9WgXcQ
+            videoId: dQw4w9WgXcQ
+
+    UpdateCanvasItemRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        color:
+          type: string
+        position:
+          $ref: "#/components/schemas/XYPosition"
+        size:
+          $ref: "#/components/schemas/Size"
+        content:
+          type: object
+          additionalProperties: true
+
+    SignedUrlRequest:
+      type: object
+      required: [fileName, contentType]
+      properties:
+        fileName:
+          type: string
+          example: screenshot-123.png
+        contentType:
+          type: string
+          example: image/png
+
+    PublicUrlRequest:
+      type: object
+      required: [path]
+      properties:
+        path:
+          type: string
+          example: uploads/user123/screenshot-123.png
+
+    DeleteFileRequest:
+      type: object
+      required: [path]
+      properties:
+        path:
+          type: string
+          example: uploads/user123/screenshot-123.png
+
+    SendFriendRequestBody:
+      type: object
+      required: [friendCode]
+      properties:
+        friendCode:
+          type: string
+          example: "@sarah#4242"
+        message:
+          type: string
+          nullable: true
+          example: Hi, let's collaborate!
+
+    UpdatePublicRoleRequest:
+      type: object
+      required: [role]
+      properties:
+        role:
+          type: string
+          example: VIEWER
+
+    AddCollaboratorsRequest:
+      type: object
+      properties:
+        collaborators:
+          type: array
+          items:
+            type: object
+            properties:
+              userId:
+                type: string
+              role:
+                type: string
+                example: EDITOR
+
+    UpdateCollaboratorRoleRequest:
+      type: object
+      required: [role]
+      properties:
+        role:
+          type: string
+          example: EDITOR
+
+    BulkLayoutUpdateRequest:
+      type: object
+      properties:
+        layouts:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              position:
+                $ref: "#/components/schemas/XYPosition"
+
+    SingleLayoutUpdateRequest:
+      type: object
+      required: [position]
+      properties:
+        position:
+          $ref: "#/components/schemas/XYPosition"
+
+    CanvasListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Canvas fetched successfully
+        canvas:
+          type: array
+          items:
+            $ref: "#/components/schemas/Canvas"
+
+    CanvasSingleResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Canvas details fetched successfully
+        canvas:
+          $ref: "#/components/schemas/Canvas"
+
+    CanvasItemsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CanvasItem"
+        pagination:
+          type: object
+          properties:
+            limit:
+              type: integer
+            offset:
+              type: integer
+            total:
+              type: integer
+            hasMore:
+              type: boolean
+            nextOffset:
+              type: integer
+              nullable: true
+
+    CanvasItemSingleResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Item created successfully
+        item:
+          $ref: "#/components/schemas/CanvasItem"
