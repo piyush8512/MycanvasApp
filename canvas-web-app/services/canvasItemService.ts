@@ -75,15 +75,45 @@ const createCanvasItem = async (
 };
 
 export const extractYoutubeVideoId = (url: string): string | null => {
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.replace(/^www\./, "").toLowerCase();
+    const pathSegments = parsed.pathname.split("/").filter(Boolean);
+
+    if (hostname === "youtu.be") {
+      return pathSegments[0] || null;
+    }
+
+    if (hostname.endsWith("youtube.com")) {
+      if (parsed.pathname === "/watch") {
+        return parsed.searchParams.get("v");
+      }
+
+      if (parsed.pathname.startsWith("/shorts/")) {
+        return pathSegments[1] || null;
+      }
+
+      if (parsed.pathname.startsWith("/embed/")) {
+        return pathSegments[1] || null;
+      }
+    }
+  } catch {
+    // Fall back to regex patterns for partial URLs.
+  }
+
   const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/,
-    /youtube\.com\/embed\/([^&\n?#]+)/,
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#/]+)/,
+    /youtube\.com\/shorts\/([^&\n?#/]+)/,
+    /youtube\.com\/embed\/([^&\n?#/]+)/,
   ];
 
   for (const pattern of patterns) {
     const match = url.match(pattern);
-    if (match?.[1]) return match[1];
+    if (match?.[1]) {
+      return match[1];
+    }
   }
+
   return null;
 };
 
@@ -95,6 +125,7 @@ export const createYoutubeItem = async (
 ): Promise<CanvasItem | null> => {
   const videoId = extractYoutubeVideoId(url);
   if (!videoId) return null;
+  const isShort = /youtube\.com\/shorts\//i.test(url);
 
   const title = "YouTube Video";
 
@@ -104,12 +135,15 @@ export const createYoutubeItem = async (
     content: {
       url,
       videoId,
+      subtype: isShort ? "short" : "video",
       thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
       title,
     },
     color: "#FECACA",
     position,
-    size: { width: 320, height: 260 },
+    size: isShort
+      ? { width: 220, height: 260 }
+      : { width: 320, height: 260 },
   });
 };
 

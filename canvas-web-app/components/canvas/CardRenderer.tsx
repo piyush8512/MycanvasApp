@@ -111,7 +111,6 @@ export default function CardRenderer({
         </div>
       );
 
-    case "sticky":
     case "text":
     case "note":
       return (
