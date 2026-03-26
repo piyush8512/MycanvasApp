@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { toast } from "sonner";
 import { createLinkItem, createYoutubeItem } from "@/services/canvasItemService";
 import { Position, CreateCanvasItemResponse, CanvasItem } from "@/types/canvas";
 
@@ -106,7 +107,7 @@ export const useCanvasQuickActions = ({
 
     const normalizedUrl = normalizeWebUrl(url);
     if (!normalizedUrl) {
-      window.alert("Please enter a valid website URL (example: https://example.com).");
+      toast.error("Please enter a valid website URL (example: https://example.com).");
       return;
     }
 
@@ -127,13 +128,14 @@ export const useCanvasQuickActions = ({
 
       if (created) {
         appendCanvasItem(normalizeCanvasItem(created));
+        toast.success("Link added successfully.");
       }
     } catch (error) {
       console.error("Failed to create link item:", error);
 
       const position = getViewportCenterPosition();
       appendCanvasItem(createLocalLinkItem(normalizedUrl, position));
-      window.alert(
+      toast.warning(
         error instanceof Error
           ? `Saved only on web (not synced yet): ${error.message}`
           : "Saved only on web (not synced yet). Backend rejected create.",
@@ -181,6 +183,7 @@ export const useCanvasQuickActions = ({
       } else {
         const tempId = `temp-${Date.now()}`;
         appendCanvasItem({ ...payload, id: tempId } as CanvasItem);
+        
       }
     } catch {
       const tempId = `temp-${Date.now()}`;
