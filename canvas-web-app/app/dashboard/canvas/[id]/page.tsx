@@ -26,43 +26,30 @@ import { API_BASE_URL } from "@/services/api";
 import CardRenderer from "@/components/canvas/CardRenderer";
 import {
   createImageItem,
-  createLinkItem,
-  createYoutubeItem,
   updateCanvasItem,
   updateCanvasItemPosition,
 } from "@/services/canvasItemService";
 import { storageService } from "@/services/storageService";
+import {
+  useCanvasQuickActions,
+    
+} from "./useCanvasQuickActions";
 
-// Types
-interface Position {
-  x: number;
-  y: number;
-}
-
-interface Size {
-  width: number;
-  height: number;
-}
-
-interface CanvasItemType {
-  id: string;
-  name: string;
-  type:
-    | "sticky"
-    | "note"
-    | "text"
-    | "shape"
-    | "image"
-    | "youtube"
-    | "note"
-    | "link"
-    | "instagram";
-
-  content: any;
-  color?: string;
-  position: Position;
-  size: Size;
-}
+import {
+  Position,
+  Size,
+  GRID_SIZE,
+  MIN_ZOOM,
+  Tool,
+  MAX_ZOOM,
+  CANVAS_WIDTH,
+  CANVAS_HEIGHT,
+  ITEMS_PAGE_SIZE,
+  VIEWPORT_RENDER_BUFFER,
+  OFFSCREEN_RENDER_CHUNK,
+  CreateCanvasItemResponse,
+  CanvasItemType
+} from "@/types/canvas";
 
 interface CanvasData {
   id: string;
@@ -78,21 +65,6 @@ interface CanvasItemsPagination {
   nextOffset: number | null;
 }
 
-interface CreateCanvasItemResponse {
-  success: boolean;
-  item?: any;
-}
-
-const GRID_SIZE = 40;
-const MIN_ZOOM = 0.4;
-const MAX_ZOOM = 2;
-const CANVAS_WIDTH = 3800;
-const CANVAS_HEIGHT = 1800;
-const ITEMS_PAGE_SIZE = 120;
-const VIEWPORT_RENDER_BUFFER = 260;
-const OFFSCREEN_RENDER_CHUNK = 40;
-
-type Tool = "select" | "sticky" | "text" | "rectangle" | "circle" | "draw";
 
 export default function CanvasEditorPage() {
   const { id } = useParams();
@@ -657,149 +629,15 @@ export default function CanvasEditorPage() {
     };
   }, [pan.x, pan.y, zoom]);
 
-  const createLocalLinkItem = useCallback(
-    (urlValue: string, position: Position): CanvasItemType => {
-      const youtubeMatch = urlValue.match(
-        /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/,
-      );
-      const videoId = youtubeMatch?.[1];
-
-      if (videoId) {
-        return {
-          id: `temp-${Date.now()}`,
-          name: "YouTube Video",
-          type: "youtube",
-          content: {
-            url: urlValue,
-            videoId,
-            title: "YouTube Video",
-            thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
-          },
-          position,
-          size: { width: 320, height: 260 },
-        };
-      }
-
-      let domain = "link";
-      try {
-        domain = new URL(urlValue).hostname;
-      } catch {
-        domain = "link";
-      }
-
-      return {
-        id: `temp-${Date.now()}`,
-        name: domain,
-        type: "link",
-        content: {
-          url: urlValue,
-          domain,
-          title: domain,
-        },
-        position,
-        size: { width: 320, height: 180 },
-      };
-    },
-    [],
-  );
-
-  const handleAddLink = useCallback(async () => {
-    if (!canvas) return;
-
-    const url = window.prompt("Paste YouTube or website URL");
-    if (!url || !url.trim()) return;
-
-    try {
-      const token = await getToken();
-      if (!token) return;
-      const position = getViewportCenterPosition();
-
-      let created = await createYoutubeItem(
-        canvas.id,
-        url.trim(),
-        token,
-        position,
-      );
-      if (!created) {
-        created = await createLinkItem(canvas.id, url.trim(), token, position);
-      }
-
-      if (created) {
-        appendCanvasItem(normalizeCanvasItem(created));
-      }
-    } catch (error) {
-      console.error("Failed to create link item:", error);
-      const position = getViewportCenterPosition();
-      const localItem = createLocalLinkItem(url.trim(), position);
-      setCanvas((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          items: [...prev.items, localItem],
-        };
-      });
-      window.alert(
-        error instanceof Error
-          ? `Saved only on web (not synced yet): ${error.message}`
-          : "Saved only on web (not synced yet). Backend rejected create.",
-      );
-    }
-  }, [
-    canvas,
-    getToken,
-    getViewportCenterPosition,
-    appendCanvasItem,
-    normalizeCanvasItem,
-    createLocalLinkItem,
-  ]);
-
-  const handleAddNote = useCallback(async () => {
-    if (!canvasId) return;
-
-    const position = getViewportCenterPosition();
-    const payload: Partial<CanvasItemType> = {
-      type: "sticky",
-      name: "New Note",
-      content: { text: "" },
-      color: "#fef08a",
-      position,
-      size: { width: 240, height: 180 },
-    };
-
-    try {
-      const token = await getToken();
-      if (!token) return;
-
-      const res = await fetch(`${API_URL}/canvas/${canvasId}/items`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (res.ok) {
-        const responsePayload = (await res.json()) as CreateCanvasItemResponse;
-        if (responsePayload.item) {
-          appendCanvasItem(normalizeCanvasItem(responsePayload.item));
-        }
-      } else {
-        const tempId = `temp-${Date.now()}`;
-        appendCanvasItem({ ...payload, id: tempId } as CanvasItemType);
-      }
-    } catch (error) {
-      const tempId = `temp-${Date.now()}`;
-      appendCanvasItem({ ...payload, id: tempId } as CanvasItemType);
-    }
-  }, [
+  const { handleAddLink, handleAddNote } = useCanvasQuickActions({
     canvasId,
-    getViewportCenterPosition,
+    canvas,
+    apiUrl: API_URL,
     getToken,
-    API_URL,
+    getViewportCenterPosition,
     appendCanvasItem,
     normalizeCanvasItem,
-  ]);
+  });
 
   const handleAddImage = useCallback(() => {
     if (isUploadingImage) return;
@@ -1567,3 +1405,4 @@ export default function CanvasEditorPage() {
     </div>
   );
 }
+//currentat this l much line of code  1408

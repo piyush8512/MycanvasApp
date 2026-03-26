@@ -2,11 +2,12 @@
 // Canvas App - Shared Types
 // ============================================================
 
+
+
+
+// canvas related  types 
 // Position on the infinite canvas
-export interface Position {
-  x: number;
-  y: number;
-}
+
 
 // Base item that both folders and canvases share
 export interface BaseItem {
@@ -18,6 +19,7 @@ export interface BaseItem {
   isShared: boolean;
   userId: string;
 }
+
 
 // Folder type
 export interface Folder extends BaseItem {
@@ -48,10 +50,8 @@ export type ItemType =
   | "note"
   | "attachment";
 
-export interface Size {
-  width: number;
-  height: number;
-}
+
+
 
 export interface YoutubeContent {
   videoId: string;
@@ -84,6 +84,15 @@ export interface CanvasItem {
   };
   createdAt?: string;
   updatedAt?: string;
+}
+export interface CanvasItemType {
+  id: string;
+  name: string;
+  type: ItemType;
+  content: any;
+  color?: string;
+  position: Position;
+  size: Size;
 }
 
 export interface YoutubeItem extends CanvasItem {
@@ -134,7 +143,7 @@ export interface ApiResponse<T> {
 export type ViewMode = "home" | "edit";
 
 // Tool types
-export type ToolType =
+export type Tool =
   | "select"
   | "pan"
   | "sticky"
@@ -148,11 +157,37 @@ export type ToolType =
 
 // Zoom presets
 export const ZOOM_PRESETS = [ 0.5,0.8, 1.0, 1.2, 1.5] as const;
-export const MIN_ZOOM = 0.5;
+export const MIN_ZOOM = 0.4;
 export const MAX_ZOOM = 2;
-export const GRID_SIZE = 50;
+export const GRID_SIZE = 40;
 
 // Canvas boundaries - starts from 0,0
 export const CANVAS_SIZE = 4000;
 export const CANVAS_MIN = 0;
 export const CANVAS_MAX = CANVAS_SIZE;
+export const CANVAS_WIDTH = 3800;
+export const CANVAS_HEIGHT = 1800;
+export const ITEMS_PAGE_SIZE = 120;
+export const VIEWPORT_RENDER_BUFFER = 260;
+export const OFFSCREEN_RENDER_CHUNK = 40;
+
+
+
+
+//related to canvas items
+
+export interface Size {
+  width: number;
+  height: number;
+}
+
+export interface Position {
+  x: number;
+  y: number;
+}
+
+//create canvas items sucess repsonse 
+export interface CreateCanvasItemResponse {
+  success: boolean;
+  item?: any;
+}
