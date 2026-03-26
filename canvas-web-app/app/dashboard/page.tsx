@@ -113,6 +113,20 @@ export default function DashboardPage() {
     setActiveFolder(latestFolder);
   }, [items, activeFolder]);
 
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+K or Cmd+K to open search
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        openModal("search");
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [openModal]);
+
   // Handle create item request (opens modal)
   const handleCreateItem = useCallback(
     (type: "folder" | "canvas", position: Position, folderId?: string) => {

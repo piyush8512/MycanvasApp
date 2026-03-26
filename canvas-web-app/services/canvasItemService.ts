@@ -1,7 +1,58 @@
-import { CanvasItem } from "@/types/canvas";
+import { CanvasItem, LinkContent } from "@/types/canvas";
 import { API_BASE_URL } from "@/services/api";
 
 const API_URL = API_BASE_URL;
+
+const normalizeDomainFromUrl = (url: string): string => {
+  try {
+    return new URL(url).hostname.replace(/^www\./i, "");
+  } catch {
+    return "link";
+  }
+};
+
+const getLinkPreview = async (
+  url: string,
+  token: string,
+): Promise<LinkContent> => {
+  const fallbackDomain = normalizeDomainFromUrl(url);
+
+  try {
+    const res = await fetch(`${API_URL}/canvas/link-preview`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ url }),
+    });
+
+    if (!res.ok) {
+      return {
+        url,
+        domain: fallbackDomain,
+        title: fallbackDomain,
+      };
+    }
+
+    const data = await res.json();
+    const preview = data?.preview || {};
+
+    return {
+      url,
+      domain: preview.domain || fallbackDomain,
+      title: preview.title || fallbackDomain,
+      description: preview.description,
+      thumbnail: preview.thumbnail,
+    };
+  } catch {
+    return {
+      url,
+      domain: fallbackDomain,
+      title: fallbackDomain,
+    };
+  }
+};
 
 export const updateCanvasItemPosition = async (
   canvasId: string,
@@ -153,21 +204,13 @@ export const createLinkItem = async (
   token: string,
   position: { x: number; y: number },
 ): Promise<CanvasItem> => {
-  let domain = "";
-  try {
-    domain = new URL(url).hostname;
-  } catch {
-    domain = "link";
-  }
+  const preview = await getLinkPreview(url, token);
+  const domain = preview.domain || "link";
 
   return createCanvasItem(canvasId, token, {
     type: "link",
     name: domain,
-    content: {
-      url,
-      domain,
-      title: domain,
-    },
+    content: preview,
     color: "#E9D5FF",
     position,
     size: { width: 320, height: 180 },

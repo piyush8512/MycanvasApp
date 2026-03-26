@@ -68,7 +68,7 @@ export default function FloatingUiLayer({
         onCanvasClick={onCanvasOpen}
         onNavigateToItem={onNavigateToItem}
       />
-      
+
       <div className="floating-ui absolute top-4 left-26 z-0">
         <div className="flex items-center gap-2 rounded-2xl border border-[#1f2a3f] bg-[#0b1220]/95 px-4 py-3 shadow-[0_10px_24px_rgba(0,0,0,0.35)] backdrop-blur-sm">
           <span className="text-sm font-medium text-[#9aa6bd]">Workspace</span>
@@ -102,7 +102,8 @@ export default function FloatingUiLayer({
       <div className="floating-ui absolute top-4 right-4 z-50 flex items-center gap-3">
         <button
           onClick={onSearch}
-          className="p-2.5 bg-white dark:bg-[#1a1a1f] rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+          title="Search (Ctrl+K)"
+          className="p-2.5 bg-white dark:bg-[#1a1a1f] rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:border-blue-500 dark:hover:border-blue-500 transition-all duration-200"
         >
           <Search className="w-5 h-5" />
         </button>
@@ -225,8 +226,6 @@ export default function FloatingUiLayer({
             </button>
           </div>
         </div>
-
-
       </div>
     </>
   );

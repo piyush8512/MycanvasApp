@@ -378,6 +378,7 @@
 
 
 import prisma from "../config/prisma.js";
+import { extractLinkPreview } from "../utils/linkPreview.js";
 
 //create canvas
 export const createCanvas = async (req, res) => {
@@ -742,6 +743,32 @@ export const updateItem = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to update canvas item",
+      error: error.message,
+    });
+  }
+};
+
+export const getLinkPreview = async (req, res) => {
+  try {
+    const { url } = req.body || {};
+
+    if (typeof url !== "string" || url.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "url is required",
+      });
+    }
+
+    const preview = await extractLinkPreview(url.trim());
+
+    return res.status(200).json({
+      success: true,
+      preview,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch link preview",
       error: error.message,
     });
   }

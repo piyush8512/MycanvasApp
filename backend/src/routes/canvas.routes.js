@@ -64,7 +64,8 @@ import {
   createItem,
   updateItem,
   updateCanvas,
-  deleteCanvas
+  deleteCanvas,
+  getLinkPreview,
 } from "../controllers/canvas.controller.js";
 
 const router = Router();
@@ -87,6 +88,9 @@ router.route("/:canvasId/items").get(requireAuth, getCanvasItems); // Get all it
 router.route("/:canvasId/items").post(requireAuth, createItem); // Create a new item on a canvas
 // PATCH /api/canvas/:canvasId/items/:itemId
 router.route("/:canvasId/items/:itemId").patch(requireAuth, updateItem); // Update an item
+
+// POST /api/canvas/link-preview
+router.route("/link-preview").post(requireAuth, getLinkPreview);
 
 export default router;
 

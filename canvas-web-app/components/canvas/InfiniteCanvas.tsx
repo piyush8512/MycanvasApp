@@ -7,6 +7,7 @@ import React, {
   useEffect,
   useMemo,
 } from "react";
+import { Search } from "lucide-react";
 import { useCanvasStore, clampItemPosition } from "@/stores/canvasStore";
 import { MIN_ZOOM, MAX_ZOOM } from "@/types/canvas";
 import type { Position, DashboardItem } from "@/types/canvas";
@@ -479,6 +480,16 @@ export default function InfiniteCanvas({
         onToggleGrid={() => setShowGrid((prev) => !prev)}
         onCreateCanvas={() => onCreateItem("canvas", { x: 200, y: 200 })}
       />
+
+      {/* Search Icon - Top Right */}
+      <button
+        onClick={onSearch}
+        className="floating-ui absolute top-4 right-4 z-[9999] p-2.5 bg-white dark:bg-[#1a1a1f] rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-all duration-200"
+        title="Search (Ctrl+K)"
+        aria-label="Search"
+      >
+        <Search className="w-5 h-5" />
+      </button>
     </div>
   );
 }

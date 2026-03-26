@@ -20,6 +20,8 @@ import {
   Lock,
   Unlock,
   FileText,
+  Search,
+  X,
 } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import { API_BASE_URL } from "@/services/api";
@@ -30,10 +32,7 @@ import {
   updateCanvasItemPosition,
 } from "@/services/canvasItemService";
 import { storageService } from "@/services/storageService";
-import {
-  useCanvasQuickActions,
-    
-} from "./useCanvasQuickActions";
+import { useCanvasQuickActions } from "./useCanvasQuickActions";
 
 import {
   Position,
@@ -48,7 +47,7 @@ import {
   VIEWPORT_RENDER_BUFFER,
   OFFSCREEN_RENDER_CHUNK,
   CreateCanvasItemResponse,
-  CanvasItemType
+  CanvasItemType,
 } from "@/types/canvas";
 
 interface CanvasData {
@@ -64,7 +63,6 @@ interface CanvasItemsPagination {
   hasMore: boolean;
   nextOffset: number | null;
 }
-
 
 export default function CanvasEditorPage() {
   const { id } = useParams();
@@ -88,6 +86,8 @@ export default function CanvasEditorPage() {
   const [isGloballyLocked, setIsGloballyLocked] = useState(true);
   const [isLinksPanelOpen, setIsLinksPanelOpen] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const lastMousePos = useRef<Position>({ x: 0, y: 0 });
   const activeLoadIdRef = useRef(0);
   const adjustedImageItemsRef = useRef<Set<string>>(new Set());
@@ -303,6 +303,25 @@ export default function CanvasEditorPage() {
     }
   }, [isLoaded, canvasId, fetchCanvas]);
 
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+K or Cmd+K to open search
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        setIsSearchOpen(true);
+      }
+      // Escape to close search
+      if (e.key === "Escape" && isSearchOpen) {
+        setIsSearchOpen(false);
+        setSearchQuery("");
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isSearchOpen]);
+
   const renderPartition = useMemo(() => {
     if (!canvas?.items?.length) {
       return {
@@ -413,7 +432,7 @@ export default function CanvasEditorPage() {
         e.preventDefault();
         const delta = e.deltaY > 0 ? 0.9 : 1.1;
         setZoom((prev) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev * delta)));
-      } else if (!isGloballyLocked) {
+      } else {
         setPan((prev) =>
           clampPan({
             x: prev.x - e.deltaX,
@@ -422,13 +441,12 @@ export default function CanvasEditorPage() {
         );
       }
     },
-    [clampPan, isGloballyLocked],
+    [clampPan],
   );
 
   // Handle mouse down
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
-      if (isGloballyLocked) return;
       if (
         e.button === 1 ||
         (e.button === 0 && selectedTool === "select" && !draggedItem)
@@ -440,7 +458,7 @@ export default function CanvasEditorPage() {
         lastMousePos.current = { x: e.clientX, y: e.clientY };
       }
     },
-    [selectedTool, draggedItem, isGloballyLocked],
+    [selectedTool, draggedItem],
   );
 
   // Handle mouse move
@@ -1074,6 +1092,30 @@ export default function CanvasEditorPage() {
     });
   }, []);
 
+  // Search functionality
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim() || !canvas?.items) return [];
+    const query = searchQuery.toLowerCase();
+    return canvas.items.filter((item) => {
+      const name = (item.name || "").toLowerCase();
+      const url = (item.content?.url || "").toLowerCase();
+      const text = (item.content?.text || "").toLowerCase();
+      return (
+        name.includes(query) || url.includes(query) || text.includes(query)
+      );
+    });
+  }, [searchQuery, canvas?.items]);
+
+  const handleSearchItemClick = useCallback(
+    (item: CanvasItemType) => {
+      focusOnItem(item);
+      setSelectedItem(item.id);
+      setIsSearchOpen(false);
+      setSearchQuery("");
+    },
+    [focusOnItem],
+  );
+
   // Render canvas item
   const renderItem = (item: CanvasItemType) => {
     const isSelected = selectedItem === item.id;
@@ -1288,6 +1330,104 @@ export default function CanvasEditorPage() {
               {renderedItems.map(renderItem)}
             </div>
           </div>
+
+          {/* Search Button - Top Right */}
+          <button
+            onClick={() => setIsSearchOpen(true)}
+            className="absolute top-6 right-8 z-40 p-2.5 bg-(--card-bg) border border-(--border-color) rounded-lg hover:bg-(--hover-bg) transition-colors shadow-md"
+            title="Search items (Ctrl+K)"
+          >
+            <Search className="w-5 h-5 text-(--text-secondary)" />
+          </button>
+
+          {/* Search Modal */}
+          {isSearchOpen && (
+            <div className="absolute inset-0 z-50 flex items-start justify-center pt-24 bg-black/20 backdrop-blur-sm">
+              <div className="w-96 max-h-96 bg-(--card-bg) border border-(--border-color) rounded-xl shadow-2xl overflow-hidden flex flex-col">
+                {/* Search Input */}
+                <div className="flex items-center gap-2 p-3 border-b border-(--border-color)">
+                  <Search className="w-4 h-4 text-(--text-secondary)" />
+                  <input
+                    autoFocus
+                    type="text"
+                    placeholder="Search items..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="flex-1 bg-transparent outline-none text-(--text-primary) placeholder-text-(--text-secondary) text-sm"
+                  />
+                  <button
+                    onClick={() => {
+                      setIsSearchOpen(false);
+                      setSearchQuery("");
+                    }}
+                    className="p-1 hover:bg-(--hover-bg) rounded transition-colors"
+                  >
+                    <X className="w-4 h-4 text-(--text-secondary)" />
+                  </button>
+                </div>
+
+                {/* Search Results */}
+                <div className="overflow-y-auto flex-1">
+                  {searchResults.length > 0 ? (
+                    <div className="p-2 space-y-1">
+                      {searchResults.map((item) => (
+                        <button
+                          key={item.id}
+                          onClick={() => handleSearchItemClick(item)}
+                          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-(--hover-bg) transition-colors group"
+                        >
+                          {/* Image/Preview Column */}
+                          <div className="flex-shrink-0 w-12 h-12 bg-(--hover-bg) rounded-md overflow-hidden flex items-center justify-center border border-(--border-color)">
+                            {item.type === "image" && item.content?.url ? (
+                              <img
+                                src={item.content.url}
+                                alt={item.name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : item.type === "link" || item.content?.url ? (
+                              <Link2 className="w-5 h-5 text-(--text-secondary)" />
+                            ) : item.type === "sticky" ? (
+                              <div
+                                className="w-full h-full"
+                                style={{
+                                  backgroundColor: item.color || "#fef08a",
+                                }}
+                              />
+                            ) : (
+                              <FileText className="w-5 h-5 text-(--text-secondary)" />
+                            )}
+                          </div>
+
+                          {/* Text Content */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-(--text-primary) truncate group-hover:text-blue-600">
+                              {item.name || "Untitled"}
+                            </p>
+                            <p className="text-xs text-(--text-secondary) truncate">
+                              {item.type === "link" || item.content?.url
+                                ? item.content?.url || "Link"
+                                : item.content?.text?.substring(0, 50) ||
+                                  item.type}
+                            </p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  ) : searchQuery.trim() ? (
+                    <div className="flex items-center justify-center h-32 text-(--text-secondary)">
+                      <p className="text-sm">
+                        No items found for "{searchQuery}"
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center h-32 text-(--text-secondary)">
+                      <p className="text-sm">Start typing to search items...</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {(isCanvasMetaLoading || isItemsLoading) && (
             <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 rounded-full border border-(--border-color) bg-(--card-bg)/95 px-3 py-1.5 text-xs text-(--text-secondary) shadow">
