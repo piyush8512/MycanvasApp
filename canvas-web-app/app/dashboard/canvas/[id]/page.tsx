@@ -64,6 +64,17 @@ interface CanvasItemsPagination {
   nextOffset: number | null;
 }
 
+interface ActiveCollaborator {
+  presenceKey?: string;
+  userId: string;
+  displayName?: string;
+  name?: string;
+  email?: string;
+  friendCode?: string;
+  role?: "OWNER" | "VIEWER" | "EDITOR";
+  idleMs?: number;
+}
+
 export default function CanvasEditorPage() {
   const { id } = useParams();
   const router = useRouter();
@@ -88,6 +99,15 @@ export default function CanvasEditorPage() {
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [onlineCollaborators, setOnlineCollaborators] = useState<
+    ActiveCollaborator[]
+  >([]);
+  const [allCollaborators, setAllCollaborators] = useState<
+    ActiveCollaborator[]
+  >([]);
+  const [isCollaborativeCanvas, setIsCollaborativeCanvas] = useState(false);
+  const [isCollabPanelExpanded, setIsCollabPanelExpanded] = useState(true);
+  const [collabTab, setCollabTab] = useState<"online" | "all">("online");
   const lastMousePos = useRef<Position>({ x: 0, y: 0 });
   const activeLoadIdRef = useRef(0);
   const adjustedImageItemsRef = useRef<Set<string>>(new Set());
@@ -233,6 +253,89 @@ export default function CanvasEditorPage() {
     [fetchItemsPage, canvasId],
   );
 
+  const fetchAllCanvasItems = useCallback(
+    async (token: string) => {
+      const allItems: CanvasItemType[] = [];
+      let offset = 0;
+
+      while (true) {
+        const { items, pagination } = await fetchItemsPage(token, offset);
+        if (items.length === 0) {
+          break;
+        }
+
+        allItems.push(...items);
+
+        if (!pagination?.hasMore || pagination.nextOffset == null) {
+          break;
+        }
+
+        offset = pagination.nextOffset;
+      }
+
+      return allItems;
+    },
+    [fetchItemsPage],
+  );
+
+  const refreshActiveCollaborators = useCallback(async () => {
+    if (!canvasId) return;
+
+    try {
+      const token = await getToken();
+      if (!token) return;
+
+      const res = await fetch(
+        `${API_URL}/canvas/${canvasId}/active-collaborators`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      if (!res.ok) {
+        return;
+      }
+
+      const payload = await res.json();
+      const data = payload?.data || {};
+
+      setIsCollaborativeCanvas(Boolean(data.isCollaborative));
+      setOnlineCollaborators(
+        (data.activeCollaborators || []) as ActiveCollaborator[],
+      );
+      setAllCollaborators(
+        (data.allCollaborators || []) as ActiveCollaborator[],
+      );
+    } catch (error) {
+      console.warn("Failed to refresh active collaborators:", error);
+    }
+  }, [canvasId, getToken, API_URL]);
+
+  const heartbeatPresence = useCallback(
+    async (active: boolean) => {
+      if (!canvasId) return;
+
+      try {
+        const token = await getToken();
+        if (!token) return;
+
+        await fetch(`${API_URL}/canvas/${canvasId}/presence`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ active }),
+        });
+      } catch (error) {
+        console.warn("Presence heartbeat failed:", error);
+      }
+    },
+    [canvasId, getToken, API_URL],
+  );
+
   // Fetch canvas data (first page first, then background pages)
   const fetchCanvas = useCallback(async () => {
     try {
@@ -302,6 +405,137 @@ export default function CanvasEditorPage() {
       fetchCanvas();
     }
   }, [isLoaded, canvasId, fetchCanvas]);
+
+  useEffect(() => {
+    if (!isLoaded || !canvasId) return;
+
+    let cancelled = false;
+
+    const refreshPresence = async () => {
+      if (cancelled) return;
+      await heartbeatPresence(true);
+      if (cancelled) return;
+      await refreshActiveCollaborators();
+    };
+
+    const heartbeatTimer = window.setInterval(refreshPresence, 5_000);
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        void refreshPresence();
+      }
+    };
+
+    const onFocus = () => {
+      void refreshPresence();
+    };
+
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("focus", onFocus);
+
+    void refreshPresence();
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(heartbeatTimer);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("focus", onFocus);
+      void heartbeatPresence(false);
+    };
+  }, [isLoaded, canvasId, heartbeatPresence, refreshActiveCollaborators]);
+
+  // Near-real-time collaboration sync: poll server and refresh on tab focus/visibility.
+  useEffect(() => {
+    if (!isLoaded || !canvasId) return;
+    if (!isCollaborativeCanvas || onlineCollaborators.length === 0) return;
+
+    let cancelled = false;
+    let inFlight = false;
+
+    const syncFromServer = async () => {
+      if (inFlight || cancelled || draggedItem || isPanning) {
+        return;
+      }
+
+      inFlight = true;
+      try {
+        const token = await getToken();
+        if (!token || cancelled) return;
+
+        const remoteItems = await fetchAllCanvasItems(token);
+        if (cancelled) return;
+
+        setCanvas((prev) => {
+          if (!prev || prev.id !== canvasId) return prev;
+
+          const localTempItems = prev.items.filter((item) =>
+            item.id.startsWith("temp-"),
+          );
+
+          const persistedItems = prev.items.filter(
+            (item) => !item.id.startsWith("temp-"),
+          );
+
+          const hasSameRemoteShape =
+            remoteItems.length === persistedItems.length &&
+            remoteItems.every((remote, index) => {
+              const current = persistedItems[index];
+              return (
+                current?.id === remote.id &&
+                current?.position?.x === remote.position?.x &&
+                current?.position?.y === remote.position?.y
+              );
+            });
+
+          if (hasSameRemoteShape) {
+            return prev;
+          }
+
+          return {
+            ...prev,
+            items: [...remoteItems, ...localTempItems],
+          };
+        });
+      } catch (error) {
+        console.warn("Realtime sync poll failed:", error);
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    const intervalId = window.setInterval(syncFromServer, 3000);
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        void syncFromServer();
+      }
+    };
+
+    const onFocus = () => {
+      void syncFromServer();
+    };
+
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("focus", onFocus);
+
+    void syncFromServer();
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [
+    isLoaded,
+    canvasId,
+    isCollaborativeCanvas,
+    onlineCollaborators.length,
+    getToken,
+    fetchAllCanvasItems,
+    draggedItem,
+    isPanning,
+  ]);
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -1340,6 +1574,114 @@ export default function CanvasEditorPage() {
             <Search className="w-5 h-5 text-(--text-secondary)" />
           </button>
 
+          <div className="absolute top-20 right-8 z-40 flex items-start gap-2">
+            <button
+              onClick={() => setIsCollabPanelExpanded((prev) => !prev)}
+              className="p-2 rounded-lg bg-(--card-bg) border border-(--border-color) shadow hover:bg-(--hover-bg) transition-colors"
+              title={
+                isCollabPanelExpanded
+                  ? "Collapse collaboration panel"
+                  : "Expand collaboration panel"
+              }
+            >
+              <ChevronRight
+                className={`w-4 h-4 text-(--text-secondary) transition-transform ${
+                  isCollabPanelExpanded ? "rotate-180" : "rotate-0"
+                }`}
+              />
+            </button>
+
+            {isCollabPanelExpanded && (
+              <div className="w-64 rounded-xl border border-(--border-color) bg-(--card-bg)/95 backdrop-blur-md shadow-md p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs uppercase tracking-wide text-(--text-secondary)">
+                    Collaboration
+                  </p>
+                  <span className="text-xs text-(--text-secondary)">
+                    {onlineCollaborators.length} online
+                  </span>
+                </div>
+
+                <div className="mb-2 flex items-center gap-1 rounded-lg bg-(--hover-bg) p-1">
+                  <button
+                    onClick={() => setCollabTab("online")}
+                    className={`flex-1 rounded-md px-2 py-1 text-xs transition-colors ${
+                      collabTab === "online"
+                        ? "bg-(--card-bg) text-(--text-primary)"
+                        : "text-(--text-secondary) hover:text-(--text-primary)"
+                    }`}
+                  >
+                    Online
+                  </button>
+                  <button
+                    onClick={() => setCollabTab("all")}
+                    className={`flex-1 rounded-md px-2 py-1 text-xs transition-colors ${
+                      collabTab === "all"
+                        ? "bg-(--card-bg) text-(--text-primary)"
+                        : "text-(--text-secondary) hover:text-(--text-primary)"
+                    }`}
+                  >
+                    Collaborators
+                  </button>
+                </div>
+
+                {!isCollaborativeCanvas ? (
+                  <p className="text-xs text-(--text-secondary)">
+                    Real-time sync activates when this canvas has collaborators.
+                  </p>
+                ) : collabTab === "online" &&
+                  onlineCollaborators.length === 0 ? (
+                  <p className="text-xs text-(--text-secondary)">
+                    No collaborator is active on this canvas right now.
+                  </p>
+                ) : collabTab === "all" && allCollaborators.length === 0 ? (
+                  <p className="text-xs text-(--text-secondary)">
+                    No collaborators added for this canvas yet.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {(collabTab === "online"
+                      ? onlineCollaborators
+                      : allCollaborators
+                    ).map((collab) => (
+                      <div
+                        key={
+                          collab.presenceKey ||
+                          `${collab.userId}-${collab.email || "u"}`
+                        }
+                        className="flex items-center justify-between rounded-lg border border-(--border-color) px-2 py-1.5"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm text-(--text-primary) truncate">
+                            {collab.displayName ||
+                              collab.name ||
+                              collab.friendCode ||
+                              collab.email ||
+                              "Collaborator"}
+                          </p>
+                          <p className="text-[11px] text-(--text-secondary)">
+                            {(collab.role || "VIEWER") +
+                              (collab.email ? ` • ${collab.email}` : "")}
+                          </p>
+                        </div>
+                        {collabTab === "online" ? (
+                          <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                            Online
+                          </span>
+                        ) : (
+                          <span className="text-[11px] text-(--text-secondary)">
+                            Listed
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Search Modal */}
           {isSearchOpen && (
             <div className="absolute inset-0 z-50 flex items-start justify-center pt-24 bg-black/20 backdrop-blur-sm">
@@ -1377,7 +1719,7 @@ export default function CanvasEditorPage() {
                           className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-(--hover-bg) transition-colors group"
                         >
                           {/* Image/Preview Column */}
-                          <div className="flex-shrink-0 w-12 h-12 bg-(--hover-bg) rounded-md overflow-hidden flex items-center justify-center border border-(--border-color)">
+                          <div className="shrink-0 w-12 h-12 bg-(--hover-bg) rounded-md overflow-hidden flex items-center justify-center border border-(--border-color)">
                             {item.type === "image" && item.content?.url ? (
                               <img
                                 src={item.content.url}

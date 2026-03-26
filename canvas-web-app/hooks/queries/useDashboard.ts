@@ -75,7 +75,10 @@ export function useDashboardItems() {
       }
       
       // Add canvases (those without a folder)
-      for (const canvas of canvases.filter(c => !c.folderId)) {
+      const accessibleFolderIds = new Set(folders.map((folder) => folder.id));
+      for (const canvas of canvases.filter(
+        (c) => !c.folderId || !accessibleFolderIds.has(c.folderId),
+      )) {
         itemsWithPositions.push({
           ...canvas,
           position: canvas.position || {

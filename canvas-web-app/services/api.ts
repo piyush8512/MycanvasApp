@@ -87,6 +87,37 @@ interface CanvasesResponse {
   }>;
 }
 
+interface SharedWithMeResponse {
+  success: boolean;
+  data: Array<{
+    id: string;
+    sharedAt: string;
+    folderId?: string | null;
+    fileId?: string | null;
+    folder?: {
+      id: string;
+      name: string;
+      positionX?: number | null;
+      positionY?: number | null;
+      createdAt: string;
+      updatedAt: string;
+      ownerId: string;
+    } | null;
+    file?: {
+      id: string;
+      name: string;
+      positionX?: number | null;
+      positionY?: number | null;
+      createdAt: string;
+      updatedAt: string;
+      ownerId: string;
+      folderId: string | null;
+      size?: number;
+      url?: string;
+    } | null;
+  }>;
+}
+
 interface CanvasResponse {
   success: boolean;
   message: string;
@@ -569,9 +600,10 @@ export const dashboardApi = {
    * Get all dashboard items (folders + root canvases)
    */
   getAll: async (): Promise<{ folders: Folder[]; canvases: Canvas[] }> => {
-    const [foldersResponse, canvasesResponse] = await Promise.all([
+    const [foldersResponse, canvasesResponse, sharedWithMeResponse] = await Promise.all([
       fetchApi<FoldersResponse>("/folders"),
       fetchApi<CanvasesResponse>("/canvas"),
+      fetchApi<SharedWithMeResponse>("/sharing/shared-with-me"),
     ]);
 
     // Transform folders from /folders response directly (no per-folder fetches)
@@ -613,7 +645,47 @@ export const dashboardApi = {
       itemCount: 0,
     }));
 
-    return { folders, canvases };
+    const folderMap = new Map(folders.map((folder) => [folder.id, folder]));
+    const canvasMap = new Map(canvases.map((canvas) => [canvas.id, canvas]));
+
+    for (const sharedItem of sharedWithMeResponse.data || []) {
+      if (sharedItem.folder && !folderMap.has(sharedItem.folder.id)) {
+        folderMap.set(sharedItem.folder.id, {
+          id: sharedItem.folder.id,
+          name: sharedItem.folder.name,
+          type: "folder",
+          position: {
+            x: sharedItem.folder.positionX || 0,
+            y: sharedItem.folder.positionY || 0,
+          },
+          createdAt: sharedItem.folder.createdAt,
+          updatedAt: sharedItem.folder.updatedAt,
+          isShared: true,
+          userId: sharedItem.folder.ownerId,
+          canvasFiles: [],
+        });
+      }
+
+      if (sharedItem.file && !canvasMap.has(sharedItem.file.id)) {
+        canvasMap.set(sharedItem.file.id, {
+          id: sharedItem.file.id,
+          name: sharedItem.file.name,
+          type: "canvas",
+          position: {
+            x: sharedItem.file.positionX || 0,
+            y: sharedItem.file.positionY || 0,
+          },
+          createdAt: sharedItem.file.createdAt,
+          updatedAt: sharedItem.file.updatedAt,
+          isShared: true,
+          userId: sharedItem.file.ownerId,
+          folderId: sharedItem.file.folderId,
+          itemCount: 0,
+        });
+      }
+    }
+
+    return { folders: Array.from(folderMap.values()), canvases: Array.from(canvasMap.values()) };
   },
 
   /**

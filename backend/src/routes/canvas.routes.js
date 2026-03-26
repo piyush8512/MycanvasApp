@@ -66,6 +66,8 @@ import {
   updateCanvas,
   deleteCanvas,
   getLinkPreview,
+  heartbeatCanvasPresence,
+  getActiveCanvasCollaborators,
 } from "../controllers/canvas.controller.js";
 
 const router = Router();
@@ -76,6 +78,12 @@ router.route("/").post(requireAuth, createCanvas); // Create a new canvas
 router.route("/").get(requireAuth, getAllCanvas); // Get all user's canvases (without folder)
 // GET /api/canvas/:id
 router.route("/:id").get(requireAuth, getCanvasDetails); // Get a single canvas's details
+// POST /api/canvas/:canvasId/presence
+router.route("/:canvasId/presence").post(requireAuth, heartbeatCanvasPresence);
+// GET /api/canvas/:canvasId/active-collaborators
+router
+  .route("/:canvasId/active-collaborators")
+  .get(requireAuth, getActiveCanvasCollaborators);
 // PATCH /api/canvas/:id
 router.route("/:id").patch(requireAuth, updateCanvas); // Update canvas (name, position)
 // DELETE /api/canvas/:id

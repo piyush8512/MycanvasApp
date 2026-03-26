@@ -380,6 +380,168 @@
 import prisma from "../config/prisma.js";
 import { extractLinkPreview } from "../utils/linkPreview.js";
 
+const PRESENCE_TTL_MS = 30_000;
+const presenceByCanvas = new Map();
+
+function prunePresence(canvasId) {
+  const now = Date.now();
+  const canvasPresence = presenceByCanvas.get(canvasId);
+  if (!canvasPresence) return;
+
+  for (const [presenceKey, info] of canvasPresence.entries()) {
+    if (now - info.lastSeen > PRESENCE_TTL_MS) {
+      canvasPresence.delete(presenceKey);
+    }
+  }
+
+  if (canvasPresence.size === 0) {
+    presenceByCanvas.delete(canvasId);
+  }
+}
+
+function getDisplayName(user) {
+  if (user?.name && user.name.trim().length > 0) {
+    return user.name.trim();
+  }
+
+  if (user?.email && user.email.includes("@")) {
+    return user.email.split("@")[0];
+  }
+
+  if (user?.friendCode) {
+    return user.friendCode;
+  }
+
+  return "Collaborator";
+}
+
+async function getCanvasCollaboratorMap(canvas) {
+  const collaboratorMap = new Map();
+
+  const fullCanvas = await prisma.file.findUnique({
+    where: { id: canvas.id },
+    include: {
+      owner: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          friendCode: true,
+        },
+      },
+      collaborators: {
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              friendCode: true,
+            },
+          },
+        },
+      },
+      folder: {
+        include: {
+          collaborators: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  friendCode: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!fullCanvas) {
+    return collaboratorMap;
+  }
+
+  collaboratorMap.set(fullCanvas.owner.id, {
+    userId: fullCanvas.owner.id,
+    displayName: getDisplayName(fullCanvas.owner),
+    name: fullCanvas.owner.name,
+    email: fullCanvas.owner.email,
+    friendCode: fullCanvas.owner.friendCode,
+    role: "OWNER",
+  });
+
+  for (const fileCollab of fullCanvas.collaborators) {
+    collaboratorMap.set(fileCollab.user.id, {
+      userId: fileCollab.user.id,
+      displayName: getDisplayName(fileCollab.user),
+      name: fileCollab.user.name,
+      email: fileCollab.user.email,
+      friendCode: fileCollab.user.friendCode,
+      role: fileCollab.role,
+    });
+  }
+
+  for (const folderCollab of fullCanvas.folder?.collaborators || []) {
+    if (!collaboratorMap.has(folderCollab.user.id)) {
+      collaboratorMap.set(folderCollab.user.id, {
+        userId: folderCollab.user.id,
+        displayName: getDisplayName(folderCollab.user),
+        name: folderCollab.user.name,
+        email: folderCollab.user.email,
+        friendCode: folderCollab.user.friendCode,
+        role: folderCollab.role,
+      });
+    }
+  }
+
+  return collaboratorMap;
+}
+
+async function getDbUserByClerkId(clerkId) {
+  if (!clerkId) return null;
+  return prisma.user.findUnique({ where: { clerkId } });
+}
+
+async function getCanvasAccess(canvasId, dbUserId) {
+  const canvas = await prisma.file.findUnique({
+    where: { id: canvasId },
+    include: {
+      collaborators: {
+        where: { userId: dbUserId },
+      },
+      folder: {
+        include: {
+          collaborators: {
+            where: { userId: dbUserId },
+          },
+        },
+      },
+    },
+  });
+
+  if (!canvas) {
+    return null;
+  }
+
+  const isOwner = canvas.ownerId === dbUserId;
+  const fileRole = canvas.collaborators[0]?.role;
+  const folderRole = canvas.folder?.collaborators?.[0]?.role;
+
+  const canView =
+    isOwner ||
+    fileRole === "VIEWER" ||
+    fileRole === "EDITOR" ||
+    folderRole === "VIEWER" ||
+    folderRole === "EDITOR";
+
+  const canEdit = isOwner || fileRole === "EDITOR" || folderRole === "EDITOR";
+
+  return { canvas, canView, canEdit };
+}
+
 //create canvas
 export const createCanvas = async (req, res) => {
   try {
@@ -540,14 +702,18 @@ export const getAllCanvas = async (req, res) => {
 export const getCanvasDetails = async (req, res) => {
   try {
     const canvasId = req.params.id; // Changed from .canvasId to .id to match route
+    const clerkId = req.auth.userId;
 
-    const canvas = await prisma.file.findUnique({
-      where: { id: canvasId },
-      // You can include owner details if needed
-      // include: {
-      //   owner: { select: { name: true, email: true } }
-      // }
-    });
+    const dbUser = await getDbUserByClerkId(clerkId);
+    if (!dbUser) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const access = await getCanvasAccess(canvasId, dbUser.id);
+    const canvas = access?.canvas;
 
     if (!canvas) {
       return res.status(404).json({
@@ -556,7 +722,12 @@ export const getCanvasDetails = async (req, res) => {
       });
     }
 
-    // TODO: Verify user has access to this canvas
+    if (!access?.canView) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have access to this canvas",
+      });
+    }
 
     res.status(200).json({
       success: true,
@@ -573,11 +744,174 @@ export const getCanvasDetails = async (req, res) => {
   }
 };
 
+export const heartbeatCanvasPresence = async (req, res) => {
+  try {
+    const { canvasId } = req.params;
+    const clerkId = req.auth.userId;
+
+    const dbUser = await getDbUserByClerkId(clerkId);
+    if (!dbUser) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const access = await getCanvasAccess(canvasId, dbUser.id);
+    if (!access?.canvas) {
+      return res.status(404).json({ success: false, message: "Canvas not found" });
+    }
+
+    if (!access.canView) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have access to this canvas",
+      });
+    }
+
+    const { active = true } = req.body || {};
+    const sessionId = req.auth?.sessionId || "default";
+    const presenceKey = `${dbUser.id}:${sessionId}`;
+
+    if (!presenceByCanvas.has(canvasId)) {
+      presenceByCanvas.set(canvasId, new Map());
+    }
+
+    const canvasPresence = presenceByCanvas.get(canvasId);
+
+    if (!active) {
+      canvasPresence.delete(presenceKey);
+      prunePresence(canvasId);
+      return res.status(200).json({ success: true });
+    }
+
+    canvasPresence.set(presenceKey, {
+      sessionId,
+      userId: dbUser.id,
+      name: dbUser.name,
+      email: dbUser.email,
+      friendCode: dbUser.friendCode,
+      lastSeen: Date.now(),
+    });
+    prunePresence(canvasId);
+
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    console.error("Failed to heartbeat canvas presence:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update presence",
+      error: error.message,
+    });
+  }
+};
+
+export const getActiveCanvasCollaborators = async (req, res) => {
+  try {
+    const { canvasId } = req.params;
+    const clerkId = req.auth.userId;
+
+    const dbUser = await getDbUserByClerkId(clerkId);
+    if (!dbUser) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const access = await getCanvasAccess(canvasId, dbUser.id);
+    if (!access?.canvas) {
+      return res.status(404).json({ success: false, message: "Canvas not found" });
+    }
+
+    if (!access.canView) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have access to this canvas",
+      });
+    }
+
+    const collaboratorMap = await getCanvasCollaboratorMap(access.canvas);
+    const sessionId = req.auth?.sessionId || "default";
+    const currentPresenceKey = `${dbUser.id}:${sessionId}`;
+    prunePresence(canvasId);
+
+    const canvasPresence = presenceByCanvas.get(canvasId) || new Map();
+    const now = Date.now();
+
+    const activeCollaborators = [];
+    const allCollaborators = [];
+
+    for (const [userId, collaborator] of collaboratorMap.entries()) {
+      if (userId === dbUser.id) continue;
+      allCollaborators.push(collaborator);
+    }
+    for (const [presenceKey, info] of canvasPresence.entries()) {
+      if (presenceKey === currentPresenceKey) continue;
+      const collaborator = collaboratorMap.get(info.userId);
+      if (!collaborator) continue;
+
+      activeCollaborators.push({
+        presenceKey,
+        ...collaborator,
+        displayName:
+          collaborator.displayName ||
+          getDisplayName({
+            name: collaborator.name || info.name,
+            email: collaborator.email || info.email,
+            friendCode: collaborator.friendCode || info.friendCode,
+          }),
+        name: collaborator.name || info.name,
+        email: collaborator.email || info.email,
+        friendCode: collaborator.friendCode || info.friendCode,
+        lastSeen: info.lastSeen,
+        idleMs: now - info.lastSeen,
+      });
+    }
+
+    const isCollaborative = collaboratorMap.size > 1;
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        isCollaborative,
+        allCollaborators,
+        activeCollaborators,
+        activeCount: activeCollaborators.length,
+      },
+    });
+  } catch (error) {
+    console.error("Failed to get active collaborators:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to get active collaborators",
+      error: error.message,
+    });
+  }
+};
+
 // This is your CORRECT function to get all items
 export const getCanvasItems = async (req, res) => {
   try {
     const { canvasId } = req.params;
     const clerkId = req.auth.userId;
+
+    const dbUser = await getDbUserByClerkId(clerkId);
+    if (!dbUser) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const access = await getCanvasAccess(canvasId, dbUser.id);
+    if (!access?.canvas) {
+      return res.status(404).json({
+        success: false,
+        message: "Canvas not found",
+      });
+    }
+
+    if (!access.canView) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have access to this canvas",
+      });
+    }
 
     const rawLimit = Number.parseInt(req.query.limit, 10);
     const rawOffset = Number.parseInt(req.query.offset, 10);
@@ -589,9 +923,6 @@ export const getCanvasItems = async (req, res) => {
     const offset = Number.isFinite(rawOffset)
       ? Math.max(rawOffset, 0)
       : 0;
-
-    // TODO: Add logic to verify user has access to this canvas
-    // For now, we just fetch all items for the canvas
 
     const [items, total] = await Promise.all([
       prisma.canvasItem.findMany({
@@ -654,22 +985,23 @@ export const createItem = async (req, res) => {
     } = req.body;
 
     // 1. Get the DB user (owner)
-    const dbUser = await prisma.user.findUnique({
-      where: { clerkId },
-    });
+    const dbUser = await getDbUserByClerkId(clerkId);
     if (!dbUser) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // 2. Find the parent canvas (which is a 'File')
-    const canvasFile = await prisma.file.findUnique({
-      where: { id: canvasId },
-    });
+    const access = await getCanvasAccess(canvasId, dbUser.id);
+    const canvasFile = access?.canvas;
     if (!canvasFile) {
       return res.status(404).json({ message: "Canvas not found" });
     }
 
-    // TODO: Check if user has permission to edit this canvas
+    if (!access?.canEdit) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have permission to edit this canvas",
+      });
+    }
 
     // 3. Create the new canvas item
     const newItem = await prisma.canvasItem.create({
@@ -705,7 +1037,7 @@ export const createItem = async (req, res) => {
  */
 export const updateItem = async (req, res) => {
   try {
-    const { itemId } = req.params;
+    const { canvasId, itemId } = req.params;
     const clerkId = req.auth.userId;
 
     // Get the data to update from the body
@@ -718,7 +1050,22 @@ export const updateItem = async (req, res) => {
       content,
     } = req.body;
 
-    // TODO: Verify user has permission to edit this item
+    const dbUser = await getDbUserByClerkId(clerkId);
+    if (!dbUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const access = await getCanvasAccess(canvasId, dbUser.id);
+    if (!access?.canvas) {
+      return res.status(404).json({ message: "Canvas not found" });
+    }
+
+    if (!access.canEdit) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have permission to edit this canvas",
+      });
+    }
 
     const updatedItem = await prisma.canvasItem.update({
       where: {
