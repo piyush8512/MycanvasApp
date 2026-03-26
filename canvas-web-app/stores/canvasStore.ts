@@ -4,7 +4,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Position, ViewMode, ToolType, DashboardItem } from "@/types/canvas";
+import type { Position, ViewMode, Tool, DashboardItem } from "@/types/canvas";
 import { MIN_ZOOM, MAX_ZOOM, CANVAS_MIN, CANVAS_MAX, CANVAS_SIZE } from "@/types/canvas";
 
 // ============================================================
@@ -24,7 +24,7 @@ interface CanvasState {
   
   // Mode state
   viewMode: ViewMode;
-  currentTool: ToolType;
+  currentTool: Tool;
   isPublic: boolean;
   
   // Expanded folders (for inline expansion)
@@ -61,7 +61,7 @@ interface CanvasActions {
   
   // Mode actions
   setViewMode: (mode: ViewMode) => void;
-  setCurrentTool: (tool: ToolType) => void;
+  setCurrentTool: (tool: Tool) => void;
   setIsPublic: (isPublic: boolean) => void;
   
   // Folder expansion
